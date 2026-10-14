@@ -1,0 +1,479 @@
+"""Layar guru: pilih murid, lalu buka/kunci tiap kursus dengan tombol ON/OFF."""
+
+import tkinter as tk
+
+from elearning import config as C
+from elearning import photos, sessions
+from elearning.courses import courses_for
+from elearning.students import (add_student, delete_student, list_students,
+                                lookup_student, rename_student, set_course_access)
+from elearning.ui.avatar import Avatar
+from elearning.ui.dialogs import ConfirmDialog, StudentDialog
+from elearning.ui.topbar import TopBar
+from elearning.ui.widgets import DarkScrollbar, ScrollFrame, Switch, add_hover
+
+PROGRAM_LABEL = {"adult": "Murid dewasa", "kids": "Murid anak"}
+CATEGORIES = ("adult", "kids")  # urutan kategori di sidebar kiri
+
+
+class TeacherScreen(tk.Frame):
+    def __init__(self, master, teacher, on_logout):
+        super().__init__(master, bg=C.BG)
+        TopBar(self, teacher, on_logout, title="Atur Akses Kursus").pack(fill="x")
+
+        body = tk.Frame(self, bg=C.BG, padx=32, pady=24)
+        body.pack(fill="both", expand=True)
+
+        # --- Kiri: daftar murid -------------------------------------------
+        left = tk.Frame(body, bg=C.CARD, width=270, highlightthickness=1,
+                        highlightbackground=C.BORDER)
+        left.pack(side="left", fill="y")
+        left.pack_propagate(False)
+        tk.Label(left, text="Murid", bg=C.CARD, fg=C.TEXT,
+                 font=(C.FONT, 13, "bold"), anchor="w").pack(
+                     fill="x", padx=18, pady=(16, 8))
+
+        self.students = list_students()
+        self.collapsed = set()   # kategori yang sedang dilipat
+        self._items = []         # isi listbox: ("header", program) atau ("student", id)
+        self.current_id = None   # murid yang sedang tampil di kanan
+
+        add_btn = tk.Button(left, text="+  Tambah murid", command=self._add_student,
+                            bg=C.ACCENT, fg="white", activebackground=C.ACCENT_HOVER,
+                            activeforeground="white", relief="flat", bd=0,
+                            highlightthickness=0, font=(C.FONT, 11, "bold"),
+                            cursor="hand2", pady=8)
+        add_btn.pack(side="bottom", fill="x", padx=18, pady=(0, 16))
+        add_hover(add_btn, C.ACCENT, C.ACCENT_HOVER)
+
+        list_wrap = tk.Frame(left, bg=C.CARD)
+        list_wrap.pack(fill="both", expand=True, padx=(8, 8), pady=(0, 12))
+        self.listbox = tk.Listbox(
+            list_wrap, bg=C.CARD, fg=C.TEXT, selectbackground=C.ACCENT,
+            selectforeground="white", activestyle="none", relief="flat",
+            highlightthickness=0, bd=0, font=(C.FONT, 11), exportselection=False)
+        self.list_sb = DarkScrollbar(list_wrap, command=self.listbox.yview, bg=C.CARD)
+        self.listbox.configure(yscrollcommand=self._on_list_scroll)
+        self.listbox.pack(side="left", fill="both", expand=True)
+        self.listbox.bind("<<ListboxSelect>>", self._on_select)
+
+        # --- Kanan: kursus murid terpilih ---------------------------------
+        self.right = tk.Frame(body, bg=C.BG)
+        self.right.pack(side="left", fill="both", expand=True, padx=(24, 0))
+
+        # Kepala: foto murid + nama + tombol foto
+        head = tk.Frame(self.right, bg=C.BG)
+        head.pack(fill="x", pady=(0, 6))
+        self.delete_btn = self._small_button(head, "Hapus murid", self._delete_student)
+        self.delete_btn.config(fg=C.ERROR, activeforeground=C.ERROR)
+        self.delete_btn.pack(side="right", anchor="n")
+        self.avatar = Avatar(head, "", "", size=84, bg=C.BG)
+        self.avatar.pack(side="left", padx=(0, 18))
+        col = tk.Frame(head, bg=C.BG)
+        col.pack(side="left", fill="x", expand=True)
+        self.name_lbl = tk.Label(col, text="", bg=C.BG, fg=C.TEXT,
+                                 font=(C.FONT, 20, "bold"), anchor="w")
+        self.name_lbl.pack(fill="x")
+        self.sub_lbl = tk.Label(
+            col, text="", bg=C.BG, fg=C.MUTED, font=(C.FONT, 11), anchor="w")
+        self.sub_lbl.pack(fill="x", pady=(2, 8))
+        btns = tk.Frame(col, bg=C.BG)
+        btns.pack(anchor="w")
+        self.rename_btn = self._small_button(btns, "Ubah nama…", self._rename_student)
+        self.rename_btn.pack(side="left")
+        self.photo_btn = self._small_button(btns, "Pilih foto…", self._choose_photo)
+        self.photo_btn.pack(side="left", padx=(8, 0))
+        self.photo_del_btn = self._small_button(btns, "Hapus foto", self._remove_photo)
+        self.photo_del_btn.pack(side="left", padx=(8, 0))
+
+        self.tab = "courses"   # tab yang sedang tampil: "courses" atau "history"
+        tabs = tk.Frame(self.right, bg=C.BG)
+        tabs.pack(fill="x", pady=(10, 0))
+        self.tab_btns = {}
+        for key, label in (("courses", "Akses Kursus"), ("history", "Riwayat Login")):
+            b = tk.Button(tabs, text=label, command=lambda k=key: self._set_tab(k),
+                          relief="flat", bd=0, highlightthickness=0, cursor="hand2",
+                          font=(C.FONT, 10, "bold"), padx=16, pady=6)
+            b.pack(side="left", padx=(0, 6))
+            self.tab_btns[key] = b
+        self._paint_tabs()
+        self.hint = tk.Label(self.right, text="", bg=C.BG, fg=C.MUTED,
+                             font=(C.FONT, 10), anchor="w")
+        self.hint.pack(fill="x", pady=(10, 12))
+
+        # Status dipasang dulu di bawah supaya selalu terlihat, sisanya untuk daftar kursus
+        self.status = tk.Label(self.right, text="", bg=C.BG, fg=C.MUTED,
+                               font=(C.FONT, 10), anchor="w")
+        self.status.pack(side="bottom", fill="x", pady=(8, 0))
+
+        self.scroll = ScrollFrame(self.right, bg=C.BG)  # daftar kursus bisa digulir
+        self.scroll.pack(fill="both", expand=True)
+        self.rows = self.scroll.inner
+
+        if self.students:
+            self.current_id = self.students[0]["id"]
+            self._rebuild_list()
+            self._show_student(self.current_id)
+        else:
+            self._show_student(None)
+
+    # --- sidebar kiri: murid per kategori ---------------------------------
+    def _on_list_scroll(self, first, last):
+        """Scrollbar sidebar hanya tampil kalau daftar lebih panjang dari area."""
+        self.list_sb.set(first, last)
+        if float(first) <= 0.0 and float(last) >= 1.0:
+            self.list_sb.pack_forget()
+        elif not self.list_sb.winfo_ismapped():
+            self.list_sb.pack(side="right", fill="y", padx=(6, 0), before=self.listbox)
+
+    def _rebuild_list(self, keep_scroll=True):
+        lb = self.listbox
+        top = lb.yview()[0]
+        lb.delete(0, "end")
+        self._items = []
+        for program in CATEGORIES:
+            group = [s for s in self.students if s["program"] == program]
+            if not group:
+                continue
+            folded = program in self.collapsed
+            lb.insert("end", f" {'▸' if folded else '▾'}  "
+                             f"{PROGRAM_LABEL[program].upper()}  ({len(group)})")
+            i = lb.size() - 1
+            lb.itemconfig(i, fg=C.MUTED, selectforeground=C.MUTED,
+                          selectbackground=C.CARD)  # judul: tidak ikut menyala saat diklik
+            self._items.append(("header", program))
+            if folded:
+                continue
+            for s in group:
+                lb.insert("end", f"      {s['id']}   {s['name']}")
+                self._items.append(("student", s["id"]))
+        self._select_current()
+        if keep_scroll:
+            lb.yview_moveto(top)
+
+    def _select_current(self):
+        self.listbox.selection_clear(0, "end")
+        for i, (kind, value) in enumerate(self._items):
+            if kind == "student" and value == self.current_id:
+                self.listbox.selection_set(i)
+                self.listbox.see(i)
+                return
+
+    def _on_select(self, _event):
+        sel = self.listbox.curselection()
+        if not sel:
+            return
+        kind, value = self._items[sel[0]]
+        if kind == "header":  # klik judul kategori = lipat / buka
+            if value in self.collapsed:
+                self.collapsed.discard(value)
+            else:
+                self.collapsed.add(value)
+            self._rebuild_list()
+            return
+        self.current_id = value
+        self._show_student(value)
+
+    def _show_student(self, student_id):
+        student = lookup_student(student_id) if student_id else None  # data terbaru dari file
+        self.status.config(text="")
+        if student is None:
+            self.name_lbl.config(text="Belum ada murid" if not self.students
+                                 else "Murid tidak ditemukan")
+            self.sub_lbl.config(text="")
+            self.avatar.set_student("", "")
+            self._update_photo_buttons()
+            self._render_tab()
+            return
+
+        self.avatar.set_student(student["id"], student["name"])
+        self._update_photo_buttons()
+        self.name_lbl.config(text=student["name"])
+        self.sub_lbl.config(text=f"{student['id']}  ·  "
+                                 f"{PROGRAM_LABEL.get(student['program'], '')}")
+        self._render_tab()
+
+    # --- tab: akses kursus / riwayat login --------------------------------------
+    def _paint_tabs(self):
+        for key, b in self.tab_btns.items():
+            on = key == self.tab
+            b.config(bg=C.ACCENT if on else C.CARD, fg="white" if on else C.MUTED,
+                     activebackground=C.ACCENT_HOVER if on else C.BORDER,
+                     activeforeground="white" if on else C.TEXT)
+
+    def _set_tab(self, key):
+        if key == self.tab:
+            return
+        self.tab = key
+        self._paint_tabs()
+        self._render_tab()
+
+    def _render_tab(self):
+        """Isi area kanan bawah sesuai tab untuk murid yang sedang dipilih."""
+        for w in self.rows.winfo_children():
+            w.destroy()
+        self.scroll.scroll_to_top()
+        student = lookup_student(self.current_id) if self.current_id else None
+        if student is None:
+            self.hint.config(text="")
+            return
+        if self.tab == "history":
+            self.hint.config(text="Kapan murid masuk dan keluar aplikasi, beserta lama belajarnya.")
+            self._build_history(student)
+        else:
+            self.hint.config(text="ON = kursus terbuka, OFF = terkunci. "
+                                  "Perubahan langsung tersimpan.")
+            allowed = set(student["courses"])
+            for course in courses_for(student["program"]):
+                self._build_row(student["id"], course, course["id"] in allowed)
+
+    def _build_history(self, student):
+        items = sessions.entries(student["id"])
+        total = sum(e["seconds"] for e in items)
+
+        # Ringkasan: total belajar, jumlah masuk, terakhir masuk
+        box = tk.Frame(self.rows, bg=C.CARD, highlightthickness=1,
+                       highlightbackground=C.BORDER)
+        box.pack(fill="x", pady=(0, 10))
+        last = (f"{sessions.format_date(items[0]['start'])}, "
+                f"{sessions.format_time(items[0]['start'])}") if items else "—"
+        for label, value in (("Total belajar", sessions.format_duration(total)),
+                             ("Jumlah masuk", f"{len(items)}x"),
+                             ("Terakhir masuk", last)):
+            cell = tk.Frame(box, bg=C.CARD, padx=18, pady=12)
+            cell.pack(side="left")
+            tk.Label(cell, text=label, bg=C.CARD, fg=C.MUTED, font=(C.FONT, 9),
+                     anchor="w").pack(fill="x")
+            tk.Label(cell, text=value, bg=C.CARD, fg=C.TEXT, font=(C.FONT, 13, "bold"),
+                     anchor="w").pack(fill="x")
+
+        if not items:
+            tk.Label(self.rows, text="Belum ada riwayat login. Riwayat tercatat sejak "
+                                     "murid ini masuk setelah pembaruan ini.",
+                     bg=C.BG, fg=C.MUTED, font=(C.FONT, 10), anchor="w",
+                     wraplength=460, justify="left").pack(fill="x", pady=8)
+            return
+
+        for e in items[:200]:
+            row = tk.Frame(self.rows, bg=C.CARD, highlightthickness=1,
+                           highlightbackground=C.BORDER)
+            row.pack(fill="x", pady=3)
+            dur = tk.Label(row, text=sessions.format_duration(e["seconds"]), bg=C.CARD,
+                           fg=C.ACCENT, font=(C.FONT, 12, "bold"), width=9, anchor="e")
+            dur.pack(side="right", padx=(8, 16))
+            info = tk.Frame(row, bg=C.CARD, padx=16, pady=9)
+            info.pack(side="left", fill="x", expand=True)
+            tk.Label(info, text=sessions.format_date(e["start"]), bg=C.CARD, fg=C.TEXT,
+                     font=(C.FONT, 11, "bold"), anchor="w").pack(fill="x")
+            tk.Label(info, text=self._time_range(e), bg=C.CARD, fg=C.MUTED,
+                     font=(C.FONT, 10), anchor="w").pack(fill="x")
+        if len(items) > 200:
+            tk.Label(self.rows, text=f"Menampilkan 200 dari {len(items)} catatan terbaru.",
+                     bg=C.BG, fg=C.MUTED, font=(C.FONT, 9), anchor="w").pack(fill="x", pady=6)
+
+    @staticmethod
+    def _time_range(e):
+        """'Masuk 09:15   Keluar 12:45' (tambah tanggal kalau keluarnya beda hari)."""
+        out = "sedang masuk"
+        if e["end"] is not None:
+            out = sessions.format_time(e["end"])
+            if e["end"].date() != e["start"].date():
+                out = f"{e['end'].day}/{e['end'].month} {out}"
+            if e["approx"]:
+                out = f"~{out} (aplikasi tidak ditutup normal)"
+        return f"Masuk {sessions.format_time(e['start'])}   ·   Keluar {out}"
+
+    # --- hapus murid ---------------------------------------------------------------
+    def _delete_student(self):
+        sid = self.current_id
+        student = lookup_student(sid) if sid else None
+        if student is None:
+            return
+        done = []
+
+        def confirm():
+            try:
+                delete_student(sid)
+            except ValueError as exc:
+                return str(exc)
+            done.append(True)
+            return None
+
+        ConfirmDialog(
+            self, "Hapus murid?",
+            f"{student['name']} ({sid}) akan dihapus. Akun, foto, dan riwayat login "
+            "murid ini ikut hilang dan tidak bisa dikembalikan.",
+            confirm, confirm_text="Hapus").wait_window()
+        if not done:  # dibatalkan
+            return
+        old_ids = [s["id"] for s in self.students]
+        pos = old_ids.index(sid) if sid in old_ids else 0
+        self.students = list_students()
+        if self.students:  # pilih murid yang tadinya tepat di bawahnya
+            self.current_id = self.students[min(pos, len(self.students) - 1)]["id"]
+        else:
+            self.current_id = None
+        self._rebuild_list(keep_scroll=False)
+        self._show_student(self.current_id)
+        self.status.config(text=f"Murid {sid} ({student['name']}) dihapus.", fg=C.MUTED)
+
+    # --- tambah murid & ubah nama ---------------------------------------------
+    def _add_student(self):
+        created = {}
+
+        def submit(name, program, sid):
+            try:
+                created.update(add_student(name, program, sid))
+            except ValueError as exc:
+                return str(exc)
+            return None
+
+        program = "adult"
+        cur = lookup_student(self.current_id) if self.current_id else None
+        if cur is not None:
+            program = cur["program"]   # kategori awal = kategori murid yang sedang dipilih
+        StudentDialog(self, "Tambah murid", submit, add=True, program=program,
+                      submit_text="Tambah").wait_window()
+        if not created:  # dibatalkan
+            return
+        self.students = list_students()
+        self.current_id = created["id"]
+        self.collapsed.discard(created["program"])  # pastikan kategorinya terbuka
+        self._rebuild_list(keep_scroll=False)
+        self._show_student(created["id"])
+        self.status.config(
+            text=f"Murid {created['id']} ({created['name']}) ditambahkan. "
+                 "Semua kursus masih terkunci: geser ON untuk membukanya.",
+            fg=C.MUTED)
+
+    def _rename_student(self):
+        sid = self.current_id
+        student = lookup_student(sid) if sid else None
+        if student is None:
+            return
+        done = {}
+
+        def submit(name, _program, _sid):
+            try:
+                done.update(rename_student(sid, name))
+            except ValueError as exc:
+                return str(exc)
+            return None
+
+        StudentDialog(self, f"Ubah nama {sid}", submit, add=False,
+                      name=student["name"], submit_text="Simpan").wait_window()
+        if not done:  # dibatalkan
+            return
+        self.students = list_students()
+        self._rebuild_list()
+        self._show_student(sid)
+        self.status.config(text=f"Nama {sid} diubah menjadi {done['name']}.", fg=C.MUTED)
+
+    # --- foto profil murid ---------------------------------------------------
+    @staticmethod
+    def _small_button(parent, text, command):
+        btn = tk.Button(parent, text=text, command=command, bg=C.CARD, fg=C.TEXT,
+                        activebackground=C.BORDER, activeforeground=C.TEXT,
+                        disabledforeground=C.LOCKED, relief="flat", bd=0,
+                        highlightthickness=0, font=(C.FONT, 10), cursor="hand2",
+                        padx=14, pady=5)
+        add_hover(btn, C.CARD, C.CARD_HOVER)
+        return btn
+
+    def _update_photo_buttons(self):
+        has = photos.has_photo(self.current_id) if self.current_id else False
+        self.photo_btn.config(state="normal" if self.current_id else "disabled")
+        self.rename_btn.config(state="normal" if self.current_id else "disabled")
+        self.delete_btn.config(state="normal" if self.current_id else "disabled")
+        self.photo_del_btn.config(state="normal" if has else "disabled")
+        self.photo_btn.config(text="Ganti foto…" if has else "Pilih foto…")
+
+    def _pick_image(self, title):
+        """Dialog pilih file bawaan Windows (lewat Tk, tanpa modul tambahan)."""
+        try:
+            result = self.tk.call(
+                "tk_getOpenFile", "-parent", str(self.winfo_toplevel()),
+                "-title", title, "-filetypes",
+                (("Gambar", (".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp")),
+                 ("Semua file", "*")))
+            return str(result).strip()
+        except Exception as exc:
+            C.log(f"Dialog pilih foto gagal: {exc!r}")
+            self.status.config(text="Dialog pilih file tidak bisa dibuka.", fg=C.ERROR)
+            return ""
+
+    def _choose_photo(self):
+        sid = self.current_id
+        if not sid:
+            return
+        path = self._pick_image(f"Pilih foto untuk {sid}")
+        if not path:  # dibatalkan
+            return
+        try:
+            photos.set_photo(sid, path)
+        except Exception as exc:
+            C.log(f"Gagal memasang foto {sid} dari {path!r}: {exc!r}")
+            self.status.config(
+                text="Foto tidak bisa dipakai. Pilih file JPG atau PNG yang tidak rusak.",
+                fg=C.ERROR)
+            return
+        if sid == self.current_id:
+            self.avatar.refresh()
+            self._update_photo_buttons()
+        self.status.config(text=f"Foto {sid} tersimpan (dipotong persegi dari tengah).",
+                           fg=C.MUTED)
+
+    def _remove_photo(self):
+        sid = self.current_id
+        if not sid:
+            return
+        try:
+            photos.remove_photo(sid)
+        except OSError as exc:
+            C.log(f"Gagal menghapus foto {sid}: {exc!r}")
+            self.status.config(text="Foto tidak bisa dihapus.", fg=C.ERROR)
+            return
+        self.avatar.refresh()
+        self._update_photo_buttons()
+        self.status.config(text=f"Foto {sid} dihapus.", fg=C.MUTED)
+
+    def _build_row(self, student_id, course, unlocked):
+        row = tk.Frame(self.rows, bg=C.CARD, highlightthickness=1,
+                       highlightbackground=C.BORDER)
+        row.pack(fill="x", pady=4)
+        tk.Frame(row, bg=course["color"], width=5).pack(side="left", fill="y")
+
+        info = tk.Frame(row, bg=C.CARD, padx=16, pady=10)
+        info.pack(side="left", fill="x", expand=True)
+        tk.Label(info, text=course["title"], bg=C.CARD, fg=C.TEXT,
+                 font=(C.FONT, 12, "bold"), anchor="w").pack(fill="x")
+        tk.Label(info, text=course["desc"], bg=C.CARD, fg=C.MUTED,
+                 font=(C.FONT, 9), anchor="w").pack(fill="x")
+
+        state = tk.Label(row, bg=C.CARD, font=(C.FONT, 10, "bold"), width=9)
+        self._paint_state(state, unlocked)
+
+        def on_change(new_value):
+            try:
+                set_course_access(student_id, course["id"], new_value)
+            except Exception as exc:
+                C.log(f"Gagal menyimpan akses {student_id}/{course['id']}: {exc!r}")
+                self.status.config(
+                    text="Gagal menyimpan. Pastikan folder data bisa ditulis.",
+                    fg=C.ERROR)
+                return False
+            self._paint_state(state, new_value)
+            self.status.config(
+                text=f"Tersimpan: {course['title']} untuk {student_id} "
+                     f"{'DIBUKA' if new_value else 'DIKUNCI'}.",
+                fg=C.MUTED)
+            return True
+
+        sw = Switch(row, value=unlocked, command=on_change, bg=C.CARD)
+        sw.pack(side="right", padx=(8, 18))
+        state.pack(side="right")
+
+    @staticmethod
+    def _paint_state(label, unlocked):
+        label.config(text="TERBUKA" if unlocked else "TERKUNCI",
+                     fg=C.ON if unlocked else C.LOCKED)
