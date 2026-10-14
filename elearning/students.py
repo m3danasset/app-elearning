@@ -19,6 +19,7 @@ import re
 from elearning import config as C
 from elearning import photos, sessions
 from elearning.courses import COURSES
+from elearning.admins import is_admin_id
 from elearning.teachers import is_teacher_id
 
 ADULT_ALL = ["basic-1", "basic-2", "intermediate-1", "intermediate-2",
@@ -169,6 +170,8 @@ def add_student(name, program, student_id=None):
         raise ValueError("ID hanya boleh huruf, angka, - atau _ (maksimal 20 karakter).")
     if is_teacher_id(sid):
         raise ValueError("ID tidak boleh diawali GURU (khusus akun guru).")
+    if is_admin_id(sid):
+        raise ValueError("ID tidak boleh diawali ADMIN (khusus akun admin).")
     if sid in data:
         raise ValueError(f"ID {sid} sudah dipakai murid lain.")
     data[sid] = {"name": name, "program": program, "courses": []}

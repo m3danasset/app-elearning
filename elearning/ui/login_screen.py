@@ -3,6 +3,7 @@
 import tkinter as tk
 
 from elearning import config as C
+from elearning.admins import check_admin, is_admin_id
 from elearning.students import lookup_student
 from elearning.teachers import check_teacher, is_teacher_id
 from elearning.ui.video_background import VideoBackground, find_video
@@ -10,10 +11,11 @@ from elearning.ui.widgets import add_hover
 
 
 class LoginScreen(tk.Frame):
-    def __init__(self, master, on_success, on_teacher=None):
+    def __init__(self, master, on_success, on_teacher=None, on_admin=None):
         super().__init__(master, bg=C.BG)
         self.on_success = on_success
         self.on_teacher = on_teacher
+        self.on_admin = on_admin
         self._build()
         self.winfo_toplevel().bind("<Return>", lambda e: self.do_login())
 
@@ -55,9 +57,9 @@ class LoginScreen(tk.Frame):
         entry.bind("<FocusOut>", lambda e: border.config(bg=C.BORDER))
         entry.focus_set()
 
-        # Kolom PIN: hanya muncul kalau yang diketik adalah ID guru (GURU...)
+        # Kolom PIN: hanya muncul kalau yang diketik adalah ID guru (GURU...) atau admin (ADMIN...)
         self.pin_box = tk.Frame(card, bg=C.CARD)
-        tk.Label(self.pin_box, text="PIN Guru", bg=C.CARD, fg=C.MUTED,
+        tk.Label(self.pin_box, text="PIN", bg=C.CARD, fg=C.MUTED,
                  font=(C.FONT, 10)).pack(anchor="w")
         pin_border = tk.Frame(self.pin_box, bg=C.BORDER, padx=1, pady=1)
         pin_border.pack(fill="x", pady=(6, 0))
@@ -97,7 +99,8 @@ class LoginScreen(tk.Frame):
             return None
 
     def _toggle_pin(self, *_):
-        if is_teacher_id(self.id_var.get()):
+        typed = self.id_var.get()
+        if is_teacher_id(typed) or is_admin_id(typed):
             if not self.pin_box.winfo_ismapped():
                 self.pin_box.pack(fill="x", pady=(14, 0), before=self.error_lbl)
         else:
@@ -110,18 +113,21 @@ class LoginScreen(tk.Frame):
             self.error_lbl.config(text="ID belum diisi.")
             return
 
-        if is_teacher_id(sid):
+        if is_admin_id(sid) or is_teacher_id(sid):
             if not self.pin_var.get():
-                self.error_lbl.config(text="Masukkan PIN guru.")
+                self.error_lbl.config(text="Masukkan PIN.")
                 self.pin_entry.focus_set()
                 return
-            teacher = check_teacher(sid, self.pin_var.get())
-            if teacher is None:
+            if is_admin_id(sid):
+                account, handler = check_admin(sid, self.pin_var.get()), self.on_admin
+            else:
+                account, handler = check_teacher(sid, self.pin_var.get()), self.on_teacher
+            if account is None:
                 self.error_lbl.config(text="ID atau PIN salah.")
                 self.pin_var.set("")
                 return
-            if self.on_teacher is not None:
-                self.on_teacher(teacher)
+            if handler is not None:
+                handler(account)
             return
 
         student = lookup_student(sid)

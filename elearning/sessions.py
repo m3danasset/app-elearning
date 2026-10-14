@@ -15,6 +15,7 @@ from elearning import config as C
 
 FMT = "%Y-%m-%d %H:%M:%S"
 MAX_KEEP = 5000          # simpan paling banyak sekian catatan terbaru
+ONLINE_WINDOW = 150      # detik; sesi terbuka dianggap aktif kalau denyutnya sesegar ini
 _current = None          # (id, jam masuk) sesi yang sedang terbuka di jalankan ini
 
 _DAYS = ("Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min")
@@ -154,6 +155,41 @@ def entries(student_id):
                     "seconds": seconds, "active": active, "approx": approx})
     out.sort(key=lambda e: e["start"], reverse=True)
     return out
+
+
+def overview(ids=None):
+    """Ringkasan aktivitas per ID (murid maupun guru), dipakai Panel Admin.
+
+    Mengembalikan {id: {count, total, last_in, last_seen, online}}. ID yang belum
+    pernah masuk tidak ada di hasil. 'online' = ada sesi terbuka yang denyutnya
+    (diperbarui tiap menit) masih baru, jadi hanya akurat kalau aplikasi yang sedang
+    dipakai murid/guru menulis ke file data yang sama dengan yang dibaca admin.
+    """
+    now = datetime.now()
+    wanted = None if ids is None else set(ids)
+    result = {}
+    for r in _read():
+        rid = r["id"]
+        if wanted is not None and rid not in wanted:
+            continue
+        start_dt = _parse(r["in"])
+        last_dt = _parse(r.get("last")) or start_dt
+        end_dt = _parse(r.get("out")) if r.get("out") else None
+        seen = end_dt or last_dt
+        active = _is_current(r) or (
+            r.get("out") is None
+            and (now - last_dt).total_seconds() <= ONLINE_WINDOW)
+        s = result.setdefault(rid, {"count": 0, "total": 0, "last_in": None,
+                                    "last_seen": None, "online": False})
+        s["count"] += 1
+        s["total"] += max(0, int((seen - start_dt).total_seconds()))
+        if s["last_in"] is None or start_dt > s["last_in"]:
+            s["last_in"] = start_dt
+        if s["last_seen"] is None or seen > s["last_seen"]:
+            s["last_seen"] = seen
+        if active:
+            s["online"] = True
+    return result
 
 
 def format_duration(seconds):

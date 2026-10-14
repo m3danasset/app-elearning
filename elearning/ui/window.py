@@ -8,6 +8,7 @@ from elearning.ui.login_screen import LoginScreen
 from elearning.ui.home_screen import HomeScreen
 from elearning.ui.course_screen import CourseScreen
 from elearning.ui.teacher_screen import TeacherScreen
+from elearning.ui.admin_screen import AdminScreen
 
 
 class App(tk.Tk):
@@ -50,6 +51,13 @@ class App(tk.Tk):
         sessions.start(student["id"])
         self.show_home(student)
 
+    def login_teacher(self, teacher):
+        sessions.start(teacher["id"])   # aktivitas guru dicatat supaya admin bisa memantau
+        self.show_teacher(teacher)
+
+    def login_admin(self, admin):
+        self.show_admin(admin)          # login admin tidak dicatat
+
     def logout(self):
         sessions.end()
         self.show_login()
@@ -67,7 +75,8 @@ class App(tk.Tk):
 
     def show_login(self):
         self._show(LoginScreen(self, on_success=self.login_student,
-                               on_teacher=self.show_teacher))
+                               on_teacher=self.login_teacher,
+                               on_admin=self.login_admin))
 
     def show_home(self, student):
         self._show(HomeScreen(
@@ -77,6 +86,9 @@ class App(tk.Tk):
 
     def show_teacher(self, teacher):
         self._show(TeacherScreen(self, teacher, on_logout=self.logout))
+
+    def show_admin(self, admin):
+        self._show(AdminScreen(self, admin, on_logout=self.logout))
 
     def show_course(self, student, course):
         self._show(CourseScreen(
