@@ -16,6 +16,12 @@ if not exist "dist\assets\video" (
   xcopy "%CD%\assets\video" "%CD%\dist\assets\video" /E /I /Y /Q >nul
   if errorlevel 1 goto gagal
 )
+rem Logo layar login: disalin tiap update (kecil), supaya logo baru langsung dipakai
+if exist "assets\logo.png" (
+  if not exist "dist\assets" mkdir "dist\assets"
+  copy /y "%CD%\assets\logo.png" "%CD%\dist\assets\logo.png" >nul
+  if errorlevel 1 goto gagal
+)
 if /i not "%1"=="nopause" (
   echo.
   echo SELESAI. dist\ sudah diperbarui. Tidak perlu build ulang.
