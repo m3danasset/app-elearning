@@ -32,12 +32,14 @@ class LoginScreen(tk.Frame):
                         highlightbackground=C.BORDER, padx=40, pady=34)
         card.place(relx=0.5, rely=0.5, anchor="center")
 
-        tk.Label(card, text="B", bg=C.ACCENT, fg="white",
-                 font=(C.FONT, 26, "bold"), width=2).pack(pady=(0, 14))
-        tk.Label(card, text=C.APP_NAME, bg=C.CARD, fg=C.TEXT,
-                 font=(C.FONT, 20, "bold")).pack()
+        self._logo_img = self._load_logo(width=270)
+        if self._logo_img is not None:
+            tk.Label(card, image=self._logo_img, bg=C.CARD, bd=0).pack(pady=(0, 14))
+        else:  # logo tidak ada / gagal dibuka: pakai teks nama aplikasi
+            tk.Label(card, text=C.APP_NAME, bg=C.CARD, fg=C.TEXT,
+                     font=(C.FONT, 20, "bold")).pack(pady=(0, 4))
         tk.Label(card, text="Masuk untuk mulai belajar", bg=C.CARD,
-                 fg=C.MUTED, font=(C.FONT, 11)).pack(pady=(4, 22))
+                 fg=C.MUTED, font=(C.FONT, 11)).pack(pady=(0, 22))
 
         tk.Label(card, text="ID Siswa / Guru", bg=C.CARD, fg=C.MUTED,
                  font=(C.FONT, 10)).pack(anchor="w")
@@ -81,6 +83,18 @@ class LoginScreen(tk.Frame):
                         font=(C.FONT, 12, "bold"), cursor="hand2")
         btn.pack(fill="x", pady=(14, 0), ipady=9)
         add_hover(btn, C.ACCENT, C.ACCENT_HOVER)
+
+    def _load_logo(self, width):
+        """Muat assets\\logo.png (PNG transparan) dan kecilkan ke lebar tertentu."""
+        try:
+            from PIL import Image, ImageTk
+            img = Image.open(C.resource_path("assets", "logo.png")).convert("RGBA")
+            height = round(img.height * width / img.width)
+            img = img.resize((width, height), Image.LANCZOS)
+            return ImageTk.PhotoImage(img)
+        except Exception as e:
+            C.log(f"Logo login tidak bisa dimuat: {e}")
+            return None
 
     def _toggle_pin(self, *_):
         if is_teacher_id(self.id_var.get()):
