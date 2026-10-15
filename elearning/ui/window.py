@@ -11,6 +11,7 @@ from elearning.ui.home_screen import HomeScreen
 from elearning.ui.course_screen import CourseScreen
 from elearning.ui.teacher_screen import TeacherScreen
 from elearning.ui.admin_screen import AdminScreen
+from elearning.ui.floating import BlenderFloat
 
 
 class App(tk.Tk):
@@ -33,6 +34,7 @@ class App(tk.Tk):
         self._center(1000, 640)
 
         self._screen = None
+        self.blender_float = BlenderFloat(self)   # ikon mengambang saat Blender terbuka (murid)
         self.protocol("WM_DELETE_WINDOW", self._close)   # tutup jendela = murid keluar
         self.after(60_000, self._beat)
         self.show_login()
@@ -111,12 +113,14 @@ class App(tk.Tk):
         self.after(60_000, self._beat)
 
     def _close(self):
+        self.blender_float.stop()
         sessions.end()
         self.destroy()
 
     def login_student(self, student):
         if not is_trial(student):   # akun trial dipakai bersama, tidak dicatat
             sessions.start(student["id"])
+        self.blender_float.start()   # ikon mengambang saat Blender terbuka (semua murid)
         self.show_home(student)
 
     def login_teacher(self, teacher):
@@ -127,6 +131,7 @@ class App(tk.Tk):
         self.show_admin(admin)          # login admin tidak dicatat
 
     def logout(self):
+        self.blender_float.stop()
         sessions.end()
         self.show_login()
 

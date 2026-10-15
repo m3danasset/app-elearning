@@ -3,7 +3,7 @@
 import tkinter as tk
 
 from elearning import config as C
-from elearning import portfolio
+from elearning import blender_icon, blender_launcher, portfolio
 from elearning.courses import courses_for
 from elearning.trial import is_trial
 from elearning.ui.avatar import Avatar
@@ -139,6 +139,8 @@ class CourseScreen(tk.Frame):
         for c in courses_for(st["program"]):
             self._build_course_item(c, c["id"] in allowed)
 
+        self._build_blender_item()   # semua murid: trial, superkids, dewasa
+
         if is_trial(st):   # calon murid: tidak ada portfolio
             return
 
@@ -185,6 +187,61 @@ class CourseScreen(tk.Frame):
             lbl.bind("<Leave>", lambda e: (lbl.config(bg=C.CARD),
                                            row.config(bg=C.CARD)))
 
+    # --- tombol Blender (semua murid: trial, superkids, dewasa) --------------
+    def _open_blender(self):
+        app = self.winfo_toplevel()
+        if blender_launcher.open_blender(app):
+            ctl = getattr(app, "blender_float", None)
+            if ctl is not None:   # Blender terbuka -> aplikasi mengecil jadi ikon mengambang
+                ctl.enter()
+
+    def _blender_icon(self, parent, bg, size):
+        """Ikon Blender (gambar) berukuran size x size; cadangan: lingkaran oranye."""
+        photo = blender_icon.get_photo(size)
+        if photo is not None:
+            lbl = tk.Label(parent, image=photo, bg=bg, bd=0, highlightthickness=0,
+                           cursor="hand2")
+            lbl.image = photo   # simpan referensi supaya gambar tidak hilang
+            return lbl
+        cv = tk.Canvas(parent, width=size, height=size, bg=bg, highlightthickness=0,
+                       bd=0, cursor="hand2")
+        cv.create_oval(1, 1, size - 1, size - 1, fill=C.ACCENT, outline=C.ACCENT)
+        m = size * 0.27
+        cv.create_oval(m, m, size - m, size - m, fill=C.ACCENT, outline="white", width=2)
+        c = size / 2
+        cv.create_oval(c - 2, c - 2, c + 2, c + 2, fill="white", outline="white")
+        return cv
+
+    def _bind_blender_click(self, widgets, hover_targets, normal, hover):
+        def set_bg(color):
+            for w in hover_targets:
+                w.config(bg=color)
+        for w in widgets:
+            w.bind("<Button-1>", lambda e: self._open_blender())
+            w.bind("<Enter>", lambda e: set_bg(hover))
+            w.bind("<Leave>", lambda e: set_bg(normal))
+
+    def _build_blender_item(self):
+        tk.Label(self.sidebar, text="BLENDER", bg=C.CARD, fg=C.MUTED, anchor="w",
+                 font=(C.FONT, 9, "bold")).pack(fill="x", padx=20, pady=(14, 4))
+        row = tk.Frame(self.sidebar, bg=C.CARD)
+        row.pack(fill="x", padx=10, pady=1)
+        tk.Frame(row, bg=C.ACCENT, width=4).pack(side="left", fill="y")
+        icon = self._blender_icon(row, C.CARD, blender_icon.SIZE_EXPANDED)
+        icon.pack(side="left", padx=(12, 0), pady=6)
+        lbl = tk.Label(row, text=f"Buka Blender {blender_launcher.VERSION}", bg=C.CARD,
+                       fg=C.TEXT, anchor="w", padx=10, pady=8, font=(C.FONT, 10),
+                       cursor="hand2")
+        lbl.pack(side="left", fill="x", expand=True)
+        self._bind_blender_click((row, icon, lbl), (row, icon, lbl), C.CARD, C.CARD_HOVER)
+
+    def _build_blender_icon_only(self):
+        holder = tk.Frame(self.sidebar, bg=C.CARD)
+        holder.pack(fill="x", padx=14, pady=(18, 0))
+        icon = self._blender_icon(holder, C.CARD, blender_icon.SIZE_COLLAPSED)
+        icon.pack(pady=4)
+        self._bind_blender_click((holder, icon), (holder, icon), C.CARD, C.CARD_HOVER)
+
     def _build_collapsed(self):
         sb, st = self.sidebar, self.student
 
@@ -195,6 +252,7 @@ class CourseScreen(tk.Frame):
         self._flat_button(sb, "»", self._toggle_sidebar, font_size=14,
                           fill="x", padx=14, pady=(14, 6))
         Avatar(sb, st["id"], st["name"], size=44, bg=C.CARD).pack(pady=(8, 0))
+        self._build_blender_icon_only()   # semua murid
         if is_trial(st):
             return
         on = self.view == "portfolio"
