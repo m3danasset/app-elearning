@@ -39,6 +39,8 @@ ICON_PATH = resource_path("assets", "icon.ico")
 # kapan saja tanpa build ulang: <folder .exe>\assets\video\
 VIDEO_DIR = os.path.join(APP_DIR, "assets", "video")
 VIDEO_DIM = 0.45  # 1.0 = terang asli, makin kecil makin gelap (biar kartu login terbaca)
+# Video pelajaran, DI LUAR .exe juga: <folder .exe>\assets\lessons\<id kursus>\01.mp4, 02.mp4, ...
+LESSON_DIR = os.path.join(APP_DIR, "assets", "lessons")
 LOG_PATH = os.path.join(APP_DIR, "app.log")
 
 # Data yang diubah guru (kursus yang dibuka tiap murid). Disimpan DI LUAR .exe dan
@@ -47,6 +49,7 @@ DATA_DIR = os.path.join(APP_DIR, "data")
 STUDENTS_FILE = os.path.join(DATA_DIR, "students.json")
 PHOTO_DIR = os.path.join(DATA_DIR, "photos")  # foto profil murid: <ID>.png
 SESSIONS_FILE = os.path.join(DATA_DIR, "sessions.json")  # riwayat masuk/keluar murid
+REPORTS_FILE = os.path.join(DATA_DIR, "reports.json")    # laporan kerja guru (dilihat admin)
 
 
 def log(msg):

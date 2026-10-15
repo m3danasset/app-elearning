@@ -20,7 +20,7 @@ CATEGORIES = ("adult", "kids")  # urutan kategori di sidebar kiri
 
 
 class TeacherScreen(tk.Frame):
-    def __init__(self, master, teacher, on_logout):
+    def __init__(self, master, teacher, on_logout, on_reports=None):
         super().__init__(master, bg=C.BG)
         TopBar(self, teacher, on_logout, title="Atur Akses Kursus").pack(fill="x")
 
@@ -41,12 +41,21 @@ class TeacherScreen(tk.Frame):
         self._items = []         # isi listbox: ("header", program) atau ("student", id)
         self.current_id = None   # murid yang sedang tampil di kanan
 
+        if on_reports is not None:   # dipasang paling bawah, di bawah tombol Tambah murid
+            rep_btn = tk.Button(left, text="Laporan Kerja  →", command=on_reports,
+                                bg=C.CARD, fg=C.TEXT, activebackground=C.BORDER,
+                                activeforeground=C.TEXT, relief="flat", bd=0,
+                                highlightthickness=1, highlightbackground=C.BORDER,
+                                font=(C.FONT, 11), cursor="hand2", pady=8)
+            rep_btn.pack(side="bottom", fill="x", padx=18, pady=(0, 16))
+            add_hover(rep_btn, C.CARD, C.CARD_HOVER)
+
         add_btn = tk.Button(left, text="+  Tambah murid", command=self._add_student,
                             bg=C.ACCENT, fg="white", activebackground=C.ACCENT_HOVER,
                             activeforeground="white", relief="flat", bd=0,
                             highlightthickness=0, font=(C.FONT, 11, "bold"),
                             cursor="hand2", pady=8)
-        add_btn.pack(side="bottom", fill="x", padx=18, pady=(0, 16))
+        add_btn.pack(side="bottom", fill="x", padx=18, pady=(0, 10))
         add_hover(add_btn, C.ACCENT, C.ACCENT_HOVER)
 
         list_wrap = tk.Frame(left, bg=C.CARD)

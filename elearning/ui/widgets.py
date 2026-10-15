@@ -113,6 +113,8 @@ class ScrollFrame(tk.Frame):
     daripada area yang tersedia.
     """
 
+    _wheel_owner = None   # ScrollFrame yang sedang memegang roda mouse
+
     def __init__(self, master, bg=C.BG):
         super().__init__(master, bg=bg)
         self.canvas = tk.Canvas(self, bg=bg, highlightthickness=0, bd=0,
@@ -126,6 +128,7 @@ class ScrollFrame(tk.Frame):
         self.inner.bind("<Configure>", self._on_inner)
         self.canvas.bind("<Configure>", self._on_canvas)
         self.bind_all("<MouseWheel>", self._on_wheel)
+        ScrollFrame._wheel_owner = self
 
     def _needs_scroll(self):
         return self.inner.winfo_reqheight() > self.canvas.winfo_height()
@@ -163,8 +166,13 @@ class ScrollFrame(tk.Frame):
         self.canvas.yview_moveto(0)
 
     def destroy(self):
-        try:
-            self.unbind_all("<MouseWheel>")
-        except Exception:
-            pass
+        # Layar baru dibuat SEBELUM layar lama dihancurkan. Kalau layar lama ikut
+        # melepas binding, roda mouse di layar baru mati; jadi lepas hanya kalau
+        # binding itu masih milik frame ini.
+        if ScrollFrame._wheel_owner is self:
+            ScrollFrame._wheel_owner = None
+            try:
+                self.unbind_all("<MouseWheel>")
+            except Exception:
+                pass
         super().destroy()

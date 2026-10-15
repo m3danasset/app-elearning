@@ -10,6 +10,7 @@ from elearning.ui.login_screen import LoginScreen
 from elearning.ui.home_screen import HomeScreen
 from elearning.ui.course_screen import CourseScreen
 from elearning.ui.teacher_screen import TeacherScreen
+from elearning.ui.report_screen import ReportScreen
 from elearning.ui.admin_screen import AdminScreen
 from elearning.ui.floating import BlenderFloat
 
@@ -158,7 +159,15 @@ class App(tk.Tk):
             on_logout=self.logout))
 
     def show_teacher(self, teacher):
-        self._show(TeacherScreen(self, teacher, on_logout=self.logout))
+        self._show(TeacherScreen(
+            self, teacher, on_logout=self.logout,
+            on_reports=lambda: self.show_teacher_reports(teacher)))
+
+    def show_teacher_reports(self, teacher):
+        self._show(ReportScreen(
+            self, teacher,
+            on_back=lambda: self.show_teacher(teacher),
+            on_logout=self.logout))
 
     def show_admin(self, admin):
         self._show(AdminScreen(self, admin, on_logout=self.logout))

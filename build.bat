@@ -1,6 +1,6 @@
 @echo off
 cd /d "%~dp0"
-echo === Memasang kebutuhan (PyInstaller, OpenCV, Pillow) ===
+echo === Memasang kebutuhan (PyInstaller, OpenCV, Pillow, python-mpv) ===
 python -m pip install --upgrade pyinstaller -r requirements.txt
 if errorlevel 1 goto gagal
 echo.
@@ -10,6 +10,8 @@ python -m PyInstaller --onefile --windowed --noconfirm --clean ^
   --icon "%CD%\assets\icon.ico" ^
   --add-data "%CD%\assets\icon.ico;assets" ^
   --hidden-import PIL._tkinter_finder ^
+  --hidden-import mpv ^
+  --hidden-import ctypes.util ^
   --specpath "%CD%\build" ^
   --workpath "%CD%\build\work" ^
   --distpath "%CD%\dist" ^

@@ -1,13 +1,16 @@
-"""Panel admin: memantau aktivitas guru dan murid, serta mengatur status murid (active / expired)."""
+"""Panel admin: memantau aktivitas guru dan murid, melihat laporan kerja guru, serta
+mengatur status murid (active / expired)."""
 
 import tkinter as tk
 
 from elearning import config as C
-from elearning import sessions
+from elearning import reports, sessions
 from elearning.students import (STATUS_ACTIVE, STATUS_EXPIRED, STATUS_LABEL,
                                 list_students, set_status)
 from elearning.teachers import TEACHERS
 from elearning.ui.avatar import Avatar
+from elearning.ui.report_widgets import (PeriodBar, PortfolioSummary, ReportCard,
+                                         empty_note, section_title)
 from elearning.ui.topbar import TopBar
 from elearning.ui.widgets import ScrollFrame, add_hover
 
@@ -32,7 +35,8 @@ class AdminScreen(tk.Frame):
         bar = tk.Frame(body, bg=C.BG)
         bar.pack(fill="x")
         self.tab_btns = {}
-        for key, label in (("students", "Murid"), ("teachers", "Guru")):
+        for key, label in (("students", "Murid"), ("teachers", "Guru"),
+                           ("reports", "Laporan Guru")):
             b = tk.Button(bar, text=label, command=lambda k=key: self._set_tab(k),
                           relief="flat", bd=0, highlightthickness=0, cursor="hand2",
                           font=(C.FONT, 10, "bold"), padx=16, pady=6)
@@ -50,17 +54,40 @@ class AdminScreen(tk.Frame):
                                 font=(C.FONT, 10), anchor="w")
         self.summary.pack(fill="x", pady=(12, 10))
 
-        header = tk.Frame(body, bg=C.BG, padx=14)
-        header.pack(fill="x")
-        self._configure_columns(header)
+        self.header = tk.Frame(body, bg=C.BG, padx=14)   # judul kolom (tab Murid / Guru)
+        self.header.pack(fill="x")
+        self._configure_columns(self.header)
         for i, (title, _w) in enumerate(COLUMNS):
-            tk.Label(header, text=title, bg=C.BG, fg=C.MUTED, anchor="w",
+            tk.Label(self.header, text=title, bg=C.BG, fg=C.MUTED, anchor="w",
                      font=(C.FONT, 9, "bold")).grid(row=0, column=i, sticky="w")
+
+        # Filter laporan (tab Laporan Guru): periode + guru
+        self.rbar = tk.Frame(body, bg=C.BG)
+        tk.Label(self.rbar, text="Periode", bg=C.BG, fg=C.MUTED,
+                 font=(C.FONT, 10)).pack(side="left", padx=(0, 10))
+        self.period = PeriodBar(self.rbar, on_change=self.refresh, key="7d")
+        self.period.pack(side="left")
+        tk.Label(self.rbar, text="Guru", bg=C.BG, fg=C.MUTED,
+                 font=(C.FONT, 10)).pack(side="left", padx=(24, 10))
+        self.ALL_TEACHERS = "Semua guru"
+        self.teacher_ids = {self.ALL_TEACHERS: None}
+        for tid, d in sorted(TEACHERS.items()):
+            self.teacher_ids[f"{d['name']}  ({tid})"] = tid
+        self.teacher_var = tk.StringVar(value=self.ALL_TEACHERS)
+        menu = tk.OptionMenu(self.rbar, self.teacher_var, *self.teacher_ids,
+                             command=lambda _v: self.refresh())
+        menu.config(bg=C.CARD, fg=C.TEXT, activebackground=C.BORDER,
+                    activeforeground=C.TEXT, relief="flat", bd=0,
+                    highlightthickness=0, font=(C.FONT, 10), cursor="hand2")
+        menu["menu"].config(bg=C.CARD, fg=C.TEXT, activebackground=C.ACCENT,
+                            activeforeground="white", font=(C.FONT, 10), bd=0)
+        menu.pack(side="left")
 
         self.scroll = ScrollFrame(body, bg=C.BG)
         self.scroll.pack(fill="both", expand=True, pady=(6, 0))
 
         self._paint_tabs()
+        self._layout_tab()
         self.refresh()
 
     # --- tab -----------------------------------------------------------------
@@ -73,11 +100,21 @@ class AdminScreen(tk.Frame):
                 b.config(bg=C.CARD, fg=C.MUTED, activebackground=C.BORDER,
                          activeforeground=C.TEXT)
 
+    def _layout_tab(self):
+        """Tab Murid / Guru memakai judul kolom; tab Laporan Guru memakai bar filter."""
+        if self.tab == "reports":
+            self.header.pack_forget()
+            self.rbar.pack(fill="x", before=self.scroll)
+        else:
+            self.rbar.pack_forget()
+            self.header.pack(fill="x", before=self.scroll)
+
     def _set_tab(self, key):
         if key == self.tab:
             return
         self.tab = key
         self._paint_tabs()
+        self._layout_tab()
         self.scroll.scroll_to_top()
         self.refresh()
 
@@ -99,8 +136,16 @@ class AdminScreen(tk.Frame):
         """Muat ulang daftar (otomatis tiap 30 detik selama layar ini terbuka)."""
         if self._after is not None:
             self.after_cancel(self._after)
+        top = self.scroll.canvas.yview()[0]
         for w in self.scroll.inner.winfo_children():
             w.destroy()
+
+        if self.tab == "reports":
+            self._refresh_reports()
+            self.update_idletasks()
+            self.scroll.canvas.yview_moveto(top)   # tetap di posisi gulir semula
+            self._after = self.after(REFRESH_MS, self.refresh)
+            return
 
         people = self._people()
         stats = sessions.overview([p["id"] for p in people])
@@ -120,6 +165,37 @@ class AdminScreen(tk.Frame):
             self._build_row(p, stats.get(p["id"]))
 
         self._after = self.after(REFRESH_MS, self.refresh)
+
+    # --- tab Laporan Guru -------------------------------------------------------
+    def _refresh_reports(self):
+        since, until = self.period.range()
+        teacher_id = self.teacher_ids.get(self.teacher_var.get())
+        recs = reports.list_reports(teacher_id, since, until)
+        try:
+            rows = reports.portfolio_status(since, until)
+        except Exception as exc:   # ringkasan gagal tidak boleh menghalangi laporan
+            C.log(f"Ringkasan portfolio gagal: {exc!r}")
+            rows = []
+
+        who = (f"{len({r['teacher'] for r in recs})} dari {len(TEACHERS)} guru melapor"
+               if teacher_id is None else
+               TEACHERS.get(teacher_id, {}).get("name", teacher_id))
+        self.summary.config(
+            fg=C.MUTED,
+            text=f"{len(recs)} laporan  ·  {who}  ·  "
+                 f"diperbarui {sessions.format_time(sessions.datetime.now())}")
+
+        inner = self.scroll.inner
+        PortfolioSummary(inner, rows, warn=self.period.key != "today").pack(fill="x")
+
+        section_title(inner, "Laporan guru", f"{len(recs)} laporan")
+        if not recs:
+            empty_note(inner, "Belum ada laporan pada periode ini.")
+        names = {s["id"]: s["name"] for s in list_students()}
+        for rec in recs:
+            teacher = TEACHERS.get(rec["teacher"], {}).get("name", rec["teacher"])
+            ReportCard(inner, rec, names.get, teacher_name=teacher).pack(
+                fill="x", pady=(0, 8))
 
     # --- satu baris --------------------------------------------------------------
     def _build_row(self, person, st):
