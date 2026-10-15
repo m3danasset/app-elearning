@@ -1,9 +1,11 @@
 """Jendela utama: mengatur layar mana yang sedang tampil."""
 
+import os
 import sys
 import tkinter as tk
 
 from elearning import config, sessions, splash
+from elearning.trial import is_trial
 from elearning.ui.login_screen import LoginScreen
 from elearning.ui.home_screen import HomeScreen
 from elearning.ui.course_screen import CourseScreen
@@ -27,16 +29,81 @@ class App(tk.Tk):
         self.title(config.APP_NAME)
         self.configure(bg=config.BG)
         self.minsize(860, 600)
-        try:
-            self.iconbitmap(config.ICON_PATH)
-        except Exception:
-            pass  # kalau ikon tidak ada, tetap jalan dengan ikon bawaan
+        self._set_icon()
         self._center(1000, 640)
 
         self._screen = None
         self.protocol("WM_DELETE_WINDOW", self._close)   # tutup jendela = murid keluar
         self.after(60_000, self._beat)
         self.show_login()
+
+    def _set_icon(self):
+        """Ikon jendela + ikon tombol taskbar (supaya bukan ikon bulu pena bawaan Tk).
+
+        Tiga cara dipasang berurutan; hasil tiap cara dicatat di app.log
+        (cari baris yang diawali "Ikon:"), jadi kalau masih salah penyebabnya terlihat.
+        """
+        path = config.ICON_PATH
+        config.log(f"Ikon: file={path!r} ada={os.path.isfile(path)}")
+
+        # 1) Cara bawaan Tk
+        try:
+            self.iconbitmap(path)
+            config.log("Ikon: iconbitmap OK")
+        except Exception as exc:
+            config.log(f"Ikon: iconbitmap GAGAL: {exc!r}")
+
+        # 2) Gambar PNG dari icon.ico (beberapa ukuran), tidak bergantung pada pembaca .ico milik Tk
+        try:
+            import base64
+            import io
+            from PIL import Image
+            icons = []
+            with Image.open(path) as ico:
+                sizes = sorted(s for s in ico.info.get("sizes", []) if s[0] in (16, 32, 48, 64))
+                for size in sizes:
+                    buf = io.BytesIO()
+                    ico.ico.getimage(size).convert("RGBA").save(buf, format="PNG")
+                    icons.append(tk.PhotoImage(data=base64.b64encode(buf.getvalue())))
+            if icons:
+                self.iconphoto(True, *icons)
+                self._icons = icons   # simpan referensi supaya ikon tidak hilang
+            config.log(f"Ikon: iconphoto OK ({len(icons)} ukuran)")
+        except Exception as exc:
+            config.log(f"Ikon: iconphoto GAGAL: {exc!r}")
+
+        # 3) Windows: pasang langsung ke jendela (judul + taskbar), cara yang paling pasti
+        if sys.platform == "win32":
+            self.update_idletasks()
+            self._win32_icon(path)
+            self.after(300, lambda: self._win32_icon(path))   # ulang setelah jendela tampil
+
+    def _win32_icon(self, path):
+        try:
+            import ctypes
+            from ctypes import wintypes
+            user32 = ctypes.windll.user32
+            user32.GetParent.restype = wintypes.HWND
+            user32.GetParent.argtypes = [wintypes.HWND]
+            user32.LoadImageW.restype = wintypes.HANDLE
+            user32.LoadImageW.argtypes = [wintypes.HINSTANCE, wintypes.LPCWSTR, wintypes.UINT,
+                                          ctypes.c_int, ctypes.c_int, wintypes.UINT]
+            user32.SendMessageW.restype = wintypes.LPARAM
+            user32.SendMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM,
+                                            wintypes.LPARAM]
+            hwnd = user32.GetParent(self.winfo_id()) or self.winfo_id()
+            handles = []
+            for kind, cx, cy in ((1, 11, 12), (0, 49, 50)):   # 1 = ikon besar, 0 = ikon kecil
+                w, h = user32.GetSystemMetrics(cx), user32.GetSystemMetrics(cy)
+                hicon = user32.LoadImageW(None, path, 1, w, h, 0x10)   # IMAGE_ICON, LR_LOADFROMFILE
+                if not hicon:
+                    raise OSError(f"LoadImage gagal (ukuran {w}x{h}, error {ctypes.GetLastError()})")
+                handles.append(hicon)
+                user32.SendMessageW(hwnd, 0x0080, kind, hicon)   # WM_SETICON
+            self._hicons = handles
+            config.log("Ikon: WM_SETICON OK")
+        except Exception as exc:
+            config.log(f"Ikon: WM_SETICON GAGAL: {exc!r}")
 
     # --- catatan masuk / keluar murid ------------------------------------------
     def _beat(self):
@@ -48,7 +115,8 @@ class App(tk.Tk):
         self.destroy()
 
     def login_student(self, student):
-        sessions.start(student["id"])
+        if not is_trial(student):   # akun trial dipakai bersama, tidak dicatat
+            sessions.start(student["id"])
         self.show_home(student)
 
     def login_teacher(self, teacher):

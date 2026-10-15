@@ -6,12 +6,14 @@ kursus yang boleh dibuka tiap siswa (lihat students.py).
 
 'program' menentukan siapa yang melihat kursus ini:
   "adult" = murid dewasa (ID PB...)      "kids" = murid anak/bawah umur (ID SK...)
+  "trial" = calon murid (ID TRIAL, tanpa PIN; lihat trial.py)
 """
 
 GREEN = "#3fb68b"
 BLUE = "#4a90e2"
 PURPLE = "#b06bff"
 PINK = "#ff5c93"
+ORANGE = "#ea7600"
 
 ADULT_COURSES = [
     {"id": "basic-1", "program": "adult", "group": "BASIC", "title": "BASIC 1",
@@ -53,7 +55,18 @@ KIDS_COURSES = [
      "desc": "Proyek akhir: membuat cerita pendek sendiri.", "color": PINK},
 ]
 
-COURSES = ADULT_COURSES + KIDS_COURSES
+TRIAL_COURSES = [
+    {"id": "trial-animation", "program": "trial", "group": "TRIAL",
+     "title": "ANIMATION",
+     "desc": "Coba menggerakkan objek 3D pertamamu dengan animasi sederhana.",
+     "color": ORANGE},
+    {"id": "trial-modeling", "program": "trial", "group": "TRIAL",
+     "title": "MODELING",
+     "desc": "Coba membuat bentuk 3D pertamamu dengan modeling dasar.",
+     "color": BLUE},
+]
+
+COURSES = ADULT_COURSES + KIDS_COURSES + TRIAL_COURSES
 
 
 def courses_for(program):

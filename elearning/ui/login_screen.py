@@ -6,6 +6,7 @@ from elearning import config as C
 from elearning.admins import check_admin, is_admin_id
 from elearning.students import STATUS_EXPIRED, lookup_student
 from elearning.teachers import check_teacher, is_teacher_id
+from elearning.trial import is_trial_id, trial_student
 from elearning.ui.video_background import VideoBackground, find_video
 from elearning.ui.widgets import add_hover
 
@@ -128,6 +129,11 @@ class LoginScreen(tk.Frame):
                 return
             if handler is not None:
                 handler(account)
+            return
+
+        if is_trial_id(sid):   # calon murid: tanpa PIN, langsung pilih ANIMATION / MODELING
+            self.error_lbl.config(text="")
+            self.on_success(trial_student())
             return
 
         student = lookup_student(sid)

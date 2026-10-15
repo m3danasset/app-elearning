@@ -19,10 +19,11 @@ import os
 import re
 
 from elearning import config as C
-from elearning import photos, sessions
+from elearning import photos, portfolio, sessions
 from elearning.courses import COURSES
 from elearning.admins import is_admin_id
 from elearning.teachers import is_teacher_id
+from elearning.trial import TRIAL_ID
 
 ADULT_ALL = ["basic-1", "basic-2", "intermediate-1", "intermediate-2",
              "ai-character", "ai-interior"]
@@ -200,6 +201,8 @@ def add_student(name, program, student_id=None):
         raise ValueError("ID tidak boleh diawali GURU (khusus akun guru).")
     if is_admin_id(sid):
         raise ValueError("ID tidak boleh diawali ADMIN (khusus akun admin).")
+    if sid.startswith(TRIAL_ID):
+        raise ValueError("ID tidak boleh diawali TRIAL (khusus akun trial).")
     if sid in data:
         raise ValueError(f"ID {sid} sudah dipakai murid lain.")
     data[sid] = {"name": name, "program": program, "courses": [],
@@ -221,7 +224,7 @@ def rename_student(student_id, new_name):
 
 
 def delete_student(student_id):
-    """Hapus akun murid beserta foto dan riwayat login-nya. Tidak bisa dibatalkan."""
+    """Hapus akun murid beserta foto, riwayat login, dan portfolio-nya. Tidak bisa dibatalkan."""
     sid = student_id.strip().upper()
     data = _load()
     if sid not in data:
@@ -233,3 +236,4 @@ def delete_student(student_id):
     except OSError as exc:
         C.log(f"Foto {sid} tidak bisa dihapus: {exc!r}")
     sessions.delete_student(sid)
+    portfolio.delete_student(sid)

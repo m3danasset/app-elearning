@@ -3,8 +3,11 @@
 import tkinter as tk
 
 from elearning import config as C
+from elearning import portfolio
 from elearning.courses import courses_for
+from elearning.trial import is_trial
 from elearning.ui.avatar import Avatar
+from elearning.ui.portfolio_view import PortfolioPanel
 from elearning.ui.widgets import add_hover
 
 EXPANDED_W = 270
@@ -22,6 +25,7 @@ class CourseScreen(tk.Frame):
         self.on_back = on_back
         self.on_logout = on_logout
         self.on_open_course = on_open_course
+        self.view = "materi"   # "materi" atau "portfolio"
 
         self.sidebar = tk.Frame(self, bg=C.CARD, width=EXPANDED_W)
         self.sidebar.pack(side="left", fill="y")
@@ -36,8 +40,9 @@ class CourseScreen(tk.Frame):
                        highlightbackground=C.BORDER)
         bar.pack(fill="x")
         bar.pack_propagate(False)
-        tk.Label(bar, text=course["title"], bg=C.CARD, fg=C.TEXT,
-                 font=(C.FONT, 13, "bold")).pack(side="left", padx=20)
+        self.title_lbl = tk.Label(bar, text=course["title"], bg=C.CARD, fg=C.TEXT,
+                                  font=(C.FONT, 13, "bold"))
+        self.title_lbl.pack(side="left", padx=20)
         out = tk.Button(bar, text="Keluar", command=self.on_logout, bg=C.CARD,
                         fg=C.MUTED, activebackground=C.BORDER,
                         activeforeground=C.TEXT, relief="flat", bd=0,
@@ -46,9 +51,24 @@ class CourseScreen(tk.Frame):
         out.pack(side="right", padx=12, pady=12)   # pojok kanan atas, sama seperti layar utama
         add_hover(out, C.CARD, C.BORDER)
 
-        body = tk.Frame(content, bg=C.BG)
-        body.pack(fill="both", expand=True)
-        msg = tk.Frame(body, bg=C.BG)
+        self.body = tk.Frame(content, bg=C.BG)
+        self.body.pack(fill="both", expand=True)
+
+        self._render_body()
+        self._build_sidebar()
+
+    # --- isi kanan: materi / portfolio ---------------------------------------
+    def _render_body(self):
+        for w in self.body.winfo_children():
+            w.destroy()
+        course = self.course
+        if self.view == "portfolio":
+            self.title_lbl.config(text=f"{course['title']}  ·  Portfolio")
+            PortfolioPanel(self.body, self.student, course,
+                           on_change=self._build_sidebar).pack(fill="both", expand=True)
+            return
+        self.title_lbl.config(text=course["title"])
+        msg = tk.Frame(self.body, bg=C.BG)
         msg.place(relx=0.5, rely=0.5, anchor="center")
         tk.Label(msg, text=course["group"], bg=C.BG, fg=course["color"],
                  font=(C.FONT, 10, "bold")).pack()
@@ -57,6 +77,11 @@ class CourseScreen(tk.Frame):
         tk.Label(msg, text="Video dan materi kursus akan tampil di sini.",
                  bg=C.BG, fg=C.MUTED, font=(C.FONT, 11)).pack()
 
+    def _set_view(self, view):
+        if view == self.view:
+            return
+        self.view = view
+        self._render_body()
         self._build_sidebar()
 
     # --- sidebar -----------------------------------------------------------
@@ -114,6 +139,32 @@ class CourseScreen(tk.Frame):
         for c in courses_for(st["program"]):
             self._build_course_item(c, c["id"] in allowed)
 
+        if is_trial(st):   # calon murid: tidak ada portfolio
+            return
+
+        # Menu di dalam kursus yang sedang dibuka: materi dan portfolio
+        tk.Label(sb, text="DI KURSUS INI", bg=C.CARD, fg=C.MUTED, anchor="w",
+                 font=(C.FONT, 9, "bold")).pack(fill="x", padx=20, pady=(18, 6))
+        n = portfolio.count(st["id"], self.course["id"])
+        self._build_view_item("Materi", "materi", C.TEXT)
+        self._build_view_item("Portfolio" + (f"   ·  {n}" if n else ""), "portfolio",
+                              C.ACCENT)
+
+    def _build_view_item(self, text, view, stripe):
+        current = self.view == view
+        bg = C.CARD_HOVER if current else C.CARD
+        row = tk.Frame(self.sidebar, bg=bg)
+        row.pack(fill="x", padx=10, pady=1)
+        tk.Frame(row, bg=stripe if current else "#3a3f4d", width=4).pack(side="left", fill="y")
+        lbl = tk.Label(row, text=text, bg=bg, fg=C.TEXT, anchor="w", padx=12, pady=8,
+                       font=(C.FONT, 10, "bold" if current else "normal"), cursor="hand2")
+        lbl.pack(side="left", fill="x", expand=True)
+        lbl.bind("<Button-1>", lambda e, v=view: self._set_view(v))
+        if not current:
+            lbl.bind("<Enter>", lambda e: (lbl.config(bg=C.CARD_HOVER),
+                                           row.config(bg=C.CARD_HOVER)))
+            lbl.bind("<Leave>", lambda e: (lbl.config(bg=C.CARD), row.config(bg=C.CARD)))
+
     def _build_course_item(self, course, unlocked):
         current = course["id"] == self.course["id"]
         bg = C.CARD_HOVER if current else C.CARD
@@ -144,3 +195,11 @@ class CourseScreen(tk.Frame):
         self._flat_button(sb, "»", self._toggle_sidebar, font_size=14,
                           fill="x", padx=14, pady=(14, 6))
         Avatar(sb, st["id"], st["name"], size=44, bg=C.CARD).pack(pady=(8, 0))
+        if is_trial(st):
+            return
+        on = self.view == "portfolio"
+        btn = self._flat_button(
+            sb, "▦", lambda: self._set_view("materi" if on else "portfolio"),
+            fg=C.ACCENT if on else C.MUTED, font_size=14, fill="x", padx=14, pady=(18, 0))
+        if on:
+            btn.config(bg=C.CARD_HOVER)

@@ -3,7 +3,7 @@
 import tkinter as tk
 
 from elearning import config as C
-from elearning import photos, sessions
+from elearning import photos, portfolio, sessions
 from elearning.courses import courses_for
 from elearning.students import (STATUS_ACTIVE, STATUS_EXPIRED, STATUS_LABEL,
                                 add_student, delete_student, list_students,
@@ -11,6 +11,7 @@ from elearning.students import (STATUS_ACTIVE, STATUS_EXPIRED, STATUS_LABEL,
                                 set_status)
 from elearning.ui.avatar import Avatar
 from elearning.ui.dialogs import ConfirmDialog, StudentDialog
+from elearning.ui.portfolio_view import ThumbGrid
 from elearning.ui.topbar import TopBar
 from elearning.ui.widgets import DarkScrollbar, ScrollFrame, Switch, add_hover
 
@@ -100,7 +101,8 @@ class TeacherScreen(tk.Frame):
         tabs = tk.Frame(self.right, bg=C.BG)
         tabs.pack(fill="x", pady=(10, 0))
         self.tab_btns = {}
-        for key, label in (("courses", "Akses Kursus"), ("history", "Riwayat Login")):
+        for key, label in (("courses", "Akses Kursus"), ("history", "Riwayat Login"),
+                           ("portfolio", "Portfolio")):
             b = tk.Button(tabs, text=label, command=lambda k=key: self._set_tab(k),
                           relief="flat", bd=0, highlightthickness=0, cursor="hand2",
                           font=(C.FONT, 10, "bold"), padx=16, pady=6)
@@ -273,12 +275,45 @@ class TeacherScreen(tk.Frame):
         if self.tab == "history":
             self.hint.config(text="Kapan murid masuk dan keluar aplikasi, beserta lama belajarnya.")
             self._build_history(student)
+        elif self.tab == "portfolio":
+            self.hint.config(text="Gambar dan video hasil karya murid, per kursus. "
+                                  "Klik thumbnail untuk membukanya.")
+            self._build_portfolio(student)
         else:
             self.hint.config(text="ON = kursus terbuka, OFF = terkunci. "
                                   "Perubahan langsung tersimpan.")
             allowed = set(student["courses"])
             for course in courses_for(student["program"]):
                 self._build_row(student["id"], course, course["id"] in allowed)
+
+    def _build_portfolio(self, student):
+        total = images = videos = 0
+        sections = []
+        for course in courses_for(student["program"]):
+            items = portfolio.list_items(student["id"], course["id"])
+            if items:
+                sections.append((course, items))
+                total += len(items)
+                videos += sum(1 for i in items if i["kind"] == "video")
+        images = total - videos
+
+        if not sections:
+            tk.Label(self.rows, text="Murid ini belum mengunggah portfolio.",
+                     bg=C.BG, fg=C.MUTED, font=(C.FONT, 10), anchor="w").pack(fill="x", pady=8)
+            return
+        tk.Label(self.rows, text=f"{total} file  ·  {images} gambar  ·  {videos} video",
+                 bg=C.BG, fg=C.TEXT, font=(C.FONT, 11, "bold"), anchor="w").pack(
+                     fill="x", pady=(0, 6))
+        for course, items in sections:
+            head = tk.Frame(self.rows, bg=C.BG)
+            head.pack(fill="x", pady=(10, 0))
+            tk.Frame(head, bg=course["color"], width=4, height=18).pack(side="left", padx=(0, 10))
+            tk.Label(head, text=course["title"], bg=C.BG, fg=C.TEXT,
+                     font=(C.FONT, 11, "bold")).pack(side="left")
+            tk.Label(head, text=f"  {len(items)} file", bg=C.BG, fg=C.MUTED,
+                     font=(C.FONT, 10)).pack(side="left")
+            ThumbGrid(self.rows, items, on_error=lambda msg: self.status.config(
+                text=msg, fg=C.ERROR)).pack(fill="x")
 
     def _build_history(self, student):
         items = sessions.entries(student["id"])
@@ -354,8 +389,8 @@ class TeacherScreen(tk.Frame):
 
         ConfirmDialog(
             self, "Hapus murid?",
-            f"{student['name']} ({sid}) akan dihapus. Akun, foto, dan riwayat login "
-            "murid ini ikut hilang dan tidak bisa dikembalikan.",
+            f"{student['name']} ({sid}) akan dihapus. Akun, foto, riwayat login, dan "
+            "portfolio murid ini ikut hilang dan tidak bisa dikembalikan.",
             confirm, confirm_text="Hapus").wait_window()
         if not done:  # dibatalkan
             return
