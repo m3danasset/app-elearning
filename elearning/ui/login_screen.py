@@ -4,7 +4,7 @@ import tkinter as tk
 
 from elearning import config as C
 from elearning.admins import check_admin, is_admin_id
-from elearning.students import lookup_student
+from elearning.students import STATUS_EXPIRED, lookup_student
 from elearning.teachers import check_teacher, is_teacher_id
 from elearning.ui.video_background import VideoBackground, find_video
 from elearning.ui.widgets import add_hover
@@ -135,4 +135,9 @@ class LoginScreen(tk.Frame):
             self.error_lbl.config(
                 text="ID tidak ditemukan. Cek lagi atau tanya guru.")
             return
+        if student.get("status") == STATUS_EXPIRED:
+            self.error_lbl.config(
+                text="Akun kamu sudah expired. Hubungi guru untuk mengaktifkan kembali.")
+            return
+        self.error_lbl.config(text="")
         self.on_success(student)

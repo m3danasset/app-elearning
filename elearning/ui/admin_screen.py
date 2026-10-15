@@ -1,10 +1,11 @@
-"""Panel admin: memantau status aktivitas guru dan murid (hanya melihat)."""
+"""Panel admin: memantau aktivitas guru dan murid, serta mengatur status murid (active / expired)."""
 
 import tkinter as tk
 
 from elearning import config as C
 from elearning import sessions
-from elearning.students import list_students
+from elearning.students import (STATUS_ACTIVE, STATUS_EXPIRED, STATUS_LABEL,
+                                list_students, set_status)
 from elearning.teachers import TEACHERS
 from elearning.ui.avatar import Avatar
 from elearning.ui.topbar import TopBar
@@ -13,8 +14,8 @@ from elearning.ui.widgets import ScrollFrame, add_hover
 REFRESH_MS = 30_000
 PROGRAM_LABEL = {"adult": "Murid dewasa", "kids": "Murid anak"}
 # (judul kolom, bobot lebar)
-COLUMNS = (("Nama", 4), ("Status", 2), ("Terakhir aktif", 3),
-           ("Jumlah masuk", 2), ("Total waktu", 2))
+COLUMNS = (("Nama", 8), ("Aktivitas", 5), ("Terakhir aktif", 6),
+           ("Jumlah masuk", 3), ("Total waktu", 3), ("Status akun", 7))
 
 
 class AdminScreen(tk.Frame):
@@ -85,7 +86,7 @@ class AdminScreen(tk.Frame):
         if self.tab == "teachers":
             return [{"id": tid, "name": d["name"], "sub": "Guru"}
                     for tid, d in sorted(TEACHERS.items())]
-        return [{"id": s["id"], "name": s["name"],
+        return [{"id": s["id"], "name": s["name"], "status": s["status"],
                  "sub": PROGRAM_LABEL.get(s["program"], "")}
                 for s in list_students()]
 
@@ -105,8 +106,11 @@ class AdminScreen(tk.Frame):
         stats = sessions.overview([p["id"] for p in people])
         online = sum(1 for p in people if stats.get(p["id"], {}).get("online"))
         noun = "guru" if self.tab == "teachers" else "murid"
+        expired = sum(1 for p in people if p.get("status") == STATUS_EXPIRED)
+        extra = f"{expired} expired  ·  " if self.tab == "students" else ""
         self.summary.config(
-            text=f"{len(people)} {noun}  ·  {online} sedang aktif  ·  "
+            fg=C.MUTED,
+            text=f"{len(people)} {noun}  ·  {online} sedang online  ·  {extra}"
                  f"diperbarui {sessions.format_time(sessions.datetime.now())}")
 
         if not people:
@@ -139,8 +143,8 @@ class AdminScreen(tk.Frame):
             status, color = "Belum pernah masuk", C.MUTED
             last = count = total = "-"
         else:
-            status, color = (("●  Aktif", C.ON) if st["online"]
-                             else ("○  Tidak aktif", C.MUTED))
+            status, color = (("●  Online", C.ON) if st["online"]
+                             else ("○  Offline", C.MUTED))
             seen = st["last_seen"]
             last = ("Sekarang" if st["online"] else
                     f"{sessions.format_date(seen)}, {sessions.format_time(seen)}")
@@ -152,6 +156,45 @@ class AdminScreen(tk.Frame):
                 start=1):
             tk.Label(row, text=text, bg=C.CARD, fg=fg, anchor="w",
                      font=(C.FONT, 10)).grid(row=0, column=col, sticky="w")
+
+        self._build_account_cell(row, person)
+
+    def _build_account_cell(self, row, person):
+        """Kolom 'Status akun': badge Active/Expired + tombol untuk mengubahnya (murid saja)."""
+        cell = tk.Frame(row, bg=C.CARD)
+        cell.grid(row=0, column=len(COLUMNS) - 1, sticky="w")
+        status = person.get("status")
+        if status is None:   # guru: tidak punya status akun
+            tk.Label(cell, text="-", bg=C.CARD, fg=C.MUTED,
+                     font=(C.FONT, 10)).pack(side="left")
+            return
+        expired = status == STATUS_EXPIRED
+        tk.Label(cell, text="●  " + STATUS_LABEL[status], bg=C.CARD,
+                 fg=C.ERROR if expired else C.ON, width=10, anchor="w",
+                 font=(C.FONT, 10, "bold")).pack(side="left")
+        new = STATUS_ACTIVE if expired else STATUS_EXPIRED
+        btn = tk.Button(cell, text="Set Active" if expired else "Set Expired",
+                        command=lambda: self._set_status(person["id"], new),
+                        bg=C.BG, fg=C.TEXT, activebackground=C.BORDER,
+                        activeforeground=C.TEXT, relief="flat", bd=0,
+                        highlightthickness=0, font=(C.FONT, 9), cursor="hand2",
+                        padx=10, pady=3)
+        btn.pack(side="left", padx=(6, 0))
+        add_hover(btn, C.BG, C.BORDER)
+
+    def _set_status(self, student_id, status):
+        top = self.scroll.canvas.yview()[0]
+        try:
+            set_status(student_id, status)
+        except Exception as exc:
+            C.log(f"Gagal mengubah status {student_id}: {exc!r}")
+            self.summary.config(
+                text="Gagal menyimpan status. Pastikan folder data bisa ditulis.",
+                fg=C.ERROR)
+            return
+        self.refresh()
+        self.update_idletasks()
+        self.scroll.canvas.yview_moveto(top)   # tetap di posisi gulir semula
 
     def destroy(self):
         if self._after is not None:

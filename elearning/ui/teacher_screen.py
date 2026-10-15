@@ -5,8 +5,10 @@ import tkinter as tk
 from elearning import config as C
 from elearning import photos, sessions
 from elearning.courses import courses_for
-from elearning.students import (add_student, delete_student, list_students,
-                                lookup_student, rename_student, set_course_access)
+from elearning.students import (STATUS_ACTIVE, STATUS_EXPIRED, STATUS_LABEL,
+                                add_student, delete_student, list_students,
+                                lookup_student, rename_student, set_course_access,
+                                set_status)
 from elearning.ui.avatar import Avatar
 from elearning.ui.dialogs import ConfirmDialog, StudentDialog
 from elearning.ui.topbar import TopBar
@@ -71,14 +73,22 @@ class TeacherScreen(tk.Frame):
         self.avatar.pack(side="left", padx=(0, 18))
         col = tk.Frame(head, bg=C.BG)
         col.pack(side="left", fill="x", expand=True)
-        self.name_lbl = tk.Label(col, text="", bg=C.BG, fg=C.TEXT,
+        name_row = tk.Frame(col, bg=C.BG)
+        name_row.pack(fill="x")
+        self.name_lbl = tk.Label(name_row, text="", bg=C.BG, fg=C.TEXT,
                                  font=(C.FONT, 20, "bold"), anchor="w")
-        self.name_lbl.pack(fill="x")
+        self.name_lbl.pack(side="left")
+        # Status akun (Active / Expired): di sebelah kanan nama murid
+        self.badge = tk.Label(name_row, text="", bg=C.CARD, font=(C.FONT, 10, "bold"),
+                              padx=12, pady=3)
+        self.badge.pack(side="left", padx=(14, 0))
         self.sub_lbl = tk.Label(
             col, text="", bg=C.BG, fg=C.MUTED, font=(C.FONT, 11), anchor="w")
         self.sub_lbl.pack(fill="x", pady=(2, 8))
         btns = tk.Frame(col, bg=C.BG)
         btns.pack(anchor="w")
+        self.status_btn = self._small_button(btns, "Set Expired", self._toggle_status)
+        self.status_btn.pack(side="left", padx=(0, 8))
         self.rename_btn = self._small_button(btns, "Ubah nama…", self._rename_student)
         self.rename_btn.pack(side="left")
         self.photo_btn = self._small_button(btns, "Pilih foto…", self._choose_photo)
@@ -145,7 +155,11 @@ class TeacherScreen(tk.Frame):
             if folded:
                 continue
             for s in group:
-                lb.insert("end", f"      {s['id']}   {s['name']}")
+                expired = s.get("status") == STATUS_EXPIRED
+                lb.insert("end", f"      {s['id']}   {s['name']}"
+                                 + ("   [EXPIRED]" if expired else ""))
+                if expired:
+                    lb.itemconfig(lb.size() - 1, fg=C.ERROR)
                 self._items.append(("student", s["id"]))
         self._select_current()
         if keep_scroll:
@@ -183,6 +197,7 @@ class TeacherScreen(tk.Frame):
             self.sub_lbl.config(text="")
             self.avatar.set_student("", "")
             self._update_photo_buttons()
+            self._paint_status(None)
             self._render_tab()
             return
 
@@ -191,7 +206,45 @@ class TeacherScreen(tk.Frame):
         self.name_lbl.config(text=student["name"])
         self.sub_lbl.config(text=f"{student['id']}  ·  "
                                  f"{PROGRAM_LABEL.get(student['program'], '')}")
+        self._paint_status(student)
         self._render_tab()
+
+    # --- status murid: active / expired ------------------------------------------
+    def _paint_status(self, student):
+        if student is None:
+            self.badge.pack_forget()
+            self.status_btn.config(state="disabled")
+            return
+        expired = student.get("status") == STATUS_EXPIRED
+        self.badge.config(text=f"●  {STATUS_LABEL[STATUS_EXPIRED if expired else STATUS_ACTIVE].upper()}",
+                          fg=C.ERROR if expired else C.ON)
+        if not self.badge.winfo_ismapped():
+            self.badge.pack(side="left", padx=(14, 0))
+        self.status_btn.config(text="Set Active" if expired else "Set Expired",
+                               state="normal")
+
+    def _toggle_status(self):
+        sid = self.current_id
+        student = lookup_student(sid) if sid else None
+        if student is None:
+            return
+        new = (STATUS_ACTIVE if student.get("status") == STATUS_EXPIRED
+               else STATUS_EXPIRED)
+        try:
+            set_status(sid, new)
+        except Exception as exc:
+            C.log(f"Gagal mengubah status {sid}: {exc!r}")
+            self.status.config(text="Gagal menyimpan status. Pastikan folder data bisa ditulis.",
+                               fg=C.ERROR)
+            return
+        self.students = list_students()
+        self._rebuild_list()
+        self._paint_status(lookup_student(sid))
+        if new == STATUS_EXPIRED:
+            msg = f"{sid} ({student['name']}) sekarang EXPIRED: tidak bisa login."
+        else:
+            msg = f"{sid} ({student['name']}) sekarang ACTIVE: bisa login lagi."
+        self.status.config(text=msg, fg=C.MUTED)
 
     # --- tab: akses kursus / riwayat login --------------------------------------
     def _paint_tabs(self):

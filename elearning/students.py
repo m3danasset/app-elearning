@@ -9,6 +9,8 @@ itu ada TIDAK berpengaruh; edit data\\students.json atau hapus file itu agar dib
 'program'  = "adult" (murid dewasa, ID PB...) atau "kids" (murid anak, ID SK...).
              Menentukan 6 kursus mana yang tampil (lihat courses.py).
 'courses'  = id kursus yang boleh dibuka siswa itu. Sisanya tampil abu-abu (terkunci).
+'status'   = "active" (boleh login) atau "expired" (tidak bisa login). Diatur admin/guru.
+             Data lama tanpa 'status' otomatis dianggap active.
 """
 
 import copy
@@ -44,6 +46,11 @@ DEMO_STUDENTS = {
               "courses": KIDS_ALL},
 }
 
+STATUS_ACTIVE = "active"
+STATUS_EXPIRED = "expired"
+STATUSES = (STATUS_ACTIVE, STATUS_EXPIRED)
+STATUS_LABEL = {STATUS_ACTIVE: "Active", STATUS_EXPIRED: "Expired"}
+
 _COURSE_ORDER = {c["id"]: i for i, c in enumerate(COURSES)}
 
 ID_PREFIX = {"adult": "PB", "kids": "SK"}   # awalan ID otomatis murid baru
@@ -63,7 +70,9 @@ def _valid(data):
                 and isinstance(d.get("courses"), list)):
             clean[str(sid).strip().upper()] = {
                 "name": d["name"], "program": d["program"],
-                "courses": [c for c in d["courses"] if isinstance(c, str)]}
+                "courses": [c for c in d["courses"] if isinstance(c, str)],
+                "status": (d.get("status") if d.get("status") in STATUSES
+                           else STATUS_ACTIVE)}
     return clean
 
 
@@ -102,13 +111,15 @@ def _load():
 
 # --- dipakai layar lain -------------------------------------------------------
 def lookup_student(student_id):
-    """Kembalikan {'id','name','program','courses'}, atau None kalau ID tidak ada."""
+    """Kembalikan {'id','name','program','courses','status'}, atau None kalau ID tidak ada."""
     sid = student_id.strip().upper()
     data = _load().get(sid)
     if data is None:
         return None
     return {"id": sid, "name": data["name"], "program": data["program"],
-            "courses": list(data["courses"])}
+            "courses": list(data["courses"]),
+            "status": data.get("status") if data.get("status") in STATUSES
+            else STATUS_ACTIVE}
 
 
 def list_students():
@@ -134,6 +145,23 @@ def set_course_access(student_id, course_id, allowed):
         courses, key=lambda c: _COURSE_ORDER.get(c, 999))
     _write(data)
     return list(data[sid]["courses"])
+
+
+def set_status(student_id, status):
+    """Ubah status murid: 'active' atau 'expired'. Langsung disimpan.
+
+    Murid expired tidak bisa login. Akses kursus dan riwayatnya tidak berubah,
+    jadi kalau diaktifkan lagi semuanya kembali seperti semula.
+    Kalau gagal, ValueError (pesan siap tampil) atau OSError dilempar; data lama tidak berubah."""
+    if status not in STATUSES:
+        raise ValueError("Status harus active atau expired.")
+    sid = student_id.strip().upper()
+    data = _load()
+    if sid not in data:
+        raise ValueError(f"Murid {sid} tidak ditemukan.")
+    data[sid]["status"] = status
+    _write(data)
+    return lookup_student(sid)
 
 
 # --- tambah murid / ubah nama (dipakai layar guru) ----------------------------
@@ -174,7 +202,8 @@ def add_student(name, program, student_id=None):
         raise ValueError("ID tidak boleh diawali ADMIN (khusus akun admin).")
     if sid in data:
         raise ValueError(f"ID {sid} sudah dipakai murid lain.")
-    data[sid] = {"name": name, "program": program, "courses": []}
+    data[sid] = {"name": name, "program": program, "courses": [],
+                 "status": STATUS_ACTIVE}
     _write(data)
     return lookup_student(sid)
 
