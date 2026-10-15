@@ -65,8 +65,12 @@ def _flatten(img):
     return img.convert("RGB")
 
 
-def set_photo(student_id, source_path):
-    """Jadikan file gambar ini foto profil murid. Error dilempar kalau file tidak bisa dipakai."""
+def prepare_photo(source_path):
+    """Buka file gambar, putar sesuai EXIF, potong persegi dari tengah, kecilkan ke 256x256.
+
+    Hasilnya gambar Pillow (RGB) yang siap disimpan dengan save_prepared() atau
+    ditampilkan sebagai pratinjau. Error dilempar kalau file tidak bisa dipakai.
+    """
     if not HAS_PIL:
         raise RuntimeError("Pillow tidak tersedia")
     with Image.open(source_path) as opened:
@@ -76,13 +80,21 @@ def set_photo(student_id, source_path):
     side = min(w, h)
     left, top = (w - side) // 2, (h - side) // 2
     img = img.crop((left, top, left + side, top + side))
-    img = img.resize((STORED_SIZE, STORED_SIZE), _RESAMPLE)
+    return img.resize((STORED_SIZE, STORED_SIZE), _RESAMPLE)
 
+
+def save_prepared(student_id, img):
+    """Simpan gambar hasil prepare_photo() sebagai foto profil ID itu."""
     os.makedirs(C.PHOTO_DIR, exist_ok=True)
     path = photo_path(student_id)
     tmp = path + ".tmp"
     img.save(tmp, format="PNG")
     os.replace(tmp, path)  # ditulis utuh atau tidak sama sekali
+
+
+def set_photo(student_id, source_path):
+    """Jadikan file gambar ini foto profil murid. Error dilempar kalau file tidak bisa dipakai."""
+    save_prepared(student_id, prepare_photo(source_path))
 
 
 def remove_photo(student_id):
@@ -148,13 +160,15 @@ def _disc_mask(size, radius):
     return mask
 
 
-def render_avatar(student_id, size, bg, fill, ring, ring_width=2):
+def render_avatar(student_id, size, bg, fill, ring, ring_width=2, override=None):
     """Gambar avatar bulat utuh (foto atau warna polos + cincin) dengan tepi halus.
 
     Hasilnya gambar RGB ukuran size x size yang sudah dicampur dengan warna latar
     'bg' (hex, mis. "#1d212c"), jadi tepinya mulus di atas latar itu. Kalau murid
     punya foto, bagian dalam berisi foto; kalau tidak, diisi warna 'fill'.
     Kembalikan None kalau Pillow tidak ada (pemanggil memakai gambar bawaan Tk).
+    override: None = pakai foto di disk; False = anggap tidak punya foto (pratinjau
+    'hapus foto'); gambar Pillow = tampilkan gambar itu (pratinjau foto yang baru dipilih).
     """
     if not HAS_PIL:
         return None
@@ -163,7 +177,10 @@ def render_avatar(student_id, size, bg, fill, ring, ring_width=2):
     canvas.paste(_hex_rgb(ring), mask=_disc_mask(size, outer_r))
     inner = _disc_mask(size, outer_r - ring_width)
     photo = None
-    if student_id and has_photo(student_id):
+    if override is not None:
+        if override is not False:
+            photo = override.convert("RGB").resize((size, size), _RESAMPLE)
+    elif student_id and has_photo(student_id):
         try:
             with Image.open(photo_path(student_id)) as f:
                 photo = f.convert("RGB").resize((size, size), _RESAMPLE)

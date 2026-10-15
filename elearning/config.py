@@ -50,6 +50,7 @@ STUDENTS_FILE = os.path.join(DATA_DIR, "students.json")
 PHOTO_DIR = os.path.join(DATA_DIR, "photos")  # foto profil murid: <ID>.png
 SESSIONS_FILE = os.path.join(DATA_DIR, "sessions.json")  # riwayat masuk/keluar murid
 REPORTS_FILE = os.path.join(DATA_DIR, "reports.json")    # laporan kerja guru (dilihat admin)
+TEACHERS_FILE = os.path.join(DATA_DIR, "teachers.json")  # akun guru (diatur admin di Panel Admin)
 
 
 def log(msg):

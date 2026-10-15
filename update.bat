@@ -22,6 +22,11 @@ if exist "assets\logo.png" (
   copy /y "%CD%\assets\logo.png" "%CD%\dist\assets\logo.png" >nul
   if errorlevel 1 goto gagal
 )
+rem Pemutar bersuara + subtitle: salin mpv.py (dari paket python-mpv) ke dist\app, dan libmpv-2.dll ke dist\
+rem Keduanya opsional: kalau tidak ada, pemutar cadangan (tanpa suara) dipakai.
+if not exist "dist\app" mkdir "dist\app"
+python -c "import importlib.util as u,shutil;shutil.copyfile(u.find_spec('mpv').origin,r'dist\app\mpv.py')" >nul 2>nul
+if exist "libmpv-2.dll" copy /y "%CD%\libmpv-2.dll" "%CD%\dist\libmpv-2.dll" >nul
 if /i not "%1"=="nopause" (
   echo.
   echo SELESAI. dist\ sudah diperbarui. Tidak perlu build ulang.

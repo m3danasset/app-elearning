@@ -1,4 +1,9 @@
-"""Layar guru: pilih murid, lalu buka/kunci tiap kursus dengan tombol ON/OFF."""
+"""Layar guru: sidebar kiri (menu + daftar murid) dan area kanan.
+
+Menu "Murid & Kursus": pilih murid di sidebar, lalu buka/kunci tiap kursus dengan
+tombol ON/OFF (juga riwayat login dan portfolio murid). Menu "Laporan Kerja":
+laporan untuk admin (lihat report_panel.py).
+"""
 
 import tkinter as tk
 
@@ -12,66 +17,215 @@ from elearning.students import (STATUS_ACTIVE, STATUS_EXPIRED, STATUS_LABEL,
 from elearning.ui.avatar import Avatar
 from elearning.ui.dialogs import ConfirmDialog, StudentDialog
 from elearning.ui.portfolio_view import ThumbGrid
-from elearning.ui.topbar import TopBar
-from elearning.ui.widgets import DarkScrollbar, ScrollFrame, Switch, add_hover
+from elearning.ui.report_panel import ReportPanel
+from elearning.ui.widgets import ScrollFrame, Switch, add_hover
 
 PROGRAM_LABEL = {"adult": "Murid dewasa", "kids": "Murid anak"}
 CATEGORIES = ("adult", "kids")  # urutan kategori di sidebar kiri
+SIDEBAR_W = 270
+VIEW_TITLE = {"students": "Atur Akses Kursus", "reports": "Laporan Kerja"}
 
 
 class TeacherScreen(tk.Frame):
-    def __init__(self, master, teacher, on_logout, on_reports=None):
+    def __init__(self, master, teacher, on_logout):
         super().__init__(master, bg=C.BG)
-        TopBar(self, teacher, on_logout, title="Atur Akses Kursus").pack(fill="x")
-
-        body = tk.Frame(self, bg=C.BG, padx=32, pady=24)
-        body.pack(fill="both", expand=True)
-
-        # --- Kiri: daftar murid -------------------------------------------
-        left = tk.Frame(body, bg=C.CARD, width=270, highlightthickness=1,
-                        highlightbackground=C.BORDER)
-        left.pack(side="left", fill="y")
-        left.pack_propagate(False)
-        tk.Label(left, text="Murid", bg=C.CARD, fg=C.TEXT,
-                 font=(C.FONT, 13, "bold"), anchor="w").pack(
-                     fill="x", padx=18, pady=(16, 8))
-
+        self.teacher = teacher
+        self.on_logout = on_logout
+        self.view = "students"   # "students" (murid & kursus) atau "reports" (laporan kerja)
         self.students = list_students()
         self.collapsed = set()   # kategori yang sedang dilipat
-        self._items = []         # isi listbox: ("header", program) atau ("student", id)
-        self.current_id = None   # murid yang sedang tampil di kanan
+        self.current_id = self.students[0]["id"] if self.students else None
+        self.tab = "courses"     # tab detail murid: "courses", "history" atau "portfolio"
+        self.list_scroll = None  # daftar murid di sidebar (hanya ada di menu Murid)
+        self._row_widgets = {}   # id murid -> baris di sidebar
 
-        if on_reports is not None:   # dipasang paling bawah, di bawah tombol Tambah murid
-            rep_btn = tk.Button(left, text="Laporan Kerja  →", command=on_reports,
-                                bg=C.CARD, fg=C.TEXT, activebackground=C.BORDER,
-                                activeforeground=C.TEXT, relief="flat", bd=0,
-                                highlightthickness=1, highlightbackground=C.BORDER,
-                                font=(C.FONT, 11), cursor="hand2", pady=8)
-            rep_btn.pack(side="bottom", fill="x", padx=18, pady=(0, 16))
-            add_hover(rep_btn, C.CARD, C.CARD_HOVER)
+        self.sidebar = tk.Frame(self, bg=C.CARD, width=SIDEBAR_W)
+        self.sidebar.pack(side="left", fill="y")
+        self.sidebar.pack_propagate(False)
+        tk.Frame(self, bg=C.BORDER, width=1).pack(side="left", fill="y")
 
-        add_btn = tk.Button(left, text="+  Tambah murid", command=self._add_student,
-                            bg=C.ACCENT, fg="white", activebackground=C.ACCENT_HOVER,
-                            activeforeground="white", relief="flat", bd=0,
-                            highlightthickness=0, font=(C.FONT, 11, "bold"),
-                            cursor="hand2", pady=8)
-        add_btn.pack(side="bottom", fill="x", padx=18, pady=(0, 10))
-        add_hover(add_btn, C.ACCENT, C.ACCENT_HOVER)
+        # --- Kanan: judul menu + isi ---------------------------------------------
+        content = tk.Frame(self, bg=C.BG)
+        content.pack(side="left", fill="both", expand=True)
+        bar = tk.Frame(content, bg=C.CARD, height=56, highlightthickness=1,
+                       highlightbackground=C.BORDER)
+        bar.pack(fill="x")
+        bar.pack_propagate(False)
+        self.title_lbl = tk.Label(bar, text=VIEW_TITLE[self.view], bg=C.CARD, fg=C.TEXT,
+                                  font=(C.FONT, 13, "bold"))
+        self.title_lbl.pack(side="left", padx=20)
+        out = tk.Button(bar, text="Keluar", command=on_logout, bg=C.CARD, fg=C.MUTED,
+                        activebackground=C.BORDER, activeforeground=C.TEXT,
+                        relief="flat", bd=0, highlightthickness=0, font=(C.FONT, 10),
+                        cursor="hand2", padx=14)
+        out.pack(side="right", padx=12, pady=12)
+        add_hover(out, C.CARD, C.BORDER)
 
-        list_wrap = tk.Frame(left, bg=C.CARD)
-        list_wrap.pack(fill="both", expand=True, padx=(8, 8), pady=(0, 12))
-        self.listbox = tk.Listbox(
-            list_wrap, bg=C.CARD, fg=C.TEXT, selectbackground=C.ACCENT,
-            selectforeground="white", activestyle="none", relief="flat",
-            highlightthickness=0, bd=0, font=(C.FONT, 11), exportselection=False)
-        self.list_sb = DarkScrollbar(list_wrap, command=self.listbox.yview, bg=C.CARD)
-        self.listbox.configure(yscrollcommand=self._on_list_scroll)
-        self.listbox.pack(side="left", fill="both", expand=True)
-        self.listbox.bind("<<ListboxSelect>>", self._on_select)
+        self.body = tk.Frame(content, bg=C.BG)
+        self.body.pack(fill="both", expand=True)
 
-        # --- Kanan: kursus murid terpilih ---------------------------------
-        self.right = tk.Frame(body, bg=C.BG)
-        self.right.pack(side="left", fill="both", expand=True, padx=(24, 0))
+        self._build_sidebar()
+        self._render_body()
+
+    # --- pindah menu -------------------------------------------------------------
+    def _set_view(self, view):
+        if view == self.view:
+            return
+        self.view = view
+        self.title_lbl.config(text=VIEW_TITLE[view])
+        self._build_sidebar()
+        self._render_body()
+
+    def _render_body(self):
+        for w in self.body.winfo_children():
+            w.destroy()
+        if self.view == "reports":
+            ReportPanel(self.body, self.teacher).pack(fill="both", expand=True)
+            return
+        self._build_student_panel()
+
+    # --- sidebar kiri ------------------------------------------------------------
+    def _build_sidebar(self):
+        for w in self.sidebar.winfo_children():
+            w.destroy()
+        sb, t = self.sidebar, self.teacher
+        self.list_scroll = None
+        self._row_widgets = {}
+
+        if self.view == "students":   # paling bawah: tombol tambah murid
+            add_btn = tk.Button(sb, text="+  Tambah murid", command=self._add_student,
+                                bg=C.ACCENT, fg="white", activebackground=C.ACCENT_HOVER,
+                                activeforeground="white", relief="flat", bd=0,
+                                highlightthickness=0, font=(C.FONT, 11, "bold"),
+                                cursor="hand2", pady=8)
+            add_btn.pack(side="bottom", fill="x", padx=12, pady=(6, 14))
+            add_hover(add_btn, C.ACCENT, C.ACCENT_HOVER)
+
+        # Paling atas: foto + nama guru
+        head = tk.Frame(sb, bg=C.CARD, padx=16, pady=16)
+        head.pack(fill="x")
+        Avatar(head, t["id"], t["name"], size=56, bg=C.CARD).pack(side="left")
+        who = tk.Frame(head, bg=C.CARD)
+        who.pack(side="left", fill="x", expand=True, padx=(12, 4))
+        tk.Label(who, text=t["name"], bg=C.CARD, fg=C.TEXT, anchor="w", justify="left",
+                 wraplength=160, font=(C.FONT, 12, "bold")).pack(fill="x")
+        tk.Label(who, text=f"Guru  ·  {t['id']}", bg=C.CARD, fg=C.MUTED, anchor="w",
+                 font=(C.FONT, 9)).pack(fill="x")
+        tk.Frame(sb, bg=C.BORDER, height=1).pack(fill="x")
+
+        tk.Label(sb, text="MENU", bg=C.CARD, fg=C.MUTED, anchor="w",
+                 font=(C.FONT, 9, "bold")).pack(fill="x", padx=20, pady=(16, 6))
+        self._nav_item("Murid & Kursus", "students")
+        self._nav_item("Laporan Kerja", "reports")
+
+        if self.view != "students":
+            return
+        tk.Label(sb, text="MURID", bg=C.CARD, fg=C.MUTED, anchor="w",
+                 font=(C.FONT, 9, "bold")).pack(fill="x", padx=20, pady=(18, 6))
+        self.list_scroll = ScrollFrame(sb, bg=C.CARD)
+        self.list_scroll.pack(fill="both", expand=True, padx=(0, 6))
+        self._rebuild_list(keep_scroll=False)
+
+    def _nav_item(self, text, view):
+        current = self.view == view
+        bg = C.CARD_HOVER if current else C.CARD
+        row = tk.Frame(self.sidebar, bg=bg)
+        row.pack(fill="x", padx=10, pady=1)
+        tk.Frame(row, bg=C.ACCENT if current else "#3a3f4d", width=4).pack(
+            side="left", fill="y")
+        lbl = tk.Label(row, text=text, bg=bg, fg=C.TEXT, anchor="w", padx=12, pady=8,
+                       font=(C.FONT, 10, "bold" if current else "normal"), cursor="hand2")
+        lbl.pack(side="left", fill="x", expand=True)
+        for w in (row, lbl):
+            w.bind("<Button-1>", lambda e, v=view: self._set_view(v))
+        if not current:
+            for w in (row, lbl):
+                w.bind("<Enter>", lambda e, r=row, l=lbl: (r.config(bg=C.CARD_HOVER),
+                                                          l.config(bg=C.CARD_HOVER)))
+                w.bind("<Leave>", lambda e, r=row, l=lbl: (r.config(bg=C.CARD),
+                                                          l.config(bg=C.CARD)))
+
+    def _rebuild_list(self, keep_scroll=True):
+        """Isi ulang daftar murid di sidebar (dikelompokkan per kategori)."""
+        sc = self.list_scroll
+        if self.view != "students" or sc is None:
+            return
+        top = sc.canvas.yview()[0]
+        for w in sc.inner.winfo_children():
+            w.destroy()
+        self._row_widgets = {}
+        if not self.students:
+            tk.Label(sc.inner, text="Belum ada murid.", bg=C.CARD, fg=C.MUTED,
+                     font=(C.FONT, 10), anchor="w").pack(fill="x", padx=20, pady=6)
+        for program in CATEGORIES:
+            group = [s for s in self.students if s["program"] == program]
+            if not group:
+                continue
+            folded = program in self.collapsed
+            self._group_header(program, len(group), folded)
+            if folded:
+                continue
+            for s in group:
+                self._student_row(s)
+        self.update_idletasks()
+        if keep_scroll:
+            sc.canvas.yview_moveto(top)
+        else:   # murid terpilih (mis. yang baru ditambah) dibawa ke area yang terlihat
+            row = self._row_widgets.get(self.current_id)
+            height = max(1, sc.inner.winfo_reqheight())
+            sc.canvas.yview_moveto(max(0.0, (row.winfo_y() - 60) / height) if row else 0.0)
+
+    def _group_header(self, program, count, folded):
+        lbl = tk.Label(self.list_scroll.inner,
+                       text=f"{'▸' if folded else '▾'}  {PROGRAM_LABEL[program].upper()}  ({count})",
+                       bg=C.CARD, fg=C.MUTED, anchor="w", padx=20, pady=5,
+                       font=(C.FONT, 9, "bold"), cursor="hand2")
+        lbl.pack(fill="x", pady=(4, 0))
+        lbl.bind("<Button-1>", lambda e, p=program: self._toggle_group(p))
+        lbl.bind("<Enter>", lambda e: lbl.config(fg=C.TEXT))
+        lbl.bind("<Leave>", lambda e: lbl.config(fg=C.MUTED))
+
+    def _toggle_group(self, program):   # klik judul kategori = lipat / buka
+        if program in self.collapsed:
+            self.collapsed.discard(program)
+        else:
+            self.collapsed.add(program)
+        self._rebuild_list()
+
+    def _student_row(self, s):
+        current = s["id"] == self.current_id
+        expired = s.get("status") == STATUS_EXPIRED
+        bg = C.CARD_HOVER if current else C.CARD
+        row = tk.Frame(self.list_scroll.inner, bg=bg)
+        row.pack(fill="x", padx=10, pady=1)
+        self._row_widgets[s["id"]] = row
+        tk.Frame(row, bg=C.ERROR if expired else (C.ACCENT if current else "#3a3f4d"),
+                 width=4).pack(side="left", fill="y")
+        text = f"{s['id']}   {s['name']}" + ("   [EXPIRED]" if expired else "")
+        lbl = tk.Label(row, text=text, bg=bg, fg=C.ERROR if expired else C.TEXT,
+                       anchor="w", justify="left", padx=12, pady=7, wraplength=190,
+                       font=(C.FONT, 10, "bold" if current else "normal"), cursor="hand2")
+        lbl.pack(side="left", fill="x", expand=True)
+        for w in (row, lbl):
+            w.bind("<Button-1>", lambda e, sid=s["id"]: self._on_student_click(sid))
+        if not current:
+            for w in (row, lbl):
+                w.bind("<Enter>", lambda e, r=row, l=lbl: (r.config(bg=C.CARD_HOVER),
+                                                          l.config(bg=C.CARD_HOVER)))
+                w.bind("<Leave>", lambda e, r=row, l=lbl: (r.config(bg=C.CARD),
+                                                          l.config(bg=C.CARD)))
+
+    def _on_student_click(self, student_id):
+        if student_id == self.current_id:
+            return
+        self.current_id = student_id
+        self._rebuild_list()
+        self._show_student(student_id)
+
+    # --- kanan (menu Murid & Kursus): detail murid terpilih ----------------------------
+    def _build_student_panel(self):
+        self.right = tk.Frame(self.body, bg=C.BG, padx=32, pady=24)
+        self.right.pack(fill="both", expand=True)
 
         # Kepala: foto murid + nama + tombol foto
         head = tk.Frame(self.right, bg=C.BG)
@@ -106,7 +260,6 @@ class TeacherScreen(tk.Frame):
         self.photo_del_btn = self._small_button(btns, "Hapus foto", self._remove_photo)
         self.photo_del_btn.pack(side="left", padx=(8, 0))
 
-        self.tab = "courses"   # tab yang sedang tampil: "courses" atau "history"
         tabs = tk.Frame(self.right, bg=C.BG)
         tabs.pack(fill="x", pady=(10, 0))
         self.tab_btns = {}
@@ -131,73 +284,7 @@ class TeacherScreen(tk.Frame):
         self.scroll.pack(fill="both", expand=True)
         self.rows = self.scroll.inner
 
-        if self.students:
-            self.current_id = self.students[0]["id"]
-            self._rebuild_list()
-            self._show_student(self.current_id)
-        else:
-            self._show_student(None)
-
-    # --- sidebar kiri: murid per kategori ---------------------------------
-    def _on_list_scroll(self, first, last):
-        """Scrollbar sidebar hanya tampil kalau daftar lebih panjang dari area."""
-        self.list_sb.set(first, last)
-        if float(first) <= 0.0 and float(last) >= 1.0:
-            self.list_sb.pack_forget()
-        elif not self.list_sb.winfo_ismapped():
-            self.list_sb.pack(side="right", fill="y", padx=(6, 0), before=self.listbox)
-
-    def _rebuild_list(self, keep_scroll=True):
-        lb = self.listbox
-        top = lb.yview()[0]
-        lb.delete(0, "end")
-        self._items = []
-        for program in CATEGORIES:
-            group = [s for s in self.students if s["program"] == program]
-            if not group:
-                continue
-            folded = program in self.collapsed
-            lb.insert("end", f" {'▸' if folded else '▾'}  "
-                             f"{PROGRAM_LABEL[program].upper()}  ({len(group)})")
-            i = lb.size() - 1
-            lb.itemconfig(i, fg=C.MUTED, selectforeground=C.MUTED,
-                          selectbackground=C.CARD)  # judul: tidak ikut menyala saat diklik
-            self._items.append(("header", program))
-            if folded:
-                continue
-            for s in group:
-                expired = s.get("status") == STATUS_EXPIRED
-                lb.insert("end", f"      {s['id']}   {s['name']}"
-                                 + ("   [EXPIRED]" if expired else ""))
-                if expired:
-                    lb.itemconfig(lb.size() - 1, fg=C.ERROR)
-                self._items.append(("student", s["id"]))
-        self._select_current()
-        if keep_scroll:
-            lb.yview_moveto(top)
-
-    def _select_current(self):
-        self.listbox.selection_clear(0, "end")
-        for i, (kind, value) in enumerate(self._items):
-            if kind == "student" and value == self.current_id:
-                self.listbox.selection_set(i)
-                self.listbox.see(i)
-                return
-
-    def _on_select(self, _event):
-        sel = self.listbox.curselection()
-        if not sel:
-            return
-        kind, value = self._items[sel[0]]
-        if kind == "header":  # klik judul kategori = lipat / buka
-            if value in self.collapsed:
-                self.collapsed.discard(value)
-            else:
-                self.collapsed.add(value)
-            self._rebuild_list()
-            return
-        self.current_id = value
-        self._show_student(value)
+        self._show_student(self.current_id)
 
     def _show_student(self, student_id):
         student = lookup_student(student_id) if student_id else None  # data terbaru dari file

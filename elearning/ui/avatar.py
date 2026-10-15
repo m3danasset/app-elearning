@@ -23,6 +23,7 @@ class Avatar(tk.Canvas):
         self.name = name
         self.size = size
         self._bg = bg
+        self.override = None   # None = foto di disk; False = tanpa foto; gambar Pillow = pratinjau
         self._photo = None  # simpan referensi supaya gambar tidak hilang
         self.refresh()
 
@@ -42,7 +43,8 @@ class Avatar(tk.Canvas):
         has_photo = False
         try:
             rendered = photos.render_avatar(self.student_id, s, self._bg,
-                                            fill=color, ring=C.BORDER)
+                                            fill=color, ring=C.BORDER,
+                                            override=self.override)
             if rendered is not None:
                 img, has_photo = rendered
                 self._photo = photos.to_photoimage(img)

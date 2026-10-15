@@ -214,6 +214,273 @@ def bring_to_front(hwnd):
     return _bring_to_front(hwnd)
 
 
+def is_foreground(tk_window_id):
+    """True kalau jendela Tk (winfo_id) sedang jadi jendela aktif di depan; None kalau tidak bisa
+    dicek (bukan Windows / gagal)."""
+    if sys.platform != "win32":
+        return None
+    try:
+        import ctypes
+        from ctypes import wintypes
+        u = ctypes.WinDLL("user32", use_last_error=True)
+        u.GetForegroundWindow.restype = wintypes.HWND
+        u.GetAncestor.argtypes = [wintypes.HWND, ctypes.c_uint]
+        u.GetAncestor.restype = wintypes.HWND
+        fg = u.GetForegroundWindow()
+        if not fg:
+            return False
+        mine = u.GetAncestor(wintypes.HWND(tk_window_id), 2)   # GA_ROOT
+        return bool(mine) and u.GetAncestor(fg, 2) == mine
+    except Exception as exc:
+        C.log(f"Blender: gagal memeriksa jendela aktif: {exc!r}")
+        return None
+
+
+def window_state(tk_window_id):
+    """Keadaan jendela utama aplikasi menurut Windows (bukan menurut Tk, yang bisa terlambat tahu
+    setelah Alt+Tab): "iconic" (di-minimize), "hidden", atau "visible". None kalau tidak bisa dicek."""
+    if sys.platform != "win32":
+        return None
+    try:
+        import ctypes
+        from ctypes import wintypes
+        root = root_of(tk_window_id)
+        if not root:
+            return None
+        u = _user32()
+        h = wintypes.HWND(root)
+        if u.IsIconic(h):
+            return "iconic"
+        return "visible" if u.IsWindowVisible(h) else "hidden"
+    except Exception as exc:
+        C.log(f"Blender: gagal membaca keadaan jendela aplikasi: {exc!r}")
+        return None
+
+
+def z_above(hwnd_a, hwnd_b):
+    """True kalau jendela a berada di atas jendela b pada urutan tumpukan layar, False kalau di
+    bawahnya. None kalau tidak bisa ditentukan."""
+    if sys.platform != "win32" or not hwnd_a or not hwnd_b:
+        return None
+    try:
+        import ctypes
+        from ctypes import wintypes
+        u = ctypes.WinDLL("user32", use_last_error=True)
+        u.GetTopWindow.argtypes = [wintypes.HWND]
+        u.GetTopWindow.restype = wintypes.HWND
+        u.GetWindow.argtypes = [wintypes.HWND, wintypes.UINT]
+        u.GetWindow.restype = wintypes.HWND
+        a, b = int(hwnd_a), int(hwnd_b)
+        h = u.GetTopWindow(None)
+        for _ in range(4000):
+            if not h:
+                return None
+            hv = int(h)
+            if hv == a:
+                return True
+            if hv == b:
+                return False
+            h = u.GetWindow(h, 2)                  # GW_HWNDNEXT
+        return None
+    except Exception as exc:
+        C.log(f"Blender: gagal membaca urutan jendela: {exc!r}")
+        return None
+
+
+def blender_covered(hwnd, own_root=None):
+    """True kalau ada jendela biasa lain (aplikasi e-learning, browser, ...) di atas jendela Blender
+    pada urutan tumpukan layar dan menutupi sebagian besar Blender; False kalau Blender paling
+    depan. None kalau tidak bisa dicek.
+
+    Dipakai karena setelah Alt+Tab, jendela yang tampil di depan belum tentu langsung menjadi
+    "jendela aktif" menurut Windows (baru setelah diklik), sedangkan urutan tumpukan langsung benar.
+    Jendela ikon/mini player sendiri, jendela alat (tool window), jendela tersembunyi / di-minimize
+    dan jendela "hantu" (cloaked) diabaikan."""
+    if sys.platform != "win32" or not hwnd:
+        return None
+    try:
+        import ctypes
+        from ctypes import wintypes
+        u = _user32()
+        u.GetTopWindow.argtypes = [wintypes.HWND]
+        u.GetTopWindow.restype = wintypes.HWND
+        u.GetWindow.argtypes = [wintypes.HWND, wintypes.UINT]
+        u.GetWindow.restype = wintypes.HWND
+        u.GetWindowLongW.argtypes = [wintypes.HWND, ctypes.c_int]
+        u.GetWindowLongW.restype = ctypes.c_long
+        u.GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
+        u.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+        try:
+            dwm = ctypes.WinDLL("dwmapi")
+            dwm.DwmGetWindowAttribute.argtypes = [wintypes.HWND, wintypes.DWORD, ctypes.c_void_p,
+                                                  wintypes.DWORD]
+        except Exception:
+            dwm = None
+        target = int(hwnd)
+        br = wintypes.RECT()
+        if not u.GetWindowRect(wintypes.HWND(target), ctypes.byref(br)):
+            return None
+        barea = max(1, (br.right - br.left) * (br.bottom - br.top))
+        mypid = os.getpid()
+        pid = wintypes.DWORD()
+        rect = wintypes.RECT()
+        h = u.GetTopWindow(None)
+        for _ in range(4000):
+            if not h:
+                return None
+            hv = int(h)
+            if hv == target:
+                return False
+            h = u.GetWindow(h, 2)                       # GW_HWNDNEXT
+            hw = wintypes.HWND(hv)
+            if not u.IsWindowVisible(hw) or u.IsIconic(hw):
+                continue
+            ex = u.GetWindowLongW(hw, -20) & 0xFFFFFFFF
+            u.GetWindowThreadProcessId(hw, ctypes.byref(pid))
+            if pid.value == mypid and (own_root is None or hv != int(own_root)):
+                continue                                # ikon / mini player / tombol sendiri
+            if ex & 0x00000080 or ex & 0x08000000:      # TOOLWINDOW / NOACTIVATE
+                continue
+            if dwm is not None:
+                cloaked = wintypes.DWORD(0)
+                if dwm.DwmGetWindowAttribute(hw, 14, ctypes.byref(cloaked), 4) == 0 and cloaked.value:
+                    continue
+            if not u.GetWindowRect(hw, ctypes.byref(rect)):
+                continue
+            iw = min(rect.right, br.right) - max(rect.left, br.left)
+            ih = min(rect.bottom, br.bottom) - max(rect.top, br.top)
+            if iw > 0 and ih > 0 and iw * ih >= 0.3 * barea:
+                return True
+        return None
+    except Exception as exc:
+        C.log(f"Blender: gagal memeriksa jendela yang menutupi Blender: {exc!r}")
+        return None
+
+
+def foreground_is_blender():
+    """True kalau jendela yang sedang aktif adalah jendela Blender. None kalau tidak bisa dicek."""
+    if sys.platform != "win32":
+        return None
+    try:
+        import ctypes
+        from ctypes import wintypes
+        u = _user32()
+        u.GetAncestor.argtypes = [wintypes.HWND, ctypes.c_uint]
+        u.GetAncestor.restype = wintypes.HWND
+        fg = u.GetForegroundWindow()
+        if not fg:
+            return False
+        root = u.GetAncestor(fg, 2) or fg                    # GA_ROOT
+        cls = ctypes.create_unicode_buffer(64)
+        u.GetClassNameW(root, cls, 64)
+        return cls.value == _GHOST_CLASS
+    except Exception as exc:
+        C.log(f"Blender: gagal memeriksa apakah Blender yang aktif: {exc!r}")
+        return None
+
+
+def left_button_down():
+    """True kalau tombol kiri mouse sedang ditekan (di mana pun). None kalau tidak bisa dicek."""
+    if sys.platform != "win32":
+        return None
+    try:
+        import ctypes
+        u = ctypes.WinDLL("user32", use_last_error=True)
+        u.GetAsyncKeyState.argtypes = [ctypes.c_int]
+        u.GetAsyncKeyState.restype = ctypes.c_short
+        return bool(u.GetAsyncKeyState(0x01) & 0x8000)      # VK_LBUTTON
+    except Exception:
+        return None
+
+
+def root_at_point(x, y):
+    """Jendela induk paling atas (hwnd, angka) tepat di bawah titik layar (x, y); 0 kalau tidak ada."""
+    if sys.platform != "win32":
+        return 0
+    try:
+        import ctypes
+        from ctypes import wintypes
+        u = ctypes.WinDLL("user32", use_last_error=True)
+        u.WindowFromPoint.argtypes = [wintypes.POINT]
+        u.WindowFromPoint.restype = wintypes.HWND
+        u.GetAncestor.argtypes = [wintypes.HWND, ctypes.c_uint]
+        u.GetAncestor.restype = wintypes.HWND
+        hwnd = u.WindowFromPoint(wintypes.POINT(int(x), int(y)))
+        if not hwnd:
+            return 0
+        return int(u.GetAncestor(hwnd, 2) or hwnd)
+    except Exception:
+        return 0
+
+
+def root_of(tk_window_id):
+    """Jendela induk paling atas (hwnd, angka) dari widget Tk (winfo_id)."""
+    if sys.platform != "win32":
+        return 0
+    try:
+        import ctypes
+        from ctypes import wintypes
+        u = ctypes.WinDLL("user32", use_last_error=True)
+        u.GetAncestor.argtypes = [wintypes.HWND, ctypes.c_uint]
+        u.GetAncestor.restype = wintypes.HWND
+        h = wintypes.HWND(tk_window_id)
+        return int(u.GetAncestor(h, 2) or 0)
+    except Exception:
+        return 0
+
+
+def foreground_is_ours():
+    """True kalau jendela yang sedang aktif milik proses ini (aplikasi, ikon, atau mini player).
+    None kalau tidak bisa dicek."""
+    if sys.platform != "win32":
+        return None
+    try:
+        import ctypes
+        from ctypes import wintypes
+        u = ctypes.WinDLL("user32", use_last_error=True)
+        u.GetForegroundWindow.restype = wintypes.HWND
+        u.GetWindowThreadProcessId.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.DWORD)]
+        u.GetWindowThreadProcessId.restype = wintypes.DWORD
+        fg = u.GetForegroundWindow()
+        if not fg:
+            return False
+        pid = wintypes.DWORD(0)
+        u.GetWindowThreadProcessId(fg, ctypes.byref(pid))
+        return pid.value == os.getpid()
+    except Exception as exc:
+        C.log(f"Blender: gagal memeriksa pemilik jendela aktif: {exc!r}")
+        return None
+
+
+def monitor_work_area(hwnd):
+    """Area kerja monitor tempat jendela hwnd berada: (kiri, atas, kanan, bawah), di luar taskbar.
+    None kalau tidak bisa dibaca (bukan Windows / gagal)."""
+    if sys.platform != "win32" or not hwnd:
+        return None
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        class MONITORINFO(ctypes.Structure):
+            _fields_ = [("cbSize", wintypes.DWORD), ("rcMonitor", wintypes.RECT),
+                        ("rcWork", wintypes.RECT), ("dwFlags", wintypes.DWORD)]
+
+        u = ctypes.WinDLL("user32", use_last_error=True)
+        u.MonitorFromWindow.argtypes = [wintypes.HWND, wintypes.DWORD]
+        u.MonitorFromWindow.restype = wintypes.HANDLE
+        u.GetMonitorInfoW.argtypes = [wintypes.HANDLE, ctypes.POINTER(MONITORINFO)]
+        hmon = u.MonitorFromWindow(hwnd, 2)          # MONITOR_DEFAULTTONEAREST
+        mi = MONITORINFO()
+        mi.cbSize = ctypes.sizeof(MONITORINFO)
+        if not hmon or not u.GetMonitorInfoW(hmon, ctypes.byref(mi)):
+            return None
+        r = mi.rcWork
+        return (r.left, r.top, r.right, r.bottom)
+    except Exception as exc:
+        C.log(f"Blender: gagal membaca area monitor: {exc!r}")
+        return None
+
+
 def load_setting(key, default=None):
     return _load_settings().get(key, default)
 

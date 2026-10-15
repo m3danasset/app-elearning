@@ -5,7 +5,7 @@ a = Analysis(
     ['../main.py'],
     pathex=[],
     binaries=[],
-    datas=[('C:/BlenderELearning/assets/icon.ico', 'assets')],
+    datas=[('C:/Users/JacksonPC/Desktop/BlenderELearning/assets/icon.ico', 'assets')],
     hiddenimports=['PIL._tkinter_finder', 'mpv', 'ctypes.util'],
     hookspath=[],
     hooksconfig={},
@@ -35,5 +35,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['C:/BlenderELearning/assets/icon.ico'],
+    icon=['C:/Users/JacksonPC/Desktop/BlenderELearning/assets/icon.ico'],
 )

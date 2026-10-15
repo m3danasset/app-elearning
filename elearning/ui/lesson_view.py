@@ -30,6 +30,9 @@ import traceback
 
 from elearning import config as C
 from elearning import lessons, mpv_support
+from elearning import blender_launcher as BL
+from elearning.ui import aa_icons as AA
+from elearning.ui.play_overlay import PlayOverlay
 
 try:
     import cv2
@@ -48,6 +51,9 @@ FOOT_H = 64     # tinggi baris tombol Sebelumnya / Selanjutnya
 FS_FADE_OUT_MS = 60     # animasi: layar meredup sebelum berganti layar penuh (0 = mati)
 FS_FADE_IN_MS = 150     # animasi: layar muncul perlahan setelah berganti (0 = mati)
 TRACK = "#3a3f4d"
+OV_MAIN = 88      # ukuran tombol putar/jeda di tengah video (jendela biasa)
+OV_FULL = 120     # ... dan saat layar penuh
+OV_IDLE = 2.2     # detik kursor diam saat video diputar -> tombol disembunyikan
 
 # Pilihan murid diingat selama aplikasi terbuka (tidak reset saat pindah pelajaran)
 _PREF = {"volume": 80, "mute": False, "sub": None}   # sub: None/"off" = mati, atau nama label
@@ -64,6 +70,12 @@ class Status:
 def _fmt(seconds):
     seconds = max(0, int(seconds))
     return f"{seconds // 60:02d}:{seconds % 60:02d}"
+
+
+def _icon(key, layers, w, h):
+    """Ikon halus (anti-alias) sebagai PhotoImage; None kalau gagal (dipakai gambar canvas biasa).
+    Canvas Tk tidak anti-alias, jadi lingkaran / diagonal / panah di canvas tampak bergerigi."""
+    return AA.photo(key, lambda: AA.render(layers, w, h))
 
 
 # =============================================================================
@@ -499,14 +511,18 @@ class LessonPlayer(tk.Frame):
         self.screen = tk.Canvas(self.stage, bg="#000000", highlightthickness=0, bd=0)
         self.screen.place(relx=0, rely=0, relwidth=1, relheight=1)
         self.img_item = self.screen.create_image(0, 0, anchor="nw")
-        self.screen.create_oval(0, 0, 0, 0, fill=C.CARD_HOVER, outline="#ffffff",
-                                width=2, tags="overlay")
-        self.screen.create_polygon(0, 0, 0, 0, 0, 0, fill="#ffffff", outline="",
-                                   tags="overlay")
+        # Tombol putar/jeda: segitiga / dua balok putih di tengah video (jendela kecil terpisah,
+        # lihat play_overlay.py), tampil saat kursor di atas video, juga saat layar penuh.
+        self.ov = None
+        self._click_t = 0.0            # waktu klik-video terakhir (cegah putar/jeda dua kali)
+        self._btn_prev = False         # keadaan tombol mouse pada pemeriksaan sebelumnya
+        self._ptr = (0, 0)
+        self._ptr_t = 0.0
+        self._ov_n = 0
         self.screen.create_text(0, 0, text="", fill=C.MUTED, font=(C.FONT, 11),
                                 justify="center", tags="msg")
         self.screen.bind("<Configure>", self._on_resize)
-        self.screen.bind("<Button-1>", lambda e: self.toggle())
+        self.screen.bind("<Button-1>", lambda e: self._click_toggle())
         self.surface = tk.Frame(self.stage, bg="#000000")   # mpv menggambar di sini
 
         # --- bar kontrol ---
@@ -602,6 +618,8 @@ class LessonPlayer(tk.Frame):
         want = (not self.fullscreen) if want is None else bool(want)
         if want == self.fullscreen or self._fs_busy:
             return
+        if self.ov is not None:
+            self.ov.settle()        # sembunyikan tombol putar/jeda selama peralihan layar penuh
         self._fs_busy = True
         self.fullscreen = want
 
@@ -733,10 +751,14 @@ class LessonPlayer(tk.Frame):
                    ((x1 - k, y0), (x1, y0), (x1, y0 + k)),
                    ((x0, y1 - k), (x0, y1), (x0 + k, y1)),
                    ((x1 - k, y1), (x1, y1), (x1, y1 - k))]
+        ph = _icon(("pl-fs", self.fullscreen, col),
+                   [(AA.polylines([list(p) for p in pts], 1.0), col)], 36, 36)
+        if ph is not None:
+            c.create_image(0, 0, image=ph, anchor="nw")
+            return
         for p in pts:
             c.create_line(*p[0], *p[1], *p[2], fill=col, width=2)
 
-    # --- memilih mesin pemutar ----------------------------------------------
     def _ensure_engine(self):
         if self.engine is not None:
             return
@@ -914,9 +936,6 @@ class LessonPlayer(tk.Frame):
         if self.engine is not None:
             self.engine.set_size(w, h)
         cx, cy, r = w / 2, h / 2, 34
-        items = self.screen.find_withtag("overlay")
-        self.screen.coords(items[0], cx - r, cy - r, cx + r, cy + r)
-        self.screen.coords(items[1], cx - 11, cy - 17, cx - 11, cy + 17, cx + 18, cy)
         self.screen.coords("msg", cx, cy)
         self.screen.itemconfig("msg", width=max(100, w - 60))
 
@@ -937,6 +956,12 @@ class LessonPlayer(tk.Frame):
         col = C.ACCENT_HOVER if (self._btn_hover and self.has_video) else (
             C.TEXT if self.has_video else C.LOCKED)
         if self.playing:
+            ph = _icon(("pl-pause", col), [(AA.bars([(11, 9, 16, 27), (21, 9, 26, 27)], 1.0), col)], 36, 36)
+        else:
+            ph = _icon(("pl-play", col), [(AA.tri([(12, 9), (12, 27), (27, 18)]), col)], 36, 36)
+        if ph is not None:
+            b.create_image(0, 0, image=ph, anchor="nw")
+        elif self.playing:
             b.create_rectangle(11, 9, 16, 27, fill=col, outline="")
             b.create_rectangle(21, 9, 26, 27, fill=col, outline="")
         else:
@@ -948,28 +973,48 @@ class LessonPlayer(tk.Frame):
         bar.delete("all")
         muted = _PREF["mute"] or _PREF["volume"] == 0
         col = C.MUTED if muted else C.TEXT
-        ic.create_polygon(6, 14, 11, 14, 17, 9, 17, 27, 11, 22, 6, 22, fill=col, outline="")
+        layers = [(AA.tri([(6, 14), (11, 14), (17, 9), (17, 27), (11, 22), (6, 22)]), col)]
         if muted:
-            ic.create_line(20, 14, 27, 22, fill=C.ERROR, width=2)
-            ic.create_line(27, 14, 20, 22, fill=C.ERROR, width=2)
+            layers.append((AA.polylines([[(20, 14), (27, 22)], [(27, 14), (20, 22)]], 1.0), C.ERROR))
         else:
-            ic.create_arc(14, 12, 24, 24, start=-50, extent=100, style="arc", outline=col, width=2)
+            layers.append((AA.arc(19, 18, 5, 1.0, -50, 50), col))
             if _PREF["volume"] > 50:
-                ic.create_arc(11, 8, 28, 28, start=-50, extent=100, style="arc", outline=col, width=2)
+                layers.append((AA.arc(19.5, 18, 10, 1.0, -50, 50), col))
+        big = (not muted) and _PREF["volume"] > 50
+        ph = _icon(("pl-vol", muted, big, col), layers, 30, 36)
+        if ph is not None:
+            ic.create_image(0, 0, image=ph, anchor="nw")
+        else:
+            ic.create_polygon(6, 14, 11, 14, 17, 9, 17, 27, 11, 22, 6, 22, fill=col, outline="")
+            if muted:
+                ic.create_line(20, 14, 27, 22, fill=C.ERROR, width=2)
+                ic.create_line(27, 14, 20, 22, fill=C.ERROR, width=2)
+            else:
+                ic.create_arc(14, 12, 24, 24, start=-50, extent=100, style="arc", outline=col, width=2)
+                if _PREF["volume"] > 50:
+                    ic.create_arc(11, 8, 28, 28, start=-50, extent=100, style="arc", outline=col, width=2)
         x0, x1, y = 6, 66, 18
         bar.create_rectangle(x0, y - 2, x1, y + 2, fill=TRACK, outline="")
         frac = 0 if muted else _PREF["volume"] / 100.0
         x = x0 + (x1 - x0) * frac
         if frac > 0:
             bar.create_rectangle(x0, y - 2, x, y + 2, fill=self.color, outline="")
-        bar.create_oval(x - 5, y - 5, x + 5, y + 5, fill=C.TEXT, outline="")
+        knob = _icon(("pl-knob10", C.TEXT), [(AA.circle(6, 6, 5), C.TEXT)], 12, 12)
+        if knob is not None:
+            bar.create_image(round(x), y, image=knob)
+        else:
+            bar.create_oval(x - 5, y - 5, x + 5, y + 5, fill=C.TEXT, outline="")
 
     def _draw_cc(self):
         c = self.cc
         c.delete("all")
         enabled = self.has_video
         col = self.color if (self.sub_on and enabled) else (C.TEXT if enabled else C.LOCKED)
-        c.create_rectangle(6, 9, 38, 27, outline=col, width=2)
+        ph = _icon(("pl-cc", col), [(AA.rrect_ring(6, 9, 38, 27, 2.5, 1.0), col)], 44, 36)
+        if ph is not None:
+            c.create_image(0, 0, image=ph, anchor="nw")
+        else:
+            c.create_rectangle(6, 9, 38, 27, outline=col, width=2)
         c.create_text(22, 18, text="CC", fill=col, font=(C.FONT, 9, "bold"))
 
     def _draw_seek(self):
@@ -984,18 +1029,94 @@ class LessonPlayer(tk.Frame):
             frac = min(1.0, max(0.0, self.pos / self.dur))
             x = x0 + (x1 - x0) * frac
             c.create_rectangle(x0, y - 2, x, y + 2, fill=self.color, outline="")
-            c.create_oval(x - 6, y - 6, x + 6, y + 6, fill=C.TEXT, outline="")
+            knob = _icon(("pl-knob12", C.TEXT), [(AA.circle(7, 7, 6), C.TEXT)], 14, 14)
+            if knob is not None:
+                c.create_image(round(x), y, image=knob)
+            else:
+                c.create_oval(x - 6, y - 6, x + 6, y + 6, fill=C.TEXT, outline="")
 
     def _update_time(self):
         self.time_lbl.config(text=f"{_fmt(self.pos)} / {_fmt(self.dur)}")
 
     # --- pembaruan berkala ----------------------------------------------------
+    # --- tombol putar/jeda melayang ------------------------------------------
+    def _app_active(self):
+        """True kalau jendela aplikasi terbuka di depan (bukan di-minimize / tertutup Blender)."""
+        top = self.winfo_toplevel()
+        try:
+            if top.state() in ("iconic", "withdrawn"):
+                return False
+        except tk.TclError:
+            return False
+        fg = BL.is_foreground(top.winfo_id())
+        return True if fg is None else fg
+
+    def _pointer_in_stage(self):
+        px, py = self.winfo_pointerxy()
+        x, y = self.stage.winfo_rootx(), self.stage.winfo_rooty()
+        return x <= px < x + self.stage.winfo_width() and y <= py < y + self.stage.winfo_height()
+
+    def _update_overlay(self):
+        try:
+            want = (self.has_video and not self._fs_busy and self.winfo_viewable()
+                    and self._app_active() and self._pointer_in_stage())
+            if want:
+                now, ptr = time.time(), self.winfo_pointerxy()
+                if ptr != self._ptr:
+                    self._ptr, self._ptr_t = ptr, now
+                if self.playing and now - self._ptr_t > OV_IDLE:
+                    want = False        # kursor diam saat video diputar: sembunyikan
+            if self.ov is None:
+                if not want:
+                    return
+                self.ov = PlayOverlay(self.winfo_toplevel(), on_click=self._click_toggle, size=OV_MAIN)
+            self.ov.set_size(OV_FULL if self.fullscreen else OV_MAIN)
+            self.ov.set_playing(self.playing)
+            cx = self.stage.winfo_rootx() + self.stage.winfo_width() // 2
+            cy = self.stage.winfo_rooty() + self.stage.winfo_height() // 2
+            self.ov.sync(want, cx, cy)
+        except tk.TclError:
+            pass
+        except Exception as exc:
+            C.log(f"Tombol putar/jeda pemutar: {exc!r}")
+
+    # --- klik di mana pun pada video = putar/jeda -----------------------------
+    def _click_toggle(self):
+        """Putar/jeda dari klik video. Klik bisa datang dari beberapa jalur sekaligus (event mpv,
+        canvas, pemeriksaan mouse, tombol overlay): hanya satu yang dihitung per klik."""
+        now = time.time()
+        if now - self._click_t < 0.35:
+            return
+        self._click_t = now
+        self.toggle()
+
+    def _poll_click(self):
+        """Mpv kadang tidak meneruskan klik ke Tk, jadi tekanan tombol kiri diperiksa langsung:
+        klik di mana pun di area video (jendela biasa maupun layar penuh) memutar/menjeda."""
+        down = BL.left_button_down()
+        if down is None:
+            return
+        pressed, self._btn_prev = down and not self._btn_prev, down
+        if not pressed or not self.has_video or self._fs_busy or not self._pointer_in_stage():
+            return
+        px, py = self.winfo_pointerxy()
+        mine = BL.root_of(self.winfo_toplevel().winfo_id())
+        if mine and BL.root_at_point(px, py) == mine:    # klik di video, bukan di jendela lain
+            self._click_toggle()
+
     def _tick(self):
+        self._ov_n += 1
+        try:
+            self._poll_click()
+        except Exception as exc:
+            C.log(f"Klik video: {exc!r}")
+        if self._ov_n % 3 == 0:
+            self._update_overlay()
         e = self.engine
         if e is not None and self.has_video:
             self._n += 1
             if e.take_toggle():
-                self.toggle()
+                self._click_toggle()
             key = getattr(e, "take_key", None)
             key = key() if key is not None else None
             if key:
@@ -1046,6 +1167,12 @@ class LessonPlayer(tk.Frame):
             cb(self.notice)
 
     def destroy(self):
+        if self.ov is not None:
+            try:
+                self.ov.destroy()
+            except Exception:
+                pass
+            self.ov = None
         self._open_curtain()
         if self.fullscreen and self.on_fullscreen is not None:
             self.fullscreen = False

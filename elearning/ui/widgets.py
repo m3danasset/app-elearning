@@ -1,6 +1,7 @@
 """Komponen kecil yang dipakai di beberapa layar."""
 
 import tkinter as tk
+import tkinter.font as tkfont
 
 from elearning import config as C
 
@@ -9,6 +10,98 @@ def add_hover(button, normal, hover):
     """Ubah warna tombol saat kursor di atasnya."""
     button.bind("<Enter>", lambda e: button.config(bg=hover))
     button.bind("<Leave>", lambda e: button.config(bg=normal))
+
+
+class MarqueeLabel(tk.Canvas):
+    """Teks satu baris. Kalau kepanjangan dipotong dengan "..." di akhir; saat kursor di atasnya,
+    teks berjalan ke kiri sampai ujungnya terbaca, lalu kembali dipotong saat kursor pergi."""
+
+    STEP_MS = 30      # jeda antar gerakan
+    STEP_PX = 2       # jarak geser tiap gerakan
+    START_DELAY = 350  # jeda sebelum mulai berjalan (ms)
+    PAD = 2           # ruang kosong di kanan teks saat berhenti
+
+    def __init__(self, master, text, font, bg, fg, cursor="", padx=10, pady=5):
+        self._font = tkfont.Font(font=font)
+        self._text = text
+        self._padx = padx
+        super().__init__(master, bg=bg, height=self._font.metrics("linespace") + 2 * pady,
+                         width=10, highlightthickness=0, bd=0, cursor=cursor)
+        self._fg = fg
+        self._job = None
+        self._running = False
+        self._x = padx
+        self._full_w = self._font.measure(text)
+        self._item = self.create_text(padx, self.winfo_reqheight() // 2, text=text,
+                                      anchor="w", font=self._font, fill=fg)
+        self.bind("<Configure>", lambda e: self._reset())
+        self.bind("<Destroy>", lambda e: self.stop(), add="+")
+
+    def set_colors(self, bg=None, fg=None):
+        if bg is not None:
+            self.config(bg=bg)
+        if fg is not None:
+            self._fg = fg
+            self.itemconfig(self._item, fill=fg)
+
+    def _avail(self):
+        return max(1, self.winfo_width() - 2 * self._padx)
+
+    def _fit(self):
+        """Teks yang muat di lebar saat ini, dengan "..." kalau dipotong."""
+        avail = self._avail()
+        if self._full_w <= avail:
+            return self._text
+        dots = "..."
+        lo, hi = 0, len(self._text)
+        while lo < hi:   # cari huruf terbanyak yang masih muat bersama "..."
+            mid = (lo + hi + 1) // 2
+            if self._font.measure(self._text[:mid].rstrip() + dots) <= avail:
+                lo = mid
+            else:
+                hi = mid - 1
+        return self._text[:lo].rstrip() + dots
+
+    def truncated(self):
+        return self._full_w > self._avail()
+
+    def _reset(self):
+        self.stop()
+        self._x = self._padx
+        self.itemconfig(self._item, text=self._fit())
+        self.coords(self._item, self._x, self.winfo_height() // 2)
+
+    def start(self):
+        """Mulai berjalan ke kiri (hanya kalau teksnya terpotong)."""
+        if self._running or not self.truncated():
+            return
+        self._running = True
+        self.itemconfig(self._item, text=self._text)
+        self.coords(self._item, self._padx, self.winfo_height() // 2)
+        self._x = self._padx
+        self._job = self.after(self.START_DELAY, self._tick)
+
+    def stop(self):
+        self._running = False
+        if self._job is not None:
+            try:
+                self.after_cancel(self._job)
+            except Exception:
+                pass
+            self._job = None
+
+    def _tick(self):
+        self._job = None
+        end_x = self._avail() + self._padx - self._full_w - self.PAD   # posisi saat ujung teks terlihat
+        if self._x <= end_x:
+            return   # sudah sampai ujung: diam sampai kursor pergi
+        self._x = max(end_x, self._x - self.STEP_PX)
+        self.coords(self._item, self._x, self.winfo_height() // 2)
+        self._job = self.after(self.STEP_MS, self._tick)
+
+    def hover_off(self):
+        """Kursor pergi: berhenti dan kembali ke teks yang dipotong."""
+        self._reset()
 
 
 class Switch(tk.Canvas):
@@ -111,9 +204,13 @@ class ScrollFrame(tk.Frame):
 
     Taruh isi di  .inner . Scrollbar hanya tampil kalau isinya lebih tinggi
     daripada area yang tersedia.
+
+    Beberapa ScrollFrame boleh hidup bersamaan di satu layar (mis. daftar murid di
+    sidebar guru + isi di sebelah kanan): satu binding roda mouse melayani semuanya,
+    dan yang menggulir adalah frame tempat kursor berada.
     """
 
-    _wheel_owner = None   # ScrollFrame yang sedang memegang roda mouse
+    _live = []   # semua ScrollFrame yang masih hidup
 
     def __init__(self, master, bg=C.BG):
         super().__init__(master, bg=bg)
@@ -127,8 +224,9 @@ class ScrollFrame(tk.Frame):
         self._win = self.canvas.create_window((0, 0), window=self.inner, anchor="nw")
         self.inner.bind("<Configure>", self._on_inner)
         self.canvas.bind("<Configure>", self._on_canvas)
-        self.bind_all("<MouseWheel>", self._on_wheel)
-        ScrollFrame._wheel_owner = self
+        if not ScrollFrame._live:   # binding roda hanya dipasang sekali
+            self.bind_all("<MouseWheel>", ScrollFrame._on_wheel_all)
+        ScrollFrame._live.append(self)
 
     def _needs_scroll(self):
         return self.inner.winfo_reqheight() > self.canvas.winfo_height()
@@ -149,28 +247,36 @@ class ScrollFrame(tk.Frame):
         self.canvas.itemconfigure(self._win, width=event.width)  # isi selebar area
         self._refresh()
 
+    @staticmethod
+    def _on_wheel_all(event):
+        for frame in list(ScrollFrame._live):
+            if frame._on_wheel(event):   # sudah ditangani frame ini
+                return
+
     def _on_wheel(self, event):
+        """True kalau kursor ada di dalam frame ini dan isinya memang bisa digulir."""
         if not self._needs_scroll():
-            return
+            return False
         try:
             w = self.winfo_containing(event.x_root, event.y_root)
         except Exception:
-            return
+            return False
         while w is not None:  # hanya kalau kursor ada di dalam area ini
             if w is self:
                 self.canvas.yview_scroll(int(-event.delta / 120) or (-1 if event.delta > 0 else 1), "units")
-                return
+                return True
             w = w.master
+        return False
 
     def scroll_to_top(self):
         self.canvas.yview_moveto(0)
 
     def destroy(self):
-        # Layar baru dibuat SEBELUM layar lama dihancurkan. Kalau layar lama ikut
-        # melepas binding, roda mouse di layar baru mati; jadi lepas hanya kalau
-        # binding itu masih milik frame ini.
-        if ScrollFrame._wheel_owner is self:
-            ScrollFrame._wheel_owner = None
+        # Layar baru dibuat SEBELUM layar lama dihancurkan, jadi binding roda baru
+        # dilepas kalau sudah tidak ada ScrollFrame yang hidup.
+        if self in ScrollFrame._live:
+            ScrollFrame._live.remove(self)
+        if not ScrollFrame._live:
             try:
                 self.unbind_all("<MouseWheel>")
             except Exception:

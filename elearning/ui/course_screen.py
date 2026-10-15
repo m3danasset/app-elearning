@@ -10,7 +10,7 @@ from elearning.trial import is_trial
 from elearning.ui.avatar import Avatar
 from elearning.ui.lesson_view import LessonsPanel
 from elearning.ui.portfolio_view import PortfolioPanel
-from elearning.ui.widgets import add_hover
+from elearning.ui.widgets import MarqueeLabel, add_hover
 
 EXPANDED_W = 270
 COLLAPSED_W = 76
@@ -221,23 +221,33 @@ class CourseScreen(tk.Frame):
         row.pack(fill="x", padx=(30, 10), pady=1)
         tk.Frame(row, bg=self.course["color"] if current else "#3a3f4d",
                  width=3).pack(side="left", fill="y")
-        lbl = tk.Label(row, text=item["label"], bg=bg, fg=C.TEXT if current else C.MUTED,
-                       anchor="w", justify="left", padx=10, pady=5, wraplength=170,
-                       font=(C.FONT, 9, "bold" if current else "normal"), cursor="hand2")
+        lbl = MarqueeLabel(row, item["label"], bg=bg, fg=C.TEXT if current else C.MUTED,
+                           font=(C.FONT, 9, "bold" if current else "normal"),
+                           cursor="hand2", padx=10, pady=5)
         lbl.pack(side="left", fill="x", expand=True)
         for w in (row, lbl):
             w.bind("<Button-1>", lambda e, k=index: self._open_lesson(k))
-        if not current:
-            def enter(e):
-                row.config(bg=C.CARD_HOVER)
-                lbl.config(bg=C.CARD_HOVER, fg=C.TEXT)
 
-            def leave(e):
+        def inside(e):   # kursor masih di dalam baris ini (pindah antar widget anak tidak dihitung keluar)
+            w = row.winfo_containing(e.x_root, e.y_root)
+            return w is not None and (w is row or str(w).startswith(str(row) + "."))
+
+        def enter(e):
+            if not current:
+                row.config(bg=C.CARD_HOVER)
+                lbl.set_colors(bg=C.CARD_HOVER, fg=C.TEXT)
+            lbl.start()
+
+        def leave(e):
+            if inside(e):
+                return
+            if not current:
                 row.config(bg=C.CARD)
-                lbl.config(bg=C.CARD, fg=C.MUTED)
-            for w in (row, lbl):
-                w.bind("<Enter>", enter)
-                w.bind("<Leave>", leave)
+                lbl.set_colors(bg=C.CARD, fg=C.MUTED)
+            lbl.hover_off()
+        for w in (row, lbl):
+            w.bind("<Enter>", enter)
+            w.bind("<Leave>", leave)
 
     def _build_view_item(self, text, view, stripe):
         current = self.view == view

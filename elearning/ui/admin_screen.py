@@ -1,14 +1,15 @@
-"""Panel admin: memantau aktivitas guru dan murid, melihat laporan kerja guru, serta
-mengatur status murid (active / expired)."""
+"""Panel admin: memantau aktivitas guru dan murid, melihat laporan kerja guru, mengatur
+status murid (active / expired), serta menambah / mengubah / menghapus guru."""
 
 import tkinter as tk
 
 from elearning import config as C
-from elearning import reports, sessions
+from elearning import photos, reports, sessions
+from elearning import teachers as T
 from elearning.students import (STATUS_ACTIVE, STATUS_EXPIRED, STATUS_LABEL,
                                 list_students, set_status)
-from elearning.teachers import TEACHERS
 from elearning.ui.avatar import Avatar
+from elearning.ui.dialogs import ConfirmDialog, TeacherDialog
 from elearning.ui.report_widgets import (PeriodBar, PortfolioSummary, ReportCard,
                                          empty_note, section_title)
 from elearning.ui.topbar import TopBar
@@ -42,13 +43,20 @@ class AdminScreen(tk.Frame):
                           font=(C.FONT, 10, "bold"), padx=16, pady=6)
             b.pack(side="left", padx=(0, 6))
             self.tab_btns[key] = b
-        reload_btn = tk.Button(bar, text="Muat ulang", command=self.refresh,
+        self.reload_btn = reload_btn = tk.Button(bar, text="Muat ulang", command=self.refresh,
                                bg=C.CARD, fg=C.MUTED, activebackground=C.BORDER,
                                activeforeground=C.TEXT, relief="flat", bd=0,
                                highlightthickness=0, font=(C.FONT, 10),
                                cursor="hand2", padx=14, pady=6)
         reload_btn.pack(side="right")
         add_hover(reload_btn, C.CARD, C.BORDER)
+        # Tombol tambah guru: hanya tampil di tab Guru (lihat _layout_tab)
+        self.add_btn = tk.Button(bar, text="+  Tambah guru", command=self._add_teacher,
+                                 bg=C.ACCENT, fg="white", activebackground=C.ACCENT_HOVER,
+                                 activeforeground="white", relief="flat", bd=0,
+                                 highlightthickness=0, font=(C.FONT, 10, "bold"),
+                                 cursor="hand2", padx=14, pady=6)
+        add_hover(self.add_btn, C.ACCENT, C.ACCENT_HOVER)
 
         self.summary = tk.Label(body, text="", bg=C.BG, fg=C.MUTED,
                                 font=(C.FONT, 10), anchor="w")
@@ -57,9 +65,12 @@ class AdminScreen(tk.Frame):
         self.header = tk.Frame(body, bg=C.BG, padx=14)   # judul kolom (tab Murid / Guru)
         self.header.pack(fill="x")
         self._configure_columns(self.header)
+        self.header_labels = []
         for i, (title, _w) in enumerate(COLUMNS):
-            tk.Label(self.header, text=title, bg=C.BG, fg=C.MUTED, anchor="w",
-                     font=(C.FONT, 9, "bold")).grid(row=0, column=i, sticky="w")
+            lbl = tk.Label(self.header, text=title, bg=C.BG, fg=C.MUTED, anchor="w",
+                           font=(C.FONT, 9, "bold"))
+            lbl.grid(row=0, column=i, sticky="w")
+            self.header_labels.append(lbl)
 
         # Filter laporan (tab Laporan Guru): periode + guru
         self.rbar = tk.Frame(body, bg=C.BG)
@@ -70,12 +81,11 @@ class AdminScreen(tk.Frame):
         tk.Label(self.rbar, text="Guru", bg=C.BG, fg=C.MUTED,
                  font=(C.FONT, 10)).pack(side="left", padx=(24, 10))
         self.ALL_TEACHERS = "Semua guru"
-        self.teacher_ids = {self.ALL_TEACHERS: None}
-        for tid, d in sorted(TEACHERS.items()):
-            self.teacher_ids[f"{d['name']}  ({tid})"] = tid
+        self.teacher_ids = self._teacher_choices(T.list_teachers())
         self.teacher_var = tk.StringVar(value=self.ALL_TEACHERS)
-        menu = tk.OptionMenu(self.rbar, self.teacher_var, *self.teacher_ids,
-                             command=lambda _v: self.refresh())
+        menu = self.teacher_menu = tk.OptionMenu(
+            self.rbar, self.teacher_var, *self.teacher_ids,
+            command=lambda _v: self.refresh())
         menu.config(bg=C.CARD, fg=C.TEXT, activebackground=C.BORDER,
                     activeforeground=C.TEXT, relief="flat", bd=0,
                     highlightthickness=0, font=(C.FONT, 10), cursor="hand2")
@@ -102,6 +112,11 @@ class AdminScreen(tk.Frame):
 
     def _layout_tab(self):
         """Tab Murid / Guru memakai judul kolom; tab Laporan Guru memakai bar filter."""
+        if self.tab == "teachers":
+            self.add_btn.pack(side="right", padx=(0, 8), after=self.reload_btn)
+        else:
+            self.add_btn.pack_forget()
+        self.header_labels[-1].config(text="Kelola" if self.tab == "teachers" else "Status akun")
         if self.tab == "reports":
             self.header.pack_forget()
             self.rbar.pack(fill="x", before=self.scroll)
@@ -121,8 +136,8 @@ class AdminScreen(tk.Frame):
     # --- data ------------------------------------------------------------------
     def _people(self):
         if self.tab == "teachers":
-            return [{"id": tid, "name": d["name"], "sub": "Guru"}
-                    for tid, d in sorted(TEACHERS.items())]
+            return [{"id": t["id"], "name": t["name"], "sub": "Guru", "teacher": True}
+                    for t in T.list_teachers()]
         return [{"id": s["id"], "name": s["name"], "status": s["status"],
                  "sub": PROGRAM_LABEL.get(s["program"], "")}
                 for s in list_students()]
@@ -169,6 +184,9 @@ class AdminScreen(tk.Frame):
     # --- tab Laporan Guru -------------------------------------------------------
     def _refresh_reports(self):
         since, until = self.period.range()
+        teachers = T.list_teachers()
+        teacher_names = {t["id"]: t["name"] for t in teachers}
+        self._rebuild_teacher_menu(teachers)
         teacher_id = self.teacher_ids.get(self.teacher_var.get())
         recs = reports.list_reports(teacher_id, since, until)
         try:
@@ -177,9 +195,10 @@ class AdminScreen(tk.Frame):
             C.log(f"Ringkasan portfolio gagal: {exc!r}")
             rows = []
 
-        who = (f"{len({r['teacher'] for r in recs})} dari {len(TEACHERS)} guru melapor"
+        who = (f"{len({r['teacher'] for r in recs if r['teacher'] in teacher_names})} "
+               f"dari {len(teachers)} guru melapor"
                if teacher_id is None else
-               TEACHERS.get(teacher_id, {}).get("name", teacher_id))
+               teacher_names.get(teacher_id, teacher_id))
         self.summary.config(
             fg=C.MUTED,
             text=f"{len(recs)} laporan  ·  {who}  ·  "
@@ -193,7 +212,7 @@ class AdminScreen(tk.Frame):
             empty_note(inner, "Belum ada laporan pada periode ini.")
         names = {s["id"]: s["name"] for s in list_students()}
         for rec in recs:
-            teacher = TEACHERS.get(rec["teacher"], {}).get("name", rec["teacher"])
+            teacher = teacher_names.get(rec["teacher"], f"{rec['teacher']} (sudah dihapus)")
             ReportCard(inner, rec, names.get, teacher_name=teacher).pack(
                 fill="x", pady=(0, 8))
 
@@ -239,8 +258,14 @@ class AdminScreen(tk.Frame):
         """Kolom 'Status akun': badge Active/Expired + tombol untuk mengubahnya (murid saja)."""
         cell = tk.Frame(row, bg=C.CARD)
         cell.grid(row=0, column=len(COLUMNS) - 1, sticky="w")
+        if person.get("teacher"):   # guru: tombol Ubah / Hapus
+            self._mini_button(cell, "Ubah",
+                              lambda: self._edit_teacher(person)).pack(side="left")
+            self._mini_button(cell, "Hapus", lambda: self._delete_teacher(person),
+                              danger=True).pack(side="left", padx=(6, 0))
+            return
         status = person.get("status")
-        if status is None:   # guru: tidak punya status akun
+        if status is None:   # cadangan: tidak punya status akun
             tk.Label(cell, text="-", bg=C.CARD, fg=C.MUTED,
                      font=(C.FONT, 10)).pack(side="left")
             return
@@ -257,6 +282,110 @@ class AdminScreen(tk.Frame):
                         padx=10, pady=3)
         btn.pack(side="left", padx=(6, 0))
         add_hover(btn, C.BG, C.BORDER)
+
+    # --- kelola guru (tab Guru) ----------------------------------------------------
+    def _teacher_choices(self, teachers):
+        choices = {self.ALL_TEACHERS: None}
+        for t in teachers:
+            choices[f"{t['name']}  ({t['id']})"] = t["id"]
+        return choices
+
+    def _rebuild_teacher_menu(self, teachers):
+        """Samakan isi menu filter Laporan Guru dengan daftar guru terbaru."""
+        choices = self._teacher_choices(teachers)
+        if choices == self.teacher_ids:
+            return
+        selected = self.teacher_ids.get(self.teacher_var.get())
+        self.teacher_ids = choices
+        label = next((l for l, tid in choices.items() if tid == selected), self.ALL_TEACHERS)
+        self.teacher_var.set(label)
+        menu = self.teacher_menu["menu"]
+        menu.delete(0, "end")
+        for text in choices:
+            menu.add_command(label=text, command=lambda t=text: (
+                self.teacher_var.set(t), self.refresh()))
+
+    @staticmethod
+    def _mini_button(parent, text, command, danger=False):
+        btn = tk.Button(parent, text=text, command=command, bg=C.BG,
+                        fg=C.ERROR if danger else C.TEXT, activebackground=C.BORDER,
+                        activeforeground=C.ERROR if danger else C.TEXT, relief="flat",
+                        bd=0, highlightthickness=0, font=(C.FONT, 9), cursor="hand2",
+                        padx=10, pady=3)
+        add_hover(btn, C.BG, C.BORDER)
+        return btn
+
+    def _after_change(self):
+        """Muat ulang daftar tapi tetap di posisi gulir semula."""
+        top = self.scroll.canvas.yview()[0]
+        self.refresh()
+        self.update_idletasks()
+        self.scroll.canvas.yview_moveto(top)
+
+    @staticmethod
+    def _apply_photo(teacher_id, photo):
+        """photo: None = tidak berubah, False = hapus foto, gambar Pillow = simpan. True kalau berhasil."""
+        try:
+            if photo is False:
+                photos.remove_photo(teacher_id)
+            elif photo is not None:
+                photos.save_prepared(teacher_id, photo)
+            return True
+        except Exception as exc:
+            C.log(f"Gagal menyimpan foto {teacher_id}: {exc!r}")
+            return False
+
+    def _add_teacher(self):
+        def submit(name, pin, photo):
+            try:
+                teacher = T.add_teacher(name, pin)
+            except ValueError as exc:
+                return str(exc)
+            # Guru baru tanpa foto pilihan = tanpa foto (jangan mewarisi file lama yang tersisa)
+            ok = self._apply_photo(teacher["id"], False if photo is None else photo)
+            self._after_change()
+            if not ok:
+                self.summary.config(
+                    text=f"{teacher['name']} ditambahkan, tetapi fotonya gagal disimpan.",
+                    fg=C.ERROR)
+            return None
+
+        TeacherDialog(self, "Tambah guru", submit, teacher_id=T.next_teacher_id(), add=True)
+
+    def _edit_teacher(self, person):
+        tid = person["id"]
+
+        def submit(name, pin, photo):
+            try:
+                T.update_teacher(tid, name, pin or None)
+            except ValueError as exc:
+                return str(exc)
+            ok = self._apply_photo(tid, photo)
+            self._after_change()
+            if not ok:
+                self.summary.config(text=f"Data {tid} tersimpan, tetapi fotonya gagal diubah.",
+                                    fg=C.ERROR)
+            return None
+
+        TeacherDialog(self, f"Ubah guru {tid}", submit, teacher_id=tid, add=False,
+                      name=person["name"])
+
+    def _delete_teacher(self, person):
+        tid = person["id"]
+
+        def confirm():
+            try:
+                T.delete_teacher(tid)
+            except ValueError as exc:
+                return str(exc)
+            self._after_change()
+            return None
+
+        ConfirmDialog(
+            self, "Hapus guru",
+            f"Hapus akun {person['name']} ({tid})? Foto dan riwayat masuk/keluarnya ikut "
+            "terhapus dan tidak bisa dikembalikan. Laporan kerja yang pernah ditulis guru "
+            "ini tetap tersimpan.", confirm)
 
     def _set_status(self, student_id, status):
         top = self.scroll.canvas.yview()[0]

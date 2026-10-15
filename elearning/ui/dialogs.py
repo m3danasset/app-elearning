@@ -1,9 +1,13 @@
-"""Kotak dialog kecil bertema gelap untuk layar guru (tambah murid, ubah nama)."""
+"""Kotak dialog kecil bertema gelap untuk layar guru (tambah murid, ubah nama, tulis laporan)."""
 
 import tkinter as tk
+from datetime import date
 
 from elearning import config as C
+from elearning import photos, reports
 from elearning import students as S
+from elearning.ui.avatar import Avatar
+from elearning.ui.report_widgets import KIND_COLOR
 from elearning.ui.widgets import add_hover
 
 PROGRAMS = (("adult", "Murid dewasa"), ("kids", "Murid anak"))
@@ -218,6 +222,325 @@ class ConfirmDialog(tk.Toplevel):
         except Exception as exc:
             C.log(f"Dialog konfirmasi gagal: {exc!r}")
             err = "Gagal. Pastikan folder data bisa ditulis."
+        if err:
+            self.error.config(text=err)
+        else:
+            self.destroy()
+
+
+class ReportDialog(tk.Toplevel):
+    """Dialog tulis laporan kerja (rec=None) atau ubah laporan (rec = item reports.list_reports).
+
+    on_submit(tanggal_teks, jenis, id_murid, catatan) dipanggil saat tombol Simpan diklik.
+    Kalau mengembalikan teks, teks itu ditampilkan sebagai pesan kesalahan dan dialog
+    tetap terbuka; kalau mengembalikan None, dialog ditutup.
+    """
+
+    NO_STUDENT = "Umum (tidak terkait murid)"
+
+    def __init__(self, master, students, on_submit, rec=None, default_kind="student"):
+        super().__init__(master, bg=C.CARD, highlightthickness=1,
+                         highlightbackground=C.BORDER)
+        title = "Ubah laporan" if rec else "Tulis laporan"
+        self.title(title)
+        self.resizable(False, False)
+        self.transient(master.winfo_toplevel())
+        try:
+            self.iconbitmap(C.ICON_PATH)
+        except Exception:
+            pass
+        self.on_submit = on_submit
+        self.kind = rec["kind"] if rec else default_kind
+
+        body = tk.Frame(self, bg=C.CARD, padx=28, pady=22)
+        body.pack(fill="both", expand=True)
+        tk.Label(body, text=title, bg=C.CARD, fg=C.TEXT,
+                 font=(C.FONT, 14, "bold"), anchor="w").pack(fill="x", pady=(0, 6))
+
+        day = reports.format_day(rec["day"] if rec else date.today())
+        self.date_var = tk.StringVar(value=day)
+        StudentDialog._field(body, "Tanggal (hari/bulan/tahun)", self.date_var, 36, pady=8)
+
+        tk.Label(body, text="Jenis laporan", bg=C.CARD, fg=C.MUTED, font=(C.FONT, 10),
+                 anchor="w").pack(fill="x", pady=(12, 0))
+        chips = tk.Frame(body, bg=C.CARD)
+        chips.pack(fill="x", pady=(6, 0))
+        self._kind_btns = {}
+        for i, (key, label) in enumerate(reports.KINDS):
+            b = tk.Button(chips, text=label, command=lambda k=key: self._set_kind(k),
+                          relief="flat", bd=0, highlightthickness=0, cursor="hand2",
+                          font=(C.FONT, 9, "bold"), padx=8, pady=5)
+            b.grid(row=i // 3, column=i % 3, sticky="ew", padx=(0, 6), pady=(0, 6))
+            self._kind_btns[key] = b
+        for c in range(3):
+            chips.grid_columnconfigure(c, weight=1, uniform="kind")
+
+        self.student_lbl = tk.Label(body, text="Murid", bg=C.CARD, fg=C.MUTED,
+                                    font=(C.FONT, 10), anchor="w")
+        self.student_lbl.pack(fill="x", pady=(6, 0))
+        self._ids = {self.NO_STUDENT: ""}
+        labels = [self.NO_STUDENT]
+        chosen = self.NO_STUDENT
+        for s in students:
+            label = f"{s['id']}   {s['name']}"
+            self._ids[label] = s["id"]
+            labels.append(label)
+            if rec and s["id"] == rec["student"]:
+                chosen = label
+        self.student_var = tk.StringVar(value=chosen)
+        menu = tk.OptionMenu(body, self.student_var, *labels)
+        menu.config(bg=C.BG, fg=C.TEXT, activebackground=C.BORDER,
+                    activeforeground=C.TEXT, relief="flat", bd=0, anchor="w",
+                    highlightthickness=1, highlightbackground=C.BORDER,
+                    font=(C.FONT, 10), cursor="hand2")
+        menu["menu"].config(bg=C.CARD, fg=C.TEXT, activebackground=C.ACCENT,
+                            activeforeground="white", font=(C.FONT, 10), bd=0)
+        menu.pack(fill="x", pady=(6, 0), ipady=3)
+
+        tk.Label(body, text="Catatan", bg=C.CARD, fg=C.MUTED, font=(C.FONT, 10),
+                 anchor="w").pack(fill="x", pady=(12, 0))
+        border = tk.Frame(body, bg=C.BORDER, padx=1, pady=1)
+        border.pack(fill="x", pady=(6, 0))
+        self.text = tk.Text(border, width=40, height=7, wrap="word", bg=C.BG, fg=C.TEXT,
+                            insertbackground=C.TEXT, relief="flat", highlightthickness=0,
+                            font=(C.FONT, 11), padx=8, pady=6, undo=True)
+        self.text.pack(fill="x")
+        self.text.bind("<FocusIn>", lambda e: border.config(bg=C.ACCENT))
+        self.text.bind("<FocusOut>", lambda e: border.config(bg=C.BORDER))
+        if rec:
+            self.text.insert("1.0", rec["text"])
+
+        self.error = tk.Label(body, text="", bg=C.CARD, fg=C.ERROR, font=(C.FONT, 10),
+                              anchor="w", wraplength=380, justify="left")
+        self.error.pack(fill="x", pady=(10, 0))
+
+        btns = tk.Frame(body, bg=C.CARD)
+        btns.pack(fill="x", pady=(10, 0))
+        ok = tk.Button(btns, text="Simpan perubahan" if rec else "Simpan laporan",
+                       command=self._submit, bg=C.ACCENT, fg="white",
+                       activebackground=C.ACCENT_HOVER, activeforeground="white",
+                       relief="flat", bd=0, highlightthickness=0,
+                       font=(C.FONT, 11, "bold"), cursor="hand2", padx=22, pady=7)
+        ok.pack(side="right")
+        add_hover(ok, C.ACCENT, C.ACCENT_HOVER)
+        cancel = tk.Button(btns, text="Batal", command=self.destroy, bg=C.CARD,
+                           fg=C.MUTED, activebackground=C.BORDER,
+                           activeforeground=C.TEXT, relief="flat", bd=0,
+                           highlightthickness=0, font=(C.FONT, 11),
+                           cursor="hand2", padx=18, pady=7)
+        cancel.pack(side="right", padx=(0, 8))
+        add_hover(cancel, C.CARD, C.BORDER)
+
+        self.bind("<Escape>", lambda e: self.destroy())   # Enter tidak dipakai: catatan butuh baris baru
+        self._set_kind(self.kind)
+        self._center(master.winfo_toplevel())
+        self.text.focus_set()
+        try:
+            self.wait_visibility()
+            self.grab_set()
+        except tk.TclError:
+            pass
+
+    def _center(self, parent):
+        self.update_idletasks()
+        w, h = self.winfo_reqwidth(), self.winfo_reqheight()
+        x = parent.winfo_rootx() + (parent.winfo_width() - w) // 2
+        y = parent.winfo_rooty() + (parent.winfo_height() - h) // 2
+        self.geometry(f"+{max(0, x)}+{max(0, y)}")
+
+    def _set_kind(self, key):
+        self.kind = key
+        for k, b in self._kind_btns.items():
+            on = k == key
+            color = KIND_COLOR.get(k, C.MUTED)
+            b.config(bg=color if on else C.BG, fg="white" if on else C.MUTED,
+                     activebackground=color if on else C.BORDER,
+                     activeforeground="white" if on else C.TEXT)
+        need = key in reports.STUDENT_KINDS
+        self.student_lbl.config(text="Murid" if need else "Murid (boleh dikosongkan)")
+
+    def _submit(self):
+        sid = self._ids.get(self.student_var.get(), "")
+        try:
+            err = self.on_submit(self.date_var.get(), self.kind, sid,
+                                 self.text.get("1.0", "end"))
+        except Exception as exc:  # jangan sampai dialog macet karena error tak terduga
+            C.log(f"Dialog laporan gagal: {exc!r}")
+            err = "Gagal menyimpan. Pastikan folder data bisa ditulis."
+        if err:
+            self.error.config(text=err)
+        else:
+            self.destroy()
+
+
+class TeacherDialog(tk.Toplevel):
+    """Dialog tambah guru (add=True) atau ubah guru (add=False): foto, nama, dan PIN.
+
+    on_submit(nama, pin, foto) dipanggil saat tombol Simpan diklik.
+      foto : None = tidak berubah, False = hapus foto, gambar Pillow = foto baru
+      pin  : teks PIN (saat mengubah: kosong = PIN tidak diganti)
+    Kalau mengembalikan teks, teks itu ditampilkan sebagai pesan kesalahan dan dialog
+    tetap terbuka; kalau mengembalikan None, dialog ditutup. Foto baru baru disimpan
+    ke disk oleh pemanggil, jadi menekan Batal tidak mengubah apa pun.
+    """
+
+    def __init__(self, master, title, on_submit, teacher_id, add=True, name="",
+                 submit_text="Simpan"):
+        super().__init__(master, bg=C.CARD, highlightthickness=1,
+                         highlightbackground=C.BORDER)
+        self.title(title)
+        self.resizable(False, False)
+        self.transient(master.winfo_toplevel())
+        try:
+            self.iconbitmap(C.ICON_PATH)
+        except Exception:
+            pass
+        self.on_submit = on_submit
+        self.add = add
+        self.teacher_id = teacher_id
+        self._photo = None                                  # lihat 'foto' di atas
+        self._on_disk = (not add) and photos.has_photo(teacher_id)
+
+        body = tk.Frame(self, bg=C.CARD, padx=28, pady=22)
+        body.pack(fill="both", expand=True)
+        tk.Label(body, text=title, bg=C.CARD, fg=C.TEXT,
+                 font=(C.FONT, 14, "bold"), anchor="w").pack(fill="x", pady=(0, 14))
+
+        # Foto (pratinjau bulat) + tombol pilih / hapus
+        top = tk.Frame(body, bg=C.CARD)
+        top.pack(fill="x")
+        self.avatar = Avatar(top, teacher_id, name, size=72, bg=C.CARD)
+        if add:                       # guru baru: jangan pakai foto lama yang mungkin tersisa
+            self.avatar.override = False
+            self.avatar.refresh()
+        self.avatar.pack(side="left", padx=(0, 16))
+        side = tk.Frame(top, bg=C.CARD)
+        side.pack(side="left", fill="x")
+        tk.Label(side, text=f"ID login: {teacher_id}", bg=C.CARD, fg=C.MUTED,
+                 font=(C.FONT, 10), anchor="w").pack(fill="x")
+        row = tk.Frame(side, bg=C.CARD)
+        row.pack(fill="x", pady=(8, 0))
+        self.pick_btn = self._small_button(row, "Pilih foto…", self._pick_photo)
+        self.pick_btn.pack(side="left")
+        self.clear_btn = self._small_button(row, "Hapus foto", self._clear_photo)
+        self.clear_btn.pack(side="left", padx=(8, 0))
+
+        self.name_var = tk.StringVar(value=name)
+        self.name_entry = StudentDialog._field(body, "Nama guru", self.name_var, 32, pady=14)
+        self.name_var.trace_add("write", lambda *_: self.avatar.set_student(
+            self.teacher_id, self.name_var.get()))   # inisial ikut berubah saat mengetik
+
+        self.pin_var = tk.StringVar()
+        StudentDialog._field(
+            body, "PIN (untuk login)" if add else "PIN baru (kosongkan kalau tidak diganti)",
+            self.pin_var, 32, pady=12)
+        tk.Label(body, text="PIN 4-20 karakter tanpa spasi. Foto dipotong persegi dari tengah.",
+                 bg=C.CARD, fg=C.MUTED, font=(C.FONT, 9), anchor="w",
+                 wraplength=340, justify="left").pack(fill="x", pady=(6, 0))
+
+        self.error = tk.Label(body, text="", bg=C.CARD, fg=C.ERROR,
+                              font=(C.FONT, 10), anchor="w", wraplength=340,
+                              justify="left")
+        self.error.pack(fill="x", pady=(10, 0))
+
+        btns = tk.Frame(body, bg=C.CARD)
+        btns.pack(fill="x", pady=(10, 0))
+        ok = tk.Button(btns, text=submit_text, command=self._submit, bg=C.ACCENT,
+                       fg="white", activebackground=C.ACCENT_HOVER,
+                       activeforeground="white", relief="flat", bd=0,
+                       highlightthickness=0, font=(C.FONT, 11, "bold"),
+                       cursor="hand2", padx=22, pady=7)
+        ok.pack(side="right")
+        add_hover(ok, C.ACCENT, C.ACCENT_HOVER)
+        cancel = tk.Button(btns, text="Batal", command=self.destroy, bg=C.CARD,
+                           fg=C.MUTED, activebackground=C.BORDER,
+                           activeforeground=C.TEXT, relief="flat", bd=0,
+                           highlightthickness=0, font=(C.FONT, 11),
+                           cursor="hand2", padx=18, pady=7)
+        cancel.pack(side="right", padx=(0, 8))
+        add_hover(cancel, C.CARD, C.BORDER)
+
+        self._paint_photo_buttons()
+        self.bind("<Return>", lambda e: self._submit())
+        self.bind("<Escape>", lambda e: self.destroy())
+        self._center(master.winfo_toplevel())
+        self.name_entry.focus_set()
+        self.name_entry.select_range(0, "end")
+        try:
+            self.wait_visibility()
+            self.grab_set()   # modal: Panel Admin di belakang tidak bisa diklik
+        except tk.TclError:
+            pass
+
+    # --- foto ---------------------------------------------------------------------
+    @staticmethod
+    def _small_button(parent, text, command):
+        btn = tk.Button(parent, text=text, command=command, bg=C.BG, fg=C.TEXT,
+                        activebackground=C.BORDER, activeforeground=C.TEXT,
+                        disabledforeground=C.LOCKED, relief="flat", bd=0,
+                        highlightthickness=0, font=(C.FONT, 10), cursor="hand2",
+                        padx=12, pady=5)
+        add_hover(btn, C.BG, C.BORDER)
+        return btn
+
+    def _has_photo_now(self):
+        if self._photo is False:
+            return False
+        return True if self._photo is not None else self._on_disk
+
+    def _paint_photo_buttons(self):
+        has = self._has_photo_now()
+        self.pick_btn.config(text="Ganti foto…" if has else "Pilih foto…")
+        self.clear_btn.config(state="normal" if has else "disabled")
+
+    def _pick_photo(self):
+        """Dialog pilih file bawaan Windows (lewat Tk, tanpa modul tambahan)."""
+        try:
+            result = self.tk.call(
+                "tk_getOpenFile", "-parent", str(self), "-title", "Pilih foto guru",
+                "-filetypes",
+                (("Gambar", (".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp")),
+                 ("Semua file", "*")))
+            path = str(result).strip()
+        except Exception as exc:
+            C.log(f"Dialog pilih foto guru gagal: {exc!r}")
+            self.error.config(text="Dialog pilih file tidak bisa dibuka.")
+            return
+        if not path:   # dibatalkan
+            return
+        try:
+            img = photos.prepare_photo(path)
+        except Exception as exc:
+            C.log(f"Foto guru dari {path!r} tidak bisa dipakai: {exc!r}")
+            self.error.config(
+                text="Foto tidak bisa dipakai. Pilih file JPG atau PNG yang tidak rusak.")
+            return
+        self._photo = img
+        self.avatar.override = img
+        self.avatar.refresh()
+        self.error.config(text="")
+        self._paint_photo_buttons()
+
+    def _clear_photo(self):
+        self._photo = False
+        self.avatar.override = False
+        self.avatar.refresh()
+        self._paint_photo_buttons()
+
+    # --- umum ---------------------------------------------------------------------
+    def _center(self, parent):
+        self.update_idletasks()
+        w, h = self.winfo_reqwidth(), self.winfo_reqheight()
+        x = parent.winfo_rootx() + (parent.winfo_width() - w) // 2
+        y = parent.winfo_rooty() + (parent.winfo_height() - h) // 2
+        self.geometry(f"+{max(0, x)}+{max(0, y)}")
+
+    def _submit(self):
+        try:
+            err = self.on_submit(self.name_var.get(), self.pin_var.get(), self._photo)
+        except Exception as exc:  # jangan sampai dialog macet karena error tak terduga
+            C.log(f"Dialog guru gagal: {exc!r}")
+            err = "Gagal menyimpan. Pastikan folder data bisa ditulis."
         if err:
             self.error.config(text=err)
         else:

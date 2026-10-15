@@ -10,7 +10,7 @@ BlenderELearning/
 ├── main.py                  Titik masuk aplikasi
 ├── build.bat                Membuat .exe (cukup SEKALI di awal)
 ├── update.bat               Salin revisi kode ke dist\ (tanpa build ulang)
-├── requirements.txt         Kebutuhan: opencv-python-headless, Pillow
+├── requirements.txt         Kebutuhan: opencv-python-headless, Pillow, python-mpv
 ├── README.md
 ├── assets/
 │   ├── icon.ico             Ikon aplikasi (ikut masuk ke .exe)
@@ -38,6 +38,49 @@ BlenderELearning/
         ├── topbar.py            Bar atas (nama siswa, Kembali, Keluar)
         └── widgets.py           Komponen kecil yang dipakai bersama
 ```
+
+## Video pelajaran (halaman Materi)
+
+Video diputar DI DALAM aplikasi (bukan membuka VLC/pemutar luar), dengan suara, pengatur
+volume, dan pilihan subtitle (tombol CC). Daftar pelajaran tampil di sidebar, di bawah **Materi**
+(tidak untuk akun trial); di bawah video ada tombol Sebelumnya / Selanjutnya.
+
+Video ditaruh DI LUAR .exe, satu folder per kursus, jadi bisa diganti tanpa build ulang:
+
+```
+<folder .exe>\assets\lessons\
+├── basic-1\            Pengenalan Antarmuka.mp4, Navigasi Viewport.mp4, ...
+├── basic-2\
+├── intermediate-1\ , intermediate-2\
+├── ai-character\ , ai-interior\
+├── superkids-1\ ... superkids-6\
+└── trial-animation\ , trial-modeling\
+```
+
+- **Judul pelajaran = nama file video** (tanpa .mp4), persis seperti yang tertulis. Tidak perlu
+  format khusus.
+- **Urutan = urut nama file** (angka dibaca sebagai angka: 2 sebelum 10). Untuk mengatur
+  urutan, awali nama file dengan angka, mis. `01 Pengenalan.mp4`.
+- Nama folder = id kursus di atas. Nama seperti `BASIC 1` juga dikenali.
+- Subtitle: nama sama dengan videonya + kode bahasa, mis. `Pengenalan.id.srt`,
+  `Pengenalan.en.srt` (format .srt/.vtt/.ass). Subtitle yang tertanam di .mkv/.mp4 juga
+  muncul di menu CC.
+- Tombol CC hanya menampilkan **Indonesia** dan **English** (plus Mati). Tombol di kanan bar
+  kontrol = **layar penuh**; keluar dengan tombol yang sama atau tekan **Esc**. Tombol **F** / **F11**
+  juga bergantian masuk/keluar layar penuh.
+- Kalau folder kursus belum ada videonya, dipakai video latar login + subtitle contoh
+  ("CONTOH VIDEO").
+
+### Memasang pemutar bersuara (sekali saja)
+
+1. `python -m pip install python-mpv`
+2. Unduh libmpv untuk Windows 64-bit: cari `mpv-dev-x86_64-...7z` (build shinchiro atau
+   zhongfly di GitHub/SourceForge), ekstrak file `libmpv-2.dll`.
+3. Taruh `libmpv-2.dll` di folder proyek (sebelah `update.bat`), lalu jalankan `update.bat`.
+   `update.bat` menyalin `libmpv-2.dll` dan `mpv.py` ke `dist\` sehingga TIDAK perlu build ulang.
+
+Kalau salah satunya belum terpasang, aplikasi tetap jalan memakai pemutar cadangan OpenCV
+(tanpa suara, tanpa subtitle) dan menampilkan alasannya di atas pemutar + di `app.log`.
 
 ## Mengganti video latar
 
