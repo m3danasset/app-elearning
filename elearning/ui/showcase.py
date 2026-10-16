@@ -61,7 +61,12 @@ def collect(limit=SHOWCASE_LIMIT, skip=()):
                                       course=titles.get(cid, cid.upper())))
             except Exception as exc:
                 C.log(f"Slideshow: gagal membaca portfolio {sid}/{cid}: {exc!r}")
-    items = [i for i in items if i["path"] not in skip]
+    # hanya portfolio murid: bukan assignment / contoh dari guru (folder berawalan "_")
+    rootn = os.path.normcase(os.path.abspath(root))
+    def _is_portfolio(path):
+        rel = os.path.relpath(os.path.normcase(os.path.abspath(path)), rootn)
+        return not any(part.startswith("_") for part in rel.split(os.sep)[:-1])
+    items = [i for i in items if i["path"] not in skip and _is_portfolio(i["path"])]
     items.sort(key=lambda i: i["added"], reverse=True)
     return items[:limit]
 
@@ -101,11 +106,13 @@ def _caption_shade(w, h):
     return m
 
 
-def _finish(img, w, h, bg, shade=True):
+def _finish(img, w, h, bg, shade=True, rounded=True):
     """Gelapkan bawah (teks) lalu bulatkan sudut di atas warna latar."""
     Image = photos.Image
     if shade:
         img = Image.composite(Image.new("RGB", (w, h), (8, 8, 8)), img, _caption_shade(w, h))
+    if not rounded:
+        return img
     out = Image.new("RGB", (w, h), I._rgb(bg))
     out.paste(img, (0, 0), I.round_mask(w, h, RADIUS))
     return out
@@ -116,9 +123,12 @@ def _date(d):
 
 
 class Showcase(tk.Canvas):
-    def __init__(self, master, bg=C.LOGIN_BG):
+    def __init__(self, master, bg=C.LOGIN_BG, host=None):
         super().__init__(master, bg=bg, highlightthickness=0, bd=0)
         self.bg = bg
+        # host: tanpa menggambar diri sendiri; gambar & keterangan dikirim ke layar login
+        # (yang menggabungkannya dengan video latar). host.frame(img|None), host.caption(a, b)
+        self.host = host
         self.size = (0, 0)
         self.items = []
         self.index = -1
@@ -133,7 +143,9 @@ class Showcase(tk.Canvas):
         self._mode = None         # "slides", "video", "brand"
         self._closed = False
         self._bad = set()         # file yang gagal dibuka: tidak dicoba lagi
+        self._fading = False
         self.bind("<Configure>", self._on_resize)
+        self.bind("<Button-1>", lambda e: self.skip())   # klik gambar = gambar berikutnya
         self.bind("<Destroy>", lambda e: self._close() if e.widget is self else None, add="+")
 
     # --- jadwal ----------------------------------------------------------------------
@@ -182,6 +194,7 @@ class Showcase(tk.Canvas):
         C.log(f"Slideshow login: {len(self.items)} karya dari {portfolio.root()}")
         if self.items:
             self._mode = "slides"
+            self.config(cursor="hand2")
             self._next(fade=False)
             return
         if self._start_video():
@@ -191,6 +204,20 @@ class Showcase(tk.Canvas):
         self._draw_brand()
 
     # --- slideshow portfolio -------------------------------------------------------------
+    def skip(self):
+        """Klik: langsung ke karya berikutnya (jadwal otomatis dimulai ulang)."""
+        if self._mode != "slides" or len(self.items) < 2 or self._fading \
+                or "poll" in self._jobs:      # sedang memuat / memudar: abaikan klik
+            return
+        for name in ("next",):
+            job = self._jobs.pop(name, None)
+            if job is not None:
+                try:
+                    self.after_cancel(job)
+                except Exception:
+                    pass
+        self._next(fade=True)
+
     def _next(self, fade=True):
         if not self.items:
             return
@@ -208,7 +235,8 @@ class Showcase(tk.Canvas):
         def work():
             try:
                 img = _open_image(item, w, h)
-                out = _finish(img, w, h, self.bg) if img is not None else None
+                out = (_finish(img, w, h, self.bg, rounded=self.host is None)
+                       if img is not None else None)
             except Exception as exc:
                 C.log(f"Slideshow: {item['path']!r} tidak bisa dibuka: {exc!r}")
                 out = None
@@ -219,6 +247,7 @@ class Showcase(tk.Canvas):
         self._after("poll", 40, self._poll)
 
     def _poll(self):
+        self._jobs.pop("poll", None)
         with self._lock:
             ready, self._ready = self._ready, None
         if ready is None:
@@ -244,6 +273,7 @@ class Showcase(tk.Canvas):
         self._after("next", C.SHOWCASE_SECONDS * 1000, self._next)
 
     def _fade(self, a, b, step):
+        self._fading = step < FADE_STEPS
         Image = photos.Image
         t = step / FADE_STEPS
         self._set_photo(Image.blend(a, b, t * t * (3 - 2 * t)))   # halus di awal & akhir
@@ -260,6 +290,9 @@ class Showcase(tk.Canvas):
         self._caption()
 
     def _set_photo(self, img):
+        if self.host is not None:
+            self.host.frame(img)
+            return
         try:
             self._photo = photos.to_photoimage(img)
             self.itemconfigure(self._img_item, image=self._photo)
@@ -267,6 +300,16 @@ class Showcase(tk.Canvas):
             C.log(f"Slideshow gagal menampilkan gambar: {exc!r}")
 
     def _caption(self):
+        if self.host is not None:
+            if not self.items or not 0 <= self.index < len(self.items):
+                self.host.caption("", "")
+                return
+            it = self.items[self.index]
+            sub = _date(it["added"])
+            if C.SHOWCASE_SHOW_NAMES and it.get("student"):
+                sub = f"{it['student']}  ·  {sub}"
+            self.host.caption(sub, f"{self.index + 1} / {len(self.items)}")
+            return
         self.delete("caption")
         if not self.items or not 0 <= self.index < len(self.items):
             return
@@ -303,7 +346,8 @@ class Showcase(tk.Canvas):
         if img is not None:
             w, h = img.size
             if (w, h) == self.size:
-                self._set_photo(_finish(img, w, h, self.bg, shade=False))
+                self._set_photo(_finish(img, w, h, self.bg, shade=False,
+                                        rounded=self.host is None))
         if self._video.failed:
             C.log(f"Video panel login gagal: {self._video.error}")
             self._mode = "brand"
@@ -313,6 +357,10 @@ class Showcase(tk.Canvas):
 
     # --- cadangan 2: panel brand polos -----------------------------------------------------
     def _draw_brand(self):
+        if self.host is not None:
+            self.host.frame(None)        # layar login menggambar panel brand sendiri
+            self.host.caption("", "")
+            return
         w, h = self.size
         self.delete("caption")
         p = I.pill(w, h, C.CARD, self.bg, r=RADIUS)

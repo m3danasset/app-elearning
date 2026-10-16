@@ -30,7 +30,9 @@ import traceback
 
 from elearning import config as C
 from elearning.ui.controls import RoundButton
-from elearning import lessons, mpv_support
+from elearning import lessons, mpv_support, progress, quizzes
+from elearning.ui.lesson_extras import EmoteBar, NoteBox, QuizPopup
+from elearning.ui import ui_icons as I
 from elearning import blender_launcher as BL
 from elearning.ui import aa_icons as AA
 from elearning.ui.play_overlay import PlayOverlay
@@ -58,6 +60,30 @@ OV_IDLE = 2.2     # detik kursor diam saat video diputar -> tombol disembunyikan
 
 # Pilihan murid diingat selama aplikasi terbuka (tidak reset saat pindah pelajaran)
 _PREF = {"volume": 80, "mute": False, "sub": None}   # sub: None/"off" = mati, atau nama label
+
+# Subtitle "naik" (on/off): supaya timeline Blender di video tidak tertutup subtitle.
+# Disimpan di data\\subtitle.json, berlaku untuk semua video di PC ini.
+SUB_UP_POS = 80          # posisi subtitle saat naik (% tinggi video; normal = 100)
+_SUB_FILE = os.path.join(C.DATA_DIR, "subtitle.json")
+
+
+def _sub_up():
+    try:
+        import json
+        with open(_SUB_FILE, encoding="utf-8") as f:
+            return bool(json.load(f).get("up"))
+    except Exception:
+        return False
+
+
+def _save_sub_up(on):
+    try:
+        import json
+        os.makedirs(C.DATA_DIR, exist_ok=True)
+        with open(_SUB_FILE, "w", encoding="utf-8") as f:
+            json.dump({"up": bool(on)}, f)
+    except Exception as exc:
+        C.log(f"Pengaturan subtitle tidak tersimpan: {exc!r}")
 
 class Status:
     """Hasil poll() sebuah mesin pemutar (tanpa modul collections, biar aman di .exe)."""
@@ -401,7 +427,15 @@ class _MpvEngine:
             C.log(f"mpv volume: {exc!r}")
 
     # --- subtitle ---
+    def set_sub_up(self, on):
+        """Subtitle naik (di atas timeline Blender) atau di posisi normal."""
+        try:
+            self.mp["sub-pos"] = SUB_UP_POS if on else 100
+        except Exception as exc:
+            C.log(f"mpv sub-pos: {exc!r}")
+
     def _finish_load(self):
+        self.set_sub_up(_sub_up())      # subtitle naik / normal (pilihan murid)
         for sub in self._subs:
             if sub.get("label") not in SUB_LANGS:
                 continue
@@ -483,6 +517,10 @@ class LessonPlayer(tk.Frame):
         self.has_video = False
         self.photo = None
         self.playing = False
+        self.on_progress = None   # fn(posisi, durasi, selesai): progres murid
+        self._resume = 0.0        # lanjut tonton: detik tujuan setelah video siap
+        self.on_resumed = None    # fn(detik): diberi tahu saat lanjut tonton terjadi
+        self.blocked = False      # True saat popup kuis terbuka: tombol putar melayang disembunyikan
         self.pos = 0.0
         self.dur = 0.0
         self.sub_on = False
@@ -551,6 +589,17 @@ class LessonPlayer(tk.Frame):
         self.cc.pack(side="right", padx=(2, 2), pady=6)
         self.cc.bind("<Button-1>", lambda e: self._open_sub_menu())
 
+        # Subtitle naik on/off (supaya timeline Blender di video tidak tertutup)
+        self.up = tk.Canvas(bar, width=36, height=36, bg=C.CARD, highlightthickness=0,
+                            bd=0, cursor="hand2")
+        self.up.pack(side="right", padx=(2, 0), pady=6)
+        self.up.bind("<Button-1>", lambda e: self._toggle_sub_up())
+        try:
+            from elearning.ui.sidebar import _Tip
+            _Tip(self.up, "Subtitle naik (timeline Blender tidak tertutup)")
+        except Exception:
+            pass
+
         self.vol_box = tk.Frame(bar, bg=C.CARD)
         self.vol_box.pack(side="right", padx=(8, 4))
         self.vol_icon = tk.Canvas(self.vol_box, width=30, height=36, bg=C.CARD,
@@ -608,6 +657,9 @@ class LessonPlayer(tk.Frame):
         self.stage.config(height=h)
         self.column.place(relx=0.5, rely=0.5, anchor="center", width=w,
                           height=h + BAR_H + self._foot)
+        cb = getattr(self, "on_layout", None)
+        if cb is not None:          # judul pelajaran ikut sejajar tepi kiri video
+            cb((aw - w) // 2)
 
     # --- layar penuh ----------------------------------------------------------
     def toggle_fullscreen(self, want=None):
@@ -732,6 +784,11 @@ class LessonPlayer(tk.Frame):
     def _on_key(self, which):
         if not self.winfo_viewable():
             return
+        try:   # sedang mengetik catatan / jawaban: huruf F bukan perintah layar penuh
+            if which != "esc" and isinstance(self.focus_get(), tk.Entry):
+                return
+        except (KeyError, tk.TclError):
+            pass
         if which == "esc":
             if self.fullscreen:
                 self.toggle_fullscreen(False)
@@ -785,6 +842,7 @@ class LessonPlayer(tk.Frame):
         if not self.engine.has_audio:    # pemutar cadangan: sembunyikan volume & CC
             self.vol_box.pack_forget()
             self.cc.pack_forget()
+            self.up.pack_forget()
         self._refresh()
 
     def _show_surface(self, show):
@@ -795,7 +853,12 @@ class LessonPlayer(tk.Frame):
                 self.surface.place_forget()
 
     # --- memuat video ---------------------------------------------------------
+    def resume_to(self, sec):
+        """Lanjut tonton: setelah video siap, langsung ke detik ini (masih dijeda)."""
+        self._resume = float(sec or 0)
+
     def load(self, path, hint="", subs=()):
+        self._resume = 0.0
         self._ensure_engine()
         e = self.engine
         self.playing = False
@@ -845,6 +908,7 @@ class LessonPlayer(tk.Frame):
         self.engine = _CvEngine()
         self.vol_box.pack_forget()
         self.cc.pack_forget()
+        self.up.pack_forget()
         self.notice = f"Suara & subtitle tidak aktif: {why} (lihat app.log)"
         self.engine.load(path, size=(self.screen.winfo_width(), self.screen.winfo_height()))
         self.has_video = True
@@ -927,10 +991,33 @@ class LessonPlayer(tk.Frame):
         finally:
             menu.grab_release()
 
+    def _toggle_sub_up(self):
+        if not (self.has_video and self.engine is not None and self.engine.has_audio):
+            return
+        on = not _sub_up()
+        _save_sub_up(on)
+        self.engine.set_sub_up(on)
+        self._draw_up()
+
+    def _draw_up(self):
+        """Tombol di sebelah CC: garis timeline + panah naik. Menyala = subtitle naik."""
+        c = self.up
+        c.delete("all")
+        enabled = self.has_video and self.engine is not None and self.engine.has_audio
+        on = _sub_up()
+        col = self.color if (on and enabled) else (C.TEXT if enabled else C.LOCKED)
+        layers = [(AA.polylines([[(10, 25), (26, 25)]], 1.0), col),
+                  (AA.polylines([[(18, 20), (18, 10)], [(13.5, 14.5), (18, 10), (22.5, 14.5)]],
+                                1.0), col)]
+        ph = _icon(("pl-subup", col), layers, 36, 36)
+        if ph is not None:
+            c.create_image(0, 0, image=ph, anchor="nw")
+
     def _pick_sub(self, track_id, label):
         self.engine.set_sub(track_id, label)
         self.sub_on = bool(track_id)
         self._draw_cc()
+        self._draw_up()
 
     # --- gambar ---------------------------------------------------------------
     def _on_resize(self, event):
@@ -948,6 +1035,7 @@ class LessonPlayer(tk.Frame):
         self._draw_button()
         self._draw_volume()
         self._draw_cc()
+        self._draw_up()
         self._draw_fs()
         self._update_time()
         self._draw_seek()
@@ -1060,7 +1148,8 @@ class LessonPlayer(tk.Frame):
 
     def _update_overlay(self):
         try:
-            want = (self.has_video and not self._fs_busy and self.winfo_viewable()
+            want = (self.has_video and not self._fs_busy and not self.blocked
+                    and self.winfo_viewable()
                     and self._app_active() and self._pointer_in_stage())
             if want:
                 now, ptr = time.time(), self.winfo_pointerxy()
@@ -1147,6 +1236,19 @@ class LessonPlayer(tk.Frame):
                     self.dur = st.dur
                     if not self._drag:
                         self.pos = st.pos
+                    if self._resume and st.dur > 0 and (not e.has_audio or e.loaded):
+                        target, self._resume = min(self._resume, st.dur - 1), 0.0
+                        e.seek(target, exact=True)
+                        self.pos = target
+                        self._update_time()
+                        self._draw_seek()
+                        if self.on_resumed is not None:
+                            self.on_resumed(target)
+                    if self.on_progress is not None and (st.playing or st.ended):
+                        try:
+                            self.on_progress(st.pos, st.dur, st.ended)
+                        except Exception as exc:
+                            C.log(f"Progres pelajaran: {exc!r}")
                     changed = st.playing != self.playing
                     self.playing = st.playing
                     if e.has_audio:
@@ -1154,6 +1256,7 @@ class LessonPlayer(tk.Frame):
                         if active != self.sub_on:
                             self.sub_on = active
                             self._draw_cc()
+                            self._draw_up()
                     if changed:
                         self._refresh()
                     else:
@@ -1202,9 +1305,15 @@ class LessonsPanel(tk.Frame):
     """
 
     def __init__(self, master, course, items, index=0, on_select=None, on_fullscreen=None,
-                 show_nav=True):
+                 show_nav=True, student_id=None, program=None):
         super().__init__(master, bg=C.BG)
         self.course = course
+        self.student_id = student_id   # None (trial) = progres tidak dicatat
+        self.program = program         # "adult" -> kolom catatan, "kids" -> emote
+        self._watching = None
+        self._quiz_job = None
+        self._quiz_open = None
+        self._ended_seen = False
         self.items = items
         self.index = -1
         self.on_select = on_select
@@ -1215,11 +1324,22 @@ class LessonsPanel(tk.Frame):
         self.title = tk.Label(head, text="", bg=C.BG, fg=C.TEXT, anchor="w",
                               font=(C.FONT, 16, "bold"))
         self.title.pack(side="left")
+        # Salin judul (untuk nama file saat Save di Blender) + tanda "Disalin"
+        self.copy_btn = tk.Canvas(head, width=30, height=30, bg=C.BG, highlightthickness=0,
+                                  bd=0, cursor="hand2")
+        self.copy_btn.pack(side="left", padx=(8, 0))
+        self.copy_lbl = tk.Label(head, text="", bg=C.BG, fg=C.MUTED, font=(C.FONT, 9))
+        self.copy_lbl.pack(side="left", padx=(2, 0))
+        self._copy_state = {"hover": False, "done": False, "job": None, "imgs": []}
+        self.copy_btn.bind("<Button-1>", lambda e: self._copy_title())
+        self.copy_btn.bind("<Enter>", lambda e: self._paint_copy(hover=True))
+        self.copy_btn.bind("<Leave>", lambda e: self._paint_copy(hover=False))
+        self._paint_copy()
         self.tag = tk.Label(head, text="CONTOH VIDEO", bg=C.CARD_HOVER, fg=C.MUTED,
                             font=(C.FONT, 8, "bold"), padx=8, pady=3)
         self.notice = tk.Label(head, text="", bg=C.BG, fg=C.MUTED, anchor="e",
                                font=(C.FONT, 9))
-        self.notice.pack(side="right")
+        self.notice.pack(side="right", padx=(16, 0))
 
         self.player = LessonPlayer(self, course["color"])
         self.player.on_notice = lambda text: self.notice.config(text=text)
@@ -1235,9 +1355,154 @@ class LessonsPanel(tk.Frame):
         if show_nav:
             self.prev_btn = self._nav_button("‹   Sebelumnya", "left", self.previous)
             self.next_btn = self._nav_button("Selanjutnya   ›", "right", self.next)
+        # Di antara tombol: catatan (dewasa) atau emote (SUPERKIDS), hanya murid terdaftar
+        self.extra = None
+        if show_nav and student_id:
+            if program == "kids":
+                self.extra = EmoteBar(self.player.footer, lambda: self.player.pos)
+                self._extra_geom = (360, 56, 34)
+            elif program == "adult":
+                self.extra = NoteBox(self.player.footer)
+                self._extra_geom = (560, 38, 31)
+        if self.extra is not None:     # tepat di tengah bawah video (bukan di antara tombol)
+            self.player.footer.bind("<Configure>", lambda e: self._place_extra(), add="+")
+        self.player.on_resumed = self._resumed
+        self._head_pad = None
+        self.player.on_layout = self._align_head
 
         start = min(max(index, 0), max(len(items) - 1, 0))
         self.after(80, lambda: self.select(start, notify=False))   # tunggu jendela tampil (mpv)
+
+    def _flush_progress(self):
+        w, self._watching = getattr(self, "_watching", None), None
+        if w is not None:
+            progress.flush(*w)
+
+    def destroy(self):
+        self._cancel_quiz()
+        try:
+            self._flush_progress()     # keluar / pindah kursus: posisi terakhir ikut tersimpan
+        except Exception as exc:
+            C.log(f"Progres tidak tersimpan: {exc!r}")
+        super().destroy()
+
+    def _place_extra(self):
+        """Catatan / emote dipusatkan pada lebar video; tidak menabrak tombol kiri-kanan."""
+        f = self.player.footer
+        fw = f.winfo_width()
+        if fw < 100 or self.extra is None:
+            return
+        maxw, h, cy = self._extra_geom
+        side = max(self.prev_btn.winfo_reqwidth(), self.next_btn.winfo_reqwidth())
+        w = int(min(maxw, fw - 2 * side - 48))
+        if w < 120:
+            self.extra.place_forget()
+            return
+        self.extra.place(relx=0.5, y=cy, anchor="center", width=w, height=h)
+
+    def _paint_copy(self, hover=None):
+        st = self._copy_state
+        if hover is not None:
+            st["hover"] = hover
+        c = self.copy_btn
+        c.delete("all")
+        st["imgs"] = []     # minimalis: tanpa kotak, hanya warna garis yang berubah
+        col = C.TEXT if (st["hover"] or st["done"]) else C.MUTED
+        ic = I.icon("check" if st["done"] else "copy", col, C.BG, 18)
+        if ic is not None:
+            st["imgs"].append(ic)
+            c.create_image(15, 15, image=ic)
+
+    def _copy_title(self):
+        """Salin judul pelajaran ke clipboard (paste sebagai nama file di Blender)."""
+        if not 0 <= self.index < len(self.items):
+            return
+        text = self.items[self.index]["title"]
+        try:
+            self.clipboard_clear()
+            self.clipboard_append(text)
+            self.update_idletasks()
+        except tk.TclError as exc:
+            C.log(f"Salin judul gagal: {exc!r}")
+            return
+        st = self._copy_state
+        st["done"] = True
+        self.copy_lbl.config(text="Disalin")
+        self._paint_copy()
+        if st["job"] is not None:
+            self.after_cancel(st["job"])
+
+        def reset():
+            st["done"], st["job"] = False, None
+            if self.winfo_exists():
+                self.copy_lbl.config(text="")
+                self._paint_copy()
+        st["job"] = self.after(2500, reset)
+
+    def _align_head(self, offset):
+        """Judul & keterangan rata dengan tepi kiri / kanan video (bukan tepi halaman)."""
+        pad = 28 + max(0, int(offset))
+        if pad != self._head_pad and not self.player.fullscreen:
+            self._head_pad = pad
+            self.head.pack_configure(padx=pad)
+
+    # --- progres, lanjut tonton, kuis --------------------------------------------------
+    def _on_progress(self, key, pos, dur, ended):
+        progress.update(*key, pos, dur, ended)
+        if ended and not self._ended_seen:
+            self._ended_seen = True
+            self._want_quiz(delay=600)
+        elif not ended:
+            self._ended_seen = False
+
+    def _resumed(self, sec):
+        if sec >= 3:
+            self.notice.config(text=f"Lanjut dari {_fmt(sec)}")
+            self.after(5000, lambda: self.winfo_exists()
+                       and self.notice.config(text=self.player.notice))
+
+    def _cancel_quiz(self):
+        if self._quiz_job is not None:
+            try:
+                self.after_cancel(self._quiz_job)
+            except Exception:
+                pass
+            self._quiz_job = None
+
+    def _want_quiz(self, delay=600):
+        self._cancel_quiz()
+        self._quiz_job = self.after(delay, self._try_quiz)
+
+    def _try_quiz(self):
+        """Tampilkan kuis kalau ada; tunggu dulu kalau murid sedang di Blender / jendela lain."""
+        self._quiz_job = None
+        if not self.winfo_exists() or self._watching is None or self._quiz_open is not None:
+            return
+        sid, cid, title = self._watching
+        try:
+            items = quizzes.pending(sid, cid, title)
+        except Exception as exc:
+            C.log(f"Kuis tidak terbaca: {exc!r}")
+            return
+        if not items:
+            return
+        if not self.player._app_active() or self.player._fs_busy:
+            self._quiz_job = self.after(800, self._try_quiz)    # cek lagi sebentar lagi
+            return
+        self.player._pause()
+        self.player.blocked = True
+        if self.player.ov is not None:
+            self.player.ov.hide()
+
+        def closed():
+            self._quiz_open = None
+            if self.winfo_exists():
+                self.player.blocked = False
+        try:
+            self._quiz_open = QuizPopup(self, sid, items, title, on_close=closed)
+        except Exception as exc:
+            closed()
+            C.log(f"Popup kuis gagal: {exc!r}")
 
     def _fullscreen(self, want):
         """Layar penuh: hanya pemutar yang tampil (judul disembunyikan, tepi dihapus)."""
@@ -1246,7 +1511,8 @@ class LessonsPanel(tk.Frame):
             self.player.pack_configure(padx=0, pady=0)
         else:
             self.player.pack_configure(padx=28, pady=(0, 8))
-            self.head.pack(fill="x", padx=28, pady=(18, 10), before=self.player)
+            self.head.pack(fill="x", padx=self._head_pad or 28, pady=(18, 10),
+                           before=self.player)
         if self.on_fullscreen is not None:
             self.on_fullscreen(want)
 
@@ -1293,7 +1559,26 @@ class LessonsPanel(tk.Frame):
         if not it["path"]:
             hint = (f"Video belum tersedia.\nTaruh file {it['no']}.mp4 di folder:\n"
                     f"{lessons.lesson_folder(self.course)}")
+        self._flush_progress()
+        self._cancel_quiz()
         self.player.load(it["path"], hint, it.get("subs", ()))
+        self.player.on_progress = None
+        key = None
+        if self.student_id and it["path"] and not it["sample"]:
+            sid, cid, title = self.student_id, self.course["id"], it["title"]
+            key = self._watching = (sid, cid, title)
+            self._ended_seen = False
+            try:
+                start = progress.begin(sid, cid, title)
+                self.player.resume_to(start)
+                if progress.record(sid, cid, title).get("done"):
+                    self._want_quiz(delay=1200)   # sudah pernah selesai: kuis yang belum dijawab
+            except Exception as exc:
+                C.log(f"Progres {sid}/{cid}: {exc!r}")
+            self.player.on_progress = (lambda pos, dur, ended, k=key:
+                                       self._on_progress(k, pos, dur, ended))
+        if self.extra is not None:
+            self.extra.set_lesson(key)
         if it["sample"]:   # tunjukkan folder yang dicari, supaya mudah dicek
             self.notice.config(text="Belum ada video di: " + lessons.lesson_folder(self.course))
         else:

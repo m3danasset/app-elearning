@@ -66,9 +66,9 @@ class PeriodBar(tk.Frame):
     def _paint(self):
         for k, b in self._btns.items():
             on = k == self.key
-            b.config(bg=C.ACCENT if on else C.CARD, fg="white" if on else C.MUTED,
-                     activebackground=C.ACCENT_HOVER if on else C.BORDER,
-                     activeforeground="white" if on else C.TEXT)
+            b.config(bg=C.SEG_ON if on else C.BG, fg=C.TEXT if on else C.MUTED,
+                     activebackground=C.SEG_ON if on else C.CARD_HOVER,
+                     activeforeground=C.TEXT)
 
     def select(self, key):
         if key == self.key:

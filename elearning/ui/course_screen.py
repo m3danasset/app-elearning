@@ -8,9 +8,9 @@ di paling bawah (klik -> Keluar).
 import tkinter as tk
 
 from elearning import config as C
-from elearning import portfolio
+from elearning import portfolio, progress
 from elearning import lessons as lessons_mod
-from elearning.courses import courses_for
+from elearning.courses import courses_for, has_video
 from elearning.trial import is_trial
 from elearning.ui.lesson_view import LessonsPanel
 from elearning.ui.portfolio_view import PortfolioPanel
@@ -28,8 +28,19 @@ class CourseScreen(SidebarLayout):
         self.on_open_course = on_open_course
         self.trial = is_trial(student)
         self.view = "materi"   # "materi", "resource" atau "portfolio"
-        self.lesson_items = lessons_mod.lessons_for(course)   # pelajaran di bawah Materi (sidebar)
+        # AI CHARACTER / AI INTERIOR tidak memakai video: halaman Materi dibiarkan kosong
+        self.video = has_video(course)
+        self.lesson_items = lessons_mod.lessons_for(course) if self.video else []
         self.lesson_index = 0
+        if self.video and not self.trial:     # lanjut tonton: buka video terakhir di kursus ini
+            try:
+                last = progress.last_lesson(student["id"], course["id"])
+                for i, it in enumerate(self.lesson_items):
+                    if last and it["title"] == last and not it["sample"]:
+                        self.lesson_index = i
+                        break
+            except Exception as exc:
+                C.log(f"Lanjut tonton: {exc!r}")
         self.panel = None      # LessonsPanel yang sedang tampil (view "materi")
 
         self.sb = AppSidebar(self, student, student_subtitle(student), on_logout,
@@ -55,7 +66,17 @@ class CourseScreen(SidebarLayout):
                    active=self.view == "resource")
             sb.nav("Portfolio", "image", lambda: self._set_view("portfolio"),
                    active=self.view == "portfolio", right=str(n) if n else None)
+            if self.video:     # AI CHARACTER / AI INTERIOR: tanpa assignment
+                na = portfolio.count(self.student["id"], self.course["id"], portfolio.ASSIGNMENT)
+                sb.nav("Assignment", "file", lambda: self._set_view("assignment"),
+                       active=self.view == "assignment", right=str(na) if na else None)
 
+            if not self.video:     # kursus tanpa video: tanpa daftar pelajaran
+                course_items(sb, courses_for(self.student["program"]),
+                             set(self.student["courses"]), self.course["id"],
+                             self.on_open_course)
+                blender_footer(sb)
+                return
             shown = [(i, it) for i, it in enumerate(self.lesson_items)
                      if sb.matches(it["label"], it.get("title"))]
             sb.section(f"Pelajaran  ·  {self.course['title']}", top=10,
@@ -77,6 +98,11 @@ class CourseScreen(SidebarLayout):
         for w in self.body.winfo_children():
             w.destroy()
         course = self.course
+        if self.view == "assignment":
+            self.header.set_title(course["title"], "Assignment")
+            PortfolioPanel(self.body, self.student, course, on_change=self.sb.refresh,
+                           section=portfolio.ASSIGNMENT).pack(fill="both", expand=True)
+            return
         if self.view == "portfolio":
             self.header.set_title(course["title"], "Portfolio")
             PortfolioPanel(self.body, self.student, course,
@@ -86,7 +112,7 @@ class CourseScreen(SidebarLayout):
             self.header.set_title(course["title"], "Resource")
             msg = tk.Frame(self.body, bg=C.BG)
             msg.place(relx=0.5, rely=0.5, anchor="center")
-            tk.Label(msg, text="Resource", bg=C.BG, fg=course["color"],
+            tk.Label(msg, text="Resource", bg=C.BG, fg=C.MUTED,
                      font=(C.FONT, 10, "bold")).pack()
             tk.Label(msg, text=course["title"], bg=C.BG, fg=C.TEXT,
                      font=(C.FONT, 24, "bold")).pack(pady=(2, 8))
@@ -94,11 +120,15 @@ class CourseScreen(SidebarLayout):
                      bg=C.BG, fg=C.MUTED, font=(C.FONT, 11)).pack()
             return
         self.header.set_title(course["title"], "Materi")
+        if not self.video:         # AI CHARACTER / AI INTERIOR: halaman kosong
+            return
         # Pemutar video untuk semua murid (termasuk trial)
         self.panel = LessonsPanel(self.body, course, self.lesson_items, self.lesson_index,
                                   on_select=self._on_lesson_changed,
                                   on_fullscreen=self._set_fullscreen,
-                                  show_nav=not self.trial)
+                                  show_nav=not self.trial,
+                                  student_id=None if self.trial else self.student["id"],
+                                  program=self.student.get("program"))
         self.panel.pack(fill="both", expand=True)
 
     def _set_fullscreen(self, want):

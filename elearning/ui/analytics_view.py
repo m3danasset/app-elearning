@@ -454,8 +454,9 @@ class AnalyticsPanel(tk.Frame):
         for btns, current in groups:
             for k, b in btns.items():
                 on = k == current
-                b.config(bg=C.ACCENT if on else C.CARD, fg="white" if on else C.MUTED,
-                         activebackground=C.ACCENT_HOVER if on else C.CARD_HOVER)
+                b.config(bg=C.SEG_ON if on else C.BG, fg=C.TEXT if on else C.MUTED,
+                         activebackground=C.SEG_ON if on else C.CARD_HOVER,
+                         activeforeground=C.TEXT)
 
     def _set_view(self, view):
         if self.state.get("view", "full") == view:

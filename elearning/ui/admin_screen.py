@@ -119,6 +119,7 @@ class AdminScreen(SidebarLayout):
 
         # Tombol di kepala halaman dibuat sekali; teks/fungsinya saja yang diganti per menu
         self.reload_btn = self.header.button("Muat ulang", self._reload, icon="refresh")
+        self.export_btn = self.header.button("Export Excel", self._export, icon="download")
         self.add_btn = self.header.button("Tambah murid", self._add_student, primary=True,
                                           icon="plus")
 
@@ -312,7 +313,7 @@ class AdminScreen(SidebarLayout):
             self.add_btn.set(text="Tambah guru" if teachers else "Tambah murid",
                              command=self._add_teacher if teachers else self._add_student)
             if not self.add_btn.winfo_manager():
-                self.add_btn.pack(side="right", padx=(8, 0), after=self.reload_btn)
+                self.add_btn.pack(side="right", padx=(8, 0), after=self.export_btn)
         else:
             self.add_btn.pack_forget()
         if self.tab == "analytics":   # halaman grafik: tanpa ringkasan & filter laporan
@@ -348,6 +349,18 @@ class AdminScreen(SidebarLayout):
                 self._shown.pack_forget()
             want.pack(fill="x")
             self._shown = want
+
+    def _export(self):
+        """Riwayat login ke Excel; admin memilih periode, data, dan foldernya sendiri."""
+        try:
+            from elearning.ui.export_dialog import ExportDialog
+            ExportDialog(self, default_who={"students": "students",
+                                            "teachers": "teachers"}.get(self.tab, "all"))
+        except Exception as exc:   # jangan diam saja: catat penyebabnya di app.log
+            import traceback
+            C.log("Export Excel tidak bisa dibuka: " + "".join(
+                traceback.format_exception(type(exc), exc, exc.__traceback__)))
+            self.bell()
 
     def _reload(self):
         """Tombol Muat ulang: Analytics dihitung ulang dari data terbaru."""

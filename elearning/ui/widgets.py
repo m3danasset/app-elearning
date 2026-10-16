@@ -116,6 +116,8 @@ class Switch(tk.Canvas):
     def __init__(self, master, value=False, command=None, bg=C.CARD):
         super().__init__(master, width=self.W, height=self.H, bg=bg,
                          highlightthickness=0, bd=0, cursor="hand2")
+        self._bg = bg
+        self._imgs = []
         self.value = bool(value)
         self.command = command
         self.bind("<Button-1>", self._on_click)
@@ -136,10 +138,19 @@ class Switch(tk.Canvas):
         w, h, pad = self.W, self.H, 3
         r = h // 2
         color = C.ON if self.value else C.TRACK_OFF
+        x = w - h + pad if self.value else pad
+        try:     # tepi halus (anti-alias): gambar jadi, bukan oval Tk yang bergerigi
+            from elearning.ui import ui_icons as I
+            ph = I.switch(w, h, self.value, color, "#ffffff", self._bg)
+        except Exception:
+            ph = None
+        if ph is not None:
+            self._imgs = [ph]
+            self.create_image(0, 0, image=ph, anchor="nw")
+            return
         self.create_oval(0, 0, h, h, fill=color, outline=color)
         self.create_oval(w - h, 0, w, h, fill=color, outline=color)
         self.create_rectangle(r, 0, w - r, h, fill=color, outline=color)
-        x = w - h + pad if self.value else pad
         self.create_oval(x, pad, x + h - 2 * pad, h - pad,
                          fill="white", outline="white")
 
@@ -152,6 +163,7 @@ class DarkScrollbar(tk.Canvas):
 
     def __init__(self, master, command, bg=C.BG):
         super().__init__(master, width=self.W, bg=bg, highlightthickness=0, bd=0)
+        self._bgc = bg
         self.command = command
         self.first, self.last = 0.0, 1.0
         self._grab = None  # selisih posisi klik terhadap atas "thumb" saat digeser
@@ -177,6 +189,15 @@ class DarkScrollbar(tk.Canvas):
         y0, y1 = self._thumb()
         w = self.W
         color = C.LOCKED if active else C.TRACK_OFF
+        try:     # tepi halus (anti-alias)
+            from elearning.ui import ui_icons as I
+            ph = I.pill(w, int(round(y1 - y0)), color, self._bgc, r=w / 2.0)
+        except Exception:
+            ph = None
+        if ph is not None:
+            self._ph = ph
+            self.create_image(0, int(round(y0)), image=ph, anchor="nw")
+            return
         self.create_oval(0, y0, w, y0 + w, fill=color, outline=color)
         self.create_oval(0, y1 - w, w, y1, fill=color, outline=color)
         self.create_rectangle(0, y0 + w / 2, w, y1 - w / 2, fill=color, outline=color)

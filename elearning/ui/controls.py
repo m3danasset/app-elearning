@@ -226,8 +226,10 @@ class RoundEntry(tk.Canvas):
     FOCUS_BORDER = "#77756e"
 
     def __init__(self, master, textvariable=None, show=None, placeholder="", width_chars=28,
-                 font=None, height=42, fill=None, radius=10, icon=None):
+                 font=None, height=42, fill=None, radius=10, icon=None, right_pad=0):
         self._pbg = _parent_bg(master)
+        self._right_pad = right_pad     # ruang di kanan dalam kolom (mis. penghitung kata)
+        self._right = None
         self._fill = fill or C.SEARCH_BG
         self._radius, self._icon = radius, icon
         self._font = tkfont.Font(font=font or (C.FONT, 11))
@@ -286,7 +288,21 @@ class RoundEntry(tk.Canvas):
                 self.create_image(22, h / 2, image=ic, tags="deco")
         self.tag_lower("deco")
         self.coords(self._win, self._x0, h / 2)
-        self.itemconfigure(self._win, width=max(20, w - self._x0 - 14))
+        self.itemconfigure(self._win, width=max(20, w - self._x0 - 14 - self._right_pad))
+        if self._right is not None:
+            self.coords(self._right, w - 14, h / 2)
+
+    def set_right_text(self, text, color=C.MUTED, font=None):
+        """Teks kecil di dalam kolom, rata kanan (mis. '12/30 kata')."""
+        if self._right is None:
+            self._right = self.create_text(self.winfo_width() - 14, self.winfo_height() / 2,
+                                           anchor="e", text="", font=font or (C.FONT, 9))
+        self.itemconfigure(self._right, text=text, fill=color)
+        f = tkfont.Font(font=font or (C.FONT, 9))
+        self._right_pad = f.measure(text) + 16 if text else 0   # isian tidak menabrak teks
+        w = self.winfo_width()
+        if w > 10:
+            self.itemconfigure(self._win, width=max(20, w - self._x0 - 14 - self._right_pad))
 
     # pintasan supaya bisa dipakai seperti Entry
     def focus_set(self):
@@ -444,6 +460,64 @@ class RoundSelect(RoundButton):
         if key == "menu":
             return self.menu
         return super().cget(key)
+
+
+class RoundCheck(tk.Canvas):
+    """Kotak centang bersudut bulat sesuai tema (klik kotak atau teksnya)."""
+
+    BOX = 18
+
+    def __init__(self, master, text, value=True, command=None, bg=C.CARD, font=None,
+                 sub=None):
+        self._font = font or (C.FONT, 10)
+        self.sub = sub      # teks kecil abu-abu di belakang label (mis. "terkunci")
+        f = tkfont.Font(font=self._font)
+        w = self.BOX + 10 + f.measure(text) + (f.measure("  " + sub) if sub else 0) + 4
+        self._bg = bg
+        super().__init__(master, width=w, height=self.BOX + 6, bg=bg,
+                         highlightthickness=0, bd=0, cursor="hand2")
+        self.text, self.value, self.command = text, bool(value), command
+        self._hover = False
+        self._img = None
+        self.bind("<Button-1>", lambda e: self.set(not self.value, notify=True))
+        self.bind("<Enter>", lambda e: self._set_hover(True))
+        self.bind("<Leave>", lambda e: self._set_hover(False))
+        self._draw()
+
+    def _set_hover(self, v):
+        self._hover = v
+        self._draw()
+
+    def set(self, value, notify=False):
+        self.value = bool(value)
+        self._draw()
+        if notify and self.command is not None:
+            self.command()
+
+    def _draw(self):
+        self.delete("all")
+        b, y0 = self.BOX, 3
+        if self.value:
+            fill, border = (C.ACCENT_HOVER if self._hover else C.ACCENT), None
+        else:
+            fill, border = (C.CARD_HOVER if self._hover else self._bg), C.MUTED
+        self._img = I.pill(b, b, fill, self._bg, r=5, border=border)
+        if self._img is not None:
+            self.create_image(0, y0, image=self._img, anchor="nw")
+        if self.value:     # centang halus (anti-alias), di dalam kotak membulat
+            ck = I.icon("check_bold", "#ffffff", fill, b - 4)
+            if ck is not None:
+                self._ck = ck
+                self.create_image(2, y0 + 2, image=ck, anchor="nw")
+            else:
+                self.create_line(4.5, y0 + 9.5, 7.8, y0 + 12.8, 13.8, y0 + 5.6, fill="white",
+                                 width=2, capstyle="round", joinstyle="round")
+        t = self.create_text(b + 10, y0 + b / 2, text=self.text, anchor="w", font=self._font,
+                             fill=C.TEXT if self.value else C.MUTED)
+        if self.sub:
+            x1 = self.bbox(t)[2]
+            self.create_text(x1 + 6, y0 + b / 2, text=self.sub, anchor="w", font=(C.FONT, 8),
+                             fill=C.LOCKED)
 
 
 class ResizeCurtain:

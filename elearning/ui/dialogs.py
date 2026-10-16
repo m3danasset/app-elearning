@@ -120,9 +120,9 @@ class StudentDialog(tk.Toplevel):
         self.program = key
         for k, b in self._prog_btns.items():
             on = k == key
-            b.config(bg=C.ACCENT if on else C.BG, fg="white" if on else C.MUTED,
-                     activebackground=C.ACCENT_HOVER if on else C.BORDER,
-                     activeforeground="white" if on else C.TEXT)
+            b.config(bg=C.SEG_ON if on else C.BG, fg=C.TEXT if on else C.MUTED,
+                     activebackground=C.SEG_ON if on else C.CARD_HOVER,
+                     activeforeground=C.TEXT)
         if self.id_var.get().strip() in ("", self._auto_id):  # ID saran ikut berganti
             try:                                              # (PB... / SK...) kecuali
                 self._auto_id = S.next_student_id(key)        # sudah diubah guru

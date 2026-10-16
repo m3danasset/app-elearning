@@ -15,16 +15,20 @@ from elearning.students import (STATUS_ACTIVE, STATUS_EXPIRED, STATUS_LABEL,
                                 add_student, delete_student, list_students,
                                 lookup_student, rename_student, set_course_access,
                                 set_status)
+from elearning.ui import ui_icons as I
 from elearning.ui.avatar import Avatar
 from elearning.ui.dialogs import ConfirmDialog, StudentDialog
-from elearning.ui.portfolio_view import ThumbGrid
+from elearning.ui.gallery import GalleryBoard
+from elearning.ui.portfolio_view import ExamplesPanel
 from elearning.ui.report_panel import ReportPanel
 from elearning.ui.sidebar import AppSidebar, PageHeader, SidebarLayout
+from elearning.ui.teacher_progress import ProgressBoard, QuizPanel
 from elearning.ui.widgets import ScrollFrame, Switch, add_hover
 
 PROGRAM_LABEL = {"adult": "Murid dewasa", "kids": "Murid anak"}
 CATEGORIES = ("adult", "kids")  # urutan kategori di sidebar kiri
-VIEW_TITLE = {"students": "Atur Akses Kursus", "reports": "Laporan Kerja"}
+VIEW_TITLE = {"students": "Murid & Kursus", "reports": "Laporan Kerja", "quizzes": "Kuis",
+              "examples": "Bahan dari Guru"}
 
 
 class TeacherScreen(SidebarLayout):
@@ -66,6 +70,12 @@ class TeacherScreen(SidebarLayout):
         if self.view == "reports":
             ReportPanel(self.body, self.teacher).pack(fill="both", expand=True)
             return
+        if self.view == "examples":
+            ExamplesPanel(self.body).pack(fill="both", expand=True)
+            return
+        if self.view == "quizzes":
+            QuizPanel(self.body, self.teacher).pack(fill="both", expand=True)
+            return
         self._build_student_panel()
 
     # --- sidebar kiri ------------------------------------------------------------
@@ -74,6 +84,10 @@ class TeacherScreen(SidebarLayout):
         sb.nav("Tambah murid", "plus", self._add_student, primary=True)
         sb.nav("Murid & Kursus", "users", lambda: self._set_view("students"),
                active=self.view == "students")
+        sb.nav("Kuis", "quiz", lambda: self._set_view("quizzes"),
+               active=self.view == "quizzes")
+        sb.nav("Bahan dari Guru", "image", lambda: self._set_view("examples"),
+               active=self.view == "examples")
         sb.nav("Laporan Kerja", "report", lambda: self._set_view("reports"),
                active=self.view == "reports")
 
@@ -179,8 +193,9 @@ class TeacherScreen(SidebarLayout):
         tabs = tk.Frame(self.right, bg=C.BG)
         tabs.pack(fill="x", pady=(10, 0))
         self.tab_btns = {}
-        for key, label in (("courses", "Akses Kursus"), ("history", "Riwayat Login"),
-                           ("portfolio", "Portfolio")):
+        for key, label in (("courses", "Akses Kursus"), ("progress", "Progres Belajar"),
+                           ("history", "Riwayat Login"), ("portfolio", "Portfolio"),
+                           ("assignment", "Assignment")):
             b = RoundButton(tabs, text=label, command=lambda k=key: self._set_tab(k),
                           relief="flat", bd=0, highlightthickness=0, cursor="hand2",
                           font=(C.FONT, 10, "bold"), padx=16, pady=6)
@@ -230,7 +245,7 @@ class TeacherScreen(SidebarLayout):
             self.status_btn.config(state="disabled")
             return
         expired = student.get("status") == STATUS_EXPIRED
-        self.badge.config(text=f"●  {STATUS_LABEL[STATUS_EXPIRED if expired else STATUS_ACTIVE].upper()}",
+        self.badge.config(text=f"●  {STATUS_LABEL[STATUS_EXPIRED if expired else STATUS_ACTIVE]}",
                           fg=C.ERROR if expired else C.ON)
         if not self.badge.winfo_ismapped():
             self.badge.pack(side="left", padx=(14, 0))
@@ -264,9 +279,9 @@ class TeacherScreen(SidebarLayout):
     def _paint_tabs(self):
         for key, b in self.tab_btns.items():
             on = key == self.tab
-            b.config(bg=C.ACCENT if on else C.CARD, fg="white" if on else C.MUTED,
-                     activebackground=C.ACCENT_HOVER if on else C.BORDER,
-                     activeforeground="white" if on else C.TEXT)
+            b.config(bg=C.SEG_ON if on else C.BG, fg=C.TEXT if on else C.MUTED,
+                     activebackground=C.SEG_ON if on else C.CARD_HOVER,
+                     activeforeground=C.TEXT)
 
     def _set_tab(self, key):
         if key == self.tab:
@@ -284,9 +299,18 @@ class TeacherScreen(SidebarLayout):
         if student is None:
             self.hint.config(text="")
             return
-        if self.tab == "history":
+        if self.tab == "progress":
+            self.hint.config(text="Video yang sudah ditonton, posisi terakhir, "
+                             + ("catatan murid" if student["program"] == "adult"
+                                else "emote murid") + ", dan jawaban kuis.")
+            ProgressBoard(self.rows, student).pack(fill="x")
+        elif self.tab == "history":
             self.hint.config(text="Kapan murid masuk dan keluar aplikasi, beserta lama belajarnya.")
             self._build_history(student)
+        elif self.tab == "assignment":
+            self.hint.config(text="Hasil render assignment yang diunggah murid, per kursus. "
+                                  "Klik thumbnail untuk membukanya.")
+            self._build_portfolio(student, portfolio.ASSIGNMENT)
         elif self.tab == "portfolio":
             self.hint.config(text="Gambar dan video hasil karya murid, per kursus. "
                                   "Klik thumbnail untuk membukanya.")
@@ -298,11 +322,13 @@ class TeacherScreen(SidebarLayout):
             for course in courses_for(student["program"]):
                 self._build_row(student["id"], course, course["id"] in allowed)
 
-    def _build_portfolio(self, student):
+    def _build_portfolio(self, student, section=None):
         total = images = videos = 0
         sections = []
         for course in courses_for(student["program"]):
-            items = portfolio.list_items(student["id"], course["id"])
+            if section and not course.get("video", True):
+                continue
+            items = portfolio.list_items(student["id"], course["id"], section)
             if items:
                 sections.append((course, items))
                 total += len(items)
@@ -310,7 +336,8 @@ class TeacherScreen(SidebarLayout):
         images = total - videos
 
         if not sections:
-            tk.Label(self.rows, text="Murid ini belum mengunggah portfolio.",
+            tk.Label(self.rows, text="Murid ini belum mengunggah "
+                     + ("assignment." if section else "portfolio."),
                      bg=C.BG, fg=C.MUTED, font=(C.FONT, 10), anchor="w").pack(fill="x", pady=8)
             return
         tk.Label(self.rows, text=f"{total} file  ·  {images} gambar  ·  {videos} video",
@@ -319,13 +346,25 @@ class TeacherScreen(SidebarLayout):
         for course, items in sections:
             head = tk.Frame(self.rows, bg=C.BG)
             head.pack(fill="x", pady=(10, 0))
-            tk.Frame(head, bg=course["color"], width=4, height=18).pack(side="left", padx=(0, 10))
+            dot = I.dot(course["color"], C.BG, 10)
+            if dot is not None:
+                d = tk.Label(head, image=dot, bg=C.BG, bd=0)
+                d.image = dot
+                d.pack(side="left", padx=(0, 8))
             tk.Label(head, text=course["title"], bg=C.BG, fg=C.TEXT,
                      font=(C.FONT, 11, "bold")).pack(side="left")
             tk.Label(head, text=f"  {len(items)} file", bg=C.BG, fg=C.MUTED,
                      font=(C.FONT, 10)).pack(side="left")
-            ThumbGrid(self.rows, items, on_error=lambda msg: self.status.config(
-                text=msg, fg=C.ERROR)).pack(fill="x")
+            g = GalleryBoard(self.rows, on_open=self._open_item)   # galeri gaya Behance
+            g.pack(fill="x", pady=(8, 0))
+            g.set_items([dict(it, own=True) for it in items])
+
+    def _open_item(self, item):
+        try:
+            portfolio.open_file(item["path"])
+        except Exception as exc:
+            C.log(f"Gagal membuka {item['path']!r}: {exc!r}")
+            self.status.config(text="File tidak bisa dibuka.", fg=C.ERROR)
 
     def _build_history(self, student):
         items = sessions.entries(student["id"])
@@ -359,7 +398,7 @@ class TeacherScreen(SidebarLayout):
             panel.pack(fill="x", pady=3)
             row = panel.inner
             dur = tk.Label(row, text=sessions.format_duration(e["seconds"]), bg=C.CARD,
-                           fg=C.ACCENT, font=(C.FONT, 12, "bold"), width=9, anchor="e")
+                           fg=C.TEXT, font=(C.FONT, 11), width=9, anchor="e")
             dur.pack(side="right", padx=(8, 16))
             info = tk.Frame(row, bg=C.CARD, padx=16, pady=9)
             info.pack(side="left", fill="x", expand=True)
@@ -540,18 +579,25 @@ class TeacherScreen(SidebarLayout):
         self.status.config(text=f"Foto {sid} dihapus.", fg=C.MUTED)
 
     def _build_row(self, student_id, course, unlocked):
-        panel = RoundPanel(self.rows, padx=4, pady=2, stripe=course["color"])
+        panel = RoundPanel(self.rows, padx=4, pady=2)
         panel.pack(fill="x", pady=4)
         row = panel.inner
 
         info = tk.Frame(row, bg=C.CARD, padx=16, pady=10)
         info.pack(side="left", fill="x", expand=True)
-        tk.Label(info, text=course["title"], bg=C.CARD, fg=C.TEXT,
-                 font=(C.FONT, 12, "bold"), anchor="w").pack(fill="x")
+        title_row = tk.Frame(info, bg=C.CARD)
+        title_row.pack(fill="x")
+        dot = I.dot(course["color"], C.CARD, 10)     # titik warna kursus (gaya claude.ai)
+        if dot is not None:
+            d = tk.Label(title_row, image=dot, bg=C.CARD, bd=0)
+            d.image = dot
+            d.pack(side="left", padx=(0, 8))
+        tk.Label(title_row, text=course["title"], bg=C.CARD, fg=C.TEXT,
+                 font=(C.FONT, 12, "bold"), anchor="w").pack(side="left")
         tk.Label(info, text=course["desc"], bg=C.CARD, fg=C.MUTED,
                  font=(C.FONT, 9), anchor="w").pack(fill="x")
 
-        state = tk.Label(row, bg=C.CARD, font=(C.FONT, 10, "bold"), width=9)
+        state = tk.Label(row, bg=C.CARD, font=(C.FONT, 10), width=9)
         self._paint_state(state, unlocked)
 
         def on_change(new_value):
@@ -566,7 +612,7 @@ class TeacherScreen(SidebarLayout):
             self._paint_state(state, new_value)
             self.status.config(
                 text=f"Tersimpan: {course['title']} untuk {student_id} "
-                     f"{'DIBUKA' if new_value else 'DIKUNCI'}.",
+                     f"{'dibuka' if new_value else 'dikunci'}.",
                 fg=C.MUTED)
             return True
 
@@ -576,5 +622,5 @@ class TeacherScreen(SidebarLayout):
 
     @staticmethod
     def _paint_state(label, unlocked):
-        label.config(text="TERBUKA" if unlocked else "TERKUNCI",
-                     fg=C.ON if unlocked else C.LOCKED)
+        label.config(text="Terbuka" if unlocked else "Terkunci",
+                     fg=C.TEXT if unlocked else C.MUTED)
