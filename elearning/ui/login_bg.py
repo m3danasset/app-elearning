@@ -31,6 +31,7 @@ class LoginBackground(tk.Canvas):
         self._vlast = None          # frame video terakhir (dipakai thread carousel)
         self._vshown = None
         self._vsize = None
+        self.offset = (0, 0)        # geser sementara (tetap di tengah selama resize)
         try:
             from elearning.ui import video_background as VB
             path = VB.find_video(LOGIN_VIDEO_DIR)
@@ -70,12 +71,24 @@ class LoginBackground(tk.Canvas):
     # --- thread utama ------------------------------------------------------------------------
     def reset_video(self, size):
         """Ukuran jendela berubah: frame video lama disembunyikan sampai ukuran baru siap."""
+        # frame terakhir diperbesar / diperkecil ke ukuran baru dan langsung dipakai, jadi
+        # latar & pita tidak berkedip polos / hitam selama video menyiapkan ukuran baru
+        last = self._vshown
+        fill = None
+        if last is not None and last.size != size:
+            try:
+                fill = last.resize(size, photos.Image.BILINEAR)
+            except Exception:
+                fill = None
         with self._vlock:
             self._vsize = size
-            self._vlast = None
+            self._vlast = fill
         self._vshown = None
-        self.itemconfigure(self._base_item, image="")
-        self._imgs.pop("base", None)
+        if fill is not None:
+            self.show_video(fill)
+        elif last is None or last.size != size:
+            self.itemconfigure(self._base_item, image="")
+            self._imgs.pop("base", None)
         p = self._player
         if p is not None:
             if p.failed:
@@ -102,7 +115,17 @@ class LoginBackground(tk.Canvas):
 
     def show_band(self, img, y):
         self._put("band", self._band_item, img)
-        self.coords(self._band_item, 0, int(y))
+        ox, oy = self.offset
+        self.coords(self._band_item, ox, int(y) + oy)
+
+    def shift_to(self, ox, oy):
+        """Latar & pita digeser (tanpa render ulang), mis. supaya tetap di tengah saat
+        jendela berubah ukuran sebelum frame ukuran baru siap."""
+        dx, dy = ox - self.offset[0], oy - self.offset[1]
+        self.offset = (ox, oy)
+        if dx or dy:
+            self.move(self._base_item, dx, dy)
+            self.move(self._band_item, dx, dy)
 
     def destroy(self):
         if self._player is not None:

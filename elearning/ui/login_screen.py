@@ -29,6 +29,9 @@ FIELD_FILL = 200          # kegelapan isi kolom (0-255)
 TEXT = "#f3f1ea"
 MUTED = "#aaa79e"
 BLINK_MS = 530
+LOGO_Y = 0.06             # tengah logo: sekian x tinggi layar di atas tengah kartu
+LAYOUT_MS = 70            # resize beruntun (windowed <-> fullscreen) digabung jadi satu
+CACHE_SIZES = 3           # ukuran logo / kolom yang disimpan (bolak-balik tanpa render ulang)
 
 
 class LoginScreen(tk.Frame):
@@ -47,6 +50,9 @@ class LoginScreen(tk.Frame):
         self._pin_shown = False
         self._caret_on = True
         self._blink = None
+        self._relayout = None
+        self._laid = None           # ukuran (W, H) tata letak terakhir
+        self._shift = (0, 0)        # geser sementara selama resize
         self._build()
 
     # --- susunan ---------------------------------------------------------------------------
@@ -68,19 +74,50 @@ class LoginScreen(tk.Frame):
         cv.bind("<Button-1>", self._on_click)
         cv.bind("<Motion>", self._on_motion)
         cv.focus_set()
-        self.bind("<Configure>", lambda e: self._layout() if e.widget is self else None)
+        self.bind("<Configure>", self._on_configure)
         self._blink_tick()
 
+    def _on_configure(self, e):
+        """Saat pindah windowed / fullscreen Tk mengirim beberapa <Configure> berturut-turut.
+        Tata letak + frame pertama dibuat sekali untuk ukuran akhir; sampai itu gambar lama
+        tetap utuh (tidak ada logo / kolom / pita setengah jadi)."""
+        if e.widget is not self:
+            return
+        if self._laid is not None:      # langsung: isi lama digeser ke tengah ukuran baru
+            ox = (e.width - self._laid[0]) // 2
+            oy = (e.height - self._laid[1]) // 2
+            self._shift_to(ox, oy)
+        if self._relayout is not None:
+            self.after_cancel(self._relayout)
+        self._relayout = self.after(LAYOUT_MS, self._layout)
+
+    def _shift_to(self, ox, oy):
+        dx, dy = ox - self._shift[0], oy - self._shift[1]
+        if not (dx or dy):
+            return
+        self._shift = (ox, oy)
+        for item in (self._t_brand, self._t_value, self._t_pin, self._t_caret, self._t_msg):
+            self.bgv.move(item, dx, dy)
+        self._fields = {k: (a + dx, b + dy, c + dx, d + dy)
+                        for k, (a, b, c, d) in self._fields.items()}
+        if self._fields:
+            self._field = self._fields.get(self.mode, self._field)
+        self.bgv.shift_to(ox, oy)
+
     def _layout(self, _event=None):
+        self._relayout = None
         W, H = self.winfo_width(), self.winfo_height()
         if W < 50 or H < 50:
             return
         cv = self.bgv
+        self._laid = (W, H)
+        self._shift = (0, 0)         # posisi di bawah ini absolut untuk ukuran baru
+        cv.shift_to(0, 0)
         cy = H * 0.5
         ch = int(max(200, min(H * 0.49, W * 0.276, 640)))
 
         # logo besar di tengah (sedikit di atas tengah kartu)
-        ly = cy - H * 0.085
+        ly = cy - H * LOGO_Y
         logo = self._logo(int(W * 0.64), int(H * 0.17))
         overlays, extra = [], []
         if logo is not None:
@@ -140,9 +177,14 @@ class LoginScreen(tk.Frame):
             img = _soft_shadow(img)
         except Exception:
             img = None
-        self._imgs = {k: v for k, v in self._imgs.items() if k[0] != "logo"}
-        self._imgs[key] = img
+        self._cache(key, img)
         return img
+
+    def _cache(self, key, img):
+        old = [k for k in self._imgs if k[0] == key[0]]
+        for k in old[:max(0, len(old) - CACHE_SIZES + 1)]:
+            del self._imgs[k]
+        self._imgs[key] = img
 
     def _field_img(self, w, h):
         key = ("field", w, h)
@@ -156,8 +198,7 @@ class LoginScreen(tk.Frame):
             body.putalpha(I.round_mask(w - 2, h - 2, r - 1)
                           .point(lambda v: v * FIELD_FILL // 255))
             img.alpha_composite(body, (1, 1))
-            self._imgs = {k: v for k, v in self._imgs.items() if k[0] != "field"}
-            self._imgs[key] = img
+            self._cache(key, img)
         return img
 
     # --- isi kolom ---------------------------------------------------------------------------
@@ -292,6 +333,11 @@ class LoginScreen(tk.Frame):
             self.carousel.close()
         except Exception:
             pass
+        if self._relayout is not None:
+            try:
+                self.after_cancel(self._relayout)
+            except Exception:
+                pass
         if self._blink is not None:
             try:
                 self.after_cancel(self._blink)

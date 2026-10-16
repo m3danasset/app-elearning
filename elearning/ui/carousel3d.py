@@ -227,8 +227,10 @@ class Carousel3D:
             return
         self.bg.reset_video((geo.W, geo.H))
         # frame pertama ukuran baru dibuat langsung: tidak ada sisa pita ukuran lama
+        # latar pita = frame video yang sama dengan latar (tidak ada kotak polos di pita)
+        vframe = self.bg.video_frame()
         self._display(time.perf_counter(), geo, render(geo, list(self.tex), self._phase(),
-                                                        self._band_bg(geo, None), ov), None)
+                                                        self._band_bg(geo, vframe), ov), vframe)
 
     def _phase(self, t=None):
         return ((t or time.perf_counter()) - self._t0) * SPEED
