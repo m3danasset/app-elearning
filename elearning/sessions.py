@@ -35,7 +35,27 @@ def _parse(text):
         return None
 
 
+_read_cache = {"key": None, "records": []}
+
+
 def _read():
+    """Semua catatan. File hanya dibaca ulang kalau berubah (waktu ubah / ukuran berbeda);
+    selebihnya dari ingatan, jadi Panel Admin & Analytics tetap ringan walau riwayat panjang.
+    Yang dikembalikan salinan, jadi pemanggil boleh mengubahnya."""
+    try:
+        st = os.stat(C.SESSIONS_FILE)
+        key = (st.st_mtime_ns, st.st_size)
+    except OSError:
+        key = None
+    if key is not None and key == _read_cache["key"]:
+        return [dict(r) for r in _read_cache["records"]]
+    records = _read_file()
+    _read_cache["key"] = key
+    _read_cache["records"] = records
+    return [dict(r) for r in records]
+
+
+def _read_file():
     try:
         with open(C.SESSIONS_FILE, encoding="utf-8") as f:
             data = json.load(f)

@@ -172,6 +172,28 @@ def render_avatar(student_id, size, bg, fill, ring, ring_width=2, override=None)
     """
     if not HAS_PIL:
         return None
+    key = None
+    if override is None:   # hasil disimpan; dibuat ulang hanya kalau foto di disk berubah
+        try:
+            mt = os.stat(photo_path(student_id)).st_mtime_ns if student_id else None
+        except OSError:
+            mt = None
+        key = (student_id, size, bg, fill, ring, ring_width, mt)
+        hit = _avatar_cache.get(key)
+        if hit is not None:
+            return hit
+    result = _render_avatar(student_id, size, bg, fill, ring, ring_width, override)
+    if key is not None:
+        if len(_avatar_cache) > 400:
+            _avatar_cache.clear()
+        _avatar_cache[key] = result
+    return result
+
+
+_avatar_cache = {}
+
+
+def _render_avatar(student_id, size, bg, fill, ring, ring_width, override):
     outer_r = size / 2.0 - 0.5
     canvas = Image.new("RGB", (size, size), _hex_rgb(bg))
     canvas.paste(_hex_rgb(ring), mask=_disc_mask(size, outer_r))

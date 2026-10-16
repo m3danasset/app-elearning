@@ -85,7 +85,29 @@ def _write(data):
     os.replace(tmp, C.STUDENTS_FILE)  # tulis utuh atau tidak sama sekali
 
 
+_load_cache = {"key": None, "data": None}
+
+
 def _load():
+    """Data murid terbaru. File hanya dibaca ulang kalau berubah (lihat _load_file)."""
+    try:
+        st = os.stat(C.STUDENTS_FILE)
+        key = (st.st_mtime_ns, st.st_size)
+    except OSError:
+        key = None
+    if key is not None and key == _load_cache["key"] and _load_cache["data"] is not None:
+        return copy.deepcopy(_load_cache["data"])
+    data = _load_file()
+    try:
+        st = os.stat(C.STUDENTS_FILE)
+        _load_cache["key"] = (st.st_mtime_ns, st.st_size)
+        _load_cache["data"] = copy.deepcopy(data)
+    except OSError:
+        _load_cache["key"] = None
+    return data
+
+
+def _load_file():
     """Baca data terbaru dari file (dibuat dari data contoh kalau belum ada)."""
     try:
         with open(C.STUDENTS_FILE, encoding="utf-8") as f:

@@ -62,17 +62,33 @@ def log(msg):
         pass
 
 # --- Tema warna -------------------------------------------------------------
-BG = "#14171f"
-CARD = "#1d212c"
-CARD_HOVER = "#262b39"
-LOCKED = "#5a6072"
-BORDER = "#2a2f3d"
-TEXT = "#e8eaf0"
-MUTED = "#8b91a3"
+# Abu-abu netral-hangat (gaya claude.ai mode gelap), aksen oranye tetap.
+BG = "#1a1918"          # area isi (kanan)
+CARD = "#262523"
+CARD_HOVER = "#302f2c"
+LOCKED = "#64625c"
+BORDER = "#3a3935"
+TEXT = "#f0eee6"
+MUTED = "#a3a097"
 ACCENT = "#ea7600"
 ACCENT_HOVER = "#ff8a1a"
 ERROR = "#ff6b6b"
 ON = "#3fb68b"          # tombol ON (kursus dibuka)
-TRACK_OFF = "#3a3f4d"   # tombol OFF (kursus dikunci)
+TRACK_OFF = "#4a4945"   # tombol OFF (kursus dikunci)
+
+# Sidebar kiri (sama untuk admin, guru, murid, trial)
+SIDEBAR = "#1a1918"         # latar sidebar
+SIDEBAR_HOVER = "#242321"   # baris saat kursor di atasnya
+SIDEBAR_ACTIVE = "#2c2b28"  # baris yang sedang dipilih
+SIDEBAR_LINE = "#2e2d2a"    # garis pemisah sidebar | isi
+SEARCH_BG = "#1a1918"       # kolom cari
+
+# Layar login & splash
+LOGIN_BG = BG               # latar login & splash = latar seluruh aplikasi
+SERIF = "Georgia"           # huruf judul besar (ada di semua Windows)
+LOGIN_HEADLINE = "Wujudkan karya 3D-mu"
+LOGIN_TAGLINE = "Kelas Blender & AI M3DAN Studios, sesuai level kamu"
+SHOWCASE_SECONDS = 6        # lama tiap gambar di slideshow portfolio (detik)
+SHOWCASE_SHOW_NAMES = False # True = nama murid ikut tampil di slideshow login
 
 FONT = "Segoe UI"
