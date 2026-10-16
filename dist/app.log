@@ -1,0 +1,1446 @@
+2026-10-14 15:53:25  Kode di folder 'app' gagal dimuat, memakai kode bawaan .exe:
+Traceback (most recent call last):
+  File "main.py", line 39, in _load_app_class
+  File "C:\BlenderELearning\dist\app\elearning\ui\window.py", line 7, in <module>
+    from elearning.ui.login_screen import LoginScreen
+  File "C:\BlenderELearning\dist\app\elearning\ui\login_screen.py", line 9, in <module>
+    from elearning.ui.widgets import add_hover
+  File "C:\BlenderELearning\dist\app\elearning\ui\widgets.py", line 4, in <module>
+    from tkinter import ttk
+ImportError: cannot import name 'ttk' from 'tkinter' (C:\Users\M3DAN-~1\AppData\Local\Temp\_MEI000019402\tkinter\__init__.py)
+
+2026-10-14 15:53:58  Kode di folder 'app' gagal dimuat, memakai kode bawaan .exe:
+Traceback (most recent call last):
+  File "main.py", line 39, in _load_app_class
+  File "C:\BlenderELearning\dist\app\elearning\ui\window.py", line 7, in <module>
+    from elearning.ui.login_screen import LoginScreen
+  File "C:\BlenderELearning\dist\app\elearning\ui\login_screen.py", line 9, in <module>
+    from elearning.ui.widgets import add_hover
+  File "C:\BlenderELearning\dist\app\elearning\ui\widgets.py", line 4, in <module>
+    from tkinter import ttk
+ImportError: cannot import name 'ttk' from 'tkinter' (C:\Users\M3DAN-~1\AppData\Local\Temp\_MEI000010702\tkinter\__init__.py)
+
+2026-10-15 10:02:35  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000025bc2\\assets\\icon.ico' ada=True
+2026-10-15 10:02:35  Ikon: iconbitmap OK
+2026-10-15 10:02:35  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 10:02:35  Ikon: WM_SETICON OK
+2026-10-15 10:02:35  Ikon: WM_SETICON OK
+2026-10-15 10:18:28  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI00001c482\\assets\\icon.ico' ada=True
+2026-10-15 10:18:28  Ikon: iconbitmap OK
+2026-10-15 10:18:28  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 10:18:28  Ikon: WM_SETICON OK
+2026-10-15 10:18:29  Ikon: WM_SETICON OK
+2026-10-15 11:59:13  Kode di folder 'app' gagal dimuat, memakai kode bawaan .exe:
+Traceback (most recent call last):
+  File "main.py", line 39, in _load_app_class
+  File "C:\BlenderELearning\dist\app\elearning\ui\window.py", line 11, in <module>
+    from elearning.ui.course_screen import CourseScreen
+  File "C:\BlenderELearning\dist\app\elearning\ui\course_screen.py", line 6, in <module>
+    from elearning import blender_launcher, portfolio
+  File "C:\BlenderELearning\dist\app\elearning\blender_launcher.py", line 16, in <module>
+    from tkinter import filedialog, messagebox
+ImportError: cannot import name 'filedialog' from 'tkinter' (C:\Users\M3DAN-~1\AppData\Local\Temp\_MEI000018942\tkinter\__init__.py)
+
+2026-10-15 11:59:13  Gagal menampilkan frame video: TclError('image "pyimage1" does not exist') -> pakai latar polos
+2026-10-15 12:00:02  Kode di folder 'app' gagal dimuat, memakai kode bawaan .exe:
+Traceback (most recent call last):
+  File "main.py", line 39, in _load_app_class
+  File "C:\BlenderELearning\dist\app\elearning\ui\window.py", line 11, in <module>
+    from elearning.ui.course_screen import CourseScreen
+  File "C:\BlenderELearning\dist\app\elearning\ui\course_screen.py", line 6, in <module>
+    from elearning import blender_launcher, portfolio
+  File "C:\BlenderELearning\dist\app\elearning\blender_launcher.py", line 16, in <module>
+    from tkinter import filedialog, messagebox
+ImportError: cannot import name 'filedialog' from 'tkinter' (C:\Users\M3DAN-~1\AppData\Local\Temp\_MEI0000311c2\tkinter\__init__.py)
+
+2026-10-15 12:00:02  Gagal menampilkan frame video: TclError('image "pyimage1" does not exist') -> pakai latar polos
+2026-10-15 12:03:19  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011002\\assets\\icon.ico' ada=True
+2026-10-15 12:03:19  Ikon: iconbitmap OK
+2026-10-15 12:03:19  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 12:03:19  Ikon: WM_SETICON OK
+2026-10-15 12:03:19  Ikon: WM_SETICON OK
+2026-10-15 12:03:34  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 12:04:09  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 12:05:34  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 12:12:25  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI00001ff82\\assets\\icon.ico' ada=True
+2026-10-15 12:12:25  Ikon: iconbitmap OK
+2026-10-15 12:12:25  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 12:12:25  Ikon: WM_SETICON OK
+2026-10-15 12:12:26  Ikon: WM_SETICON OK
+2026-10-15 12:12:32  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 12:20:10  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000030942\\assets\\icon.ico' ada=True
+2026-10-15 12:20:10  Ikon: iconbitmap OK
+2026-10-15 12:20:10  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 12:20:10  Ikon: WM_SETICON OK
+2026-10-15 12:20:10  Ikon: WM_SETICON OK
+2026-10-15 12:20:25  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 13:01:01  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000030982\\assets\\icon.ico' ada=True
+2026-10-15 13:01:01  Ikon: iconbitmap OK
+2026-10-15 13:01:01  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 13:01:01  Ikon: WM_SETICON OK
+2026-10-15 13:01:01  Ikon: WM_SETICON OK
+2026-10-15 13:02:47  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 13:03:37  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000012f02\\assets\\icon.ico' ada=True
+2026-10-15 13:03:37  Ikon: iconbitmap OK
+2026-10-15 13:03:37  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 13:03:37  Ikon: WM_SETICON OK
+2026-10-15 13:03:37  Ikon: WM_SETICON OK
+2026-10-15 13:06:12  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI00002e782\\assets\\icon.ico' ada=True
+2026-10-15 13:06:13  Ikon: iconbitmap OK
+2026-10-15 13:06:13  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 13:06:13  Ikon: WM_SETICON OK
+2026-10-15 13:06:13  Ikon: WM_SETICON OK
+2026-10-15 13:06:40  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 13:06:41  Ikon mengambang: gambar gagal dibuat: ImportError("cannot import name 'ImageEnhance' from 'PIL' (C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI00002e782\\PIL\\__init__.py)", name='PIL', path='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI00002e782\\PIL\\__init__.py')
+2026-10-15 13:09:41  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000022382\\assets\\icon.ico' ada=True
+2026-10-15 13:09:41  Ikon: iconbitmap OK
+2026-10-15 13:09:41  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 13:09:41  Ikon: WM_SETICON OK
+2026-10-15 13:09:41  Ikon: WM_SETICON OK
+2026-10-15 13:09:47  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 13:12:23  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000031102\\assets\\icon.ico' ada=True
+2026-10-15 13:12:23  Ikon: iconbitmap OK
+2026-10-15 13:12:23  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 13:12:23  Ikon: WM_SETICON OK
+2026-10-15 13:12:23  Ikon: WM_SETICON OK
+2026-10-15 13:12:34  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 13:15:52  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI00002b082\\assets\\icon.ico' ada=True
+2026-10-15 13:15:52  Ikon: iconbitmap OK
+2026-10-15 13:15:52  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 13:15:52  Ikon: WM_SETICON OK
+2026-10-15 13:15:52  Ikon: WM_SETICON OK
+2026-10-15 13:20:57  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000023442\\assets\\icon.ico' ada=True
+2026-10-15 13:20:57  Ikon: iconbitmap OK
+2026-10-15 13:20:57  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 13:20:57  Ikon: WM_SETICON OK
+2026-10-15 13:20:57  Ikon: WM_SETICON OK
+2026-10-15 13:27:01  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011ec2\\assets\\icon.ico' ada=True
+2026-10-15 13:27:01  Ikon: iconbitmap OK
+2026-10-15 13:27:01  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 13:27:01  Ikon: WM_SETICON OK
+2026-10-15 13:27:02  Ikon: WM_SETICON OK
+2026-10-15 13:27:33  Ikon sidebar gagal dibuat: ImportError("cannot import name 'ImageDraw' from 'PIL' (C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011ec2\\PIL\\__init__.py)", name='PIL', path='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011ec2\\PIL\\__init__.py')
+2026-10-15 13:27:33  Ikon sidebar gagal dibuat: ImportError("cannot import name 'ImageDraw' from 'PIL' (C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011ec2\\PIL\\__init__.py)", name='PIL', path='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011ec2\\PIL\\__init__.py')
+2026-10-15 13:27:33  Ikon sidebar gagal dibuat: ImportError("cannot import name 'ImageDraw' from 'PIL' (C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011ec2\\PIL\\__init__.py)", name='PIL', path='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011ec2\\PIL\\__init__.py')
+2026-10-15 13:27:33  Ikon sidebar gagal dibuat: ImportError("cannot import name 'ImageDraw' from 'PIL' (C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011ec2\\PIL\\__init__.py)", name='PIL', path='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011ec2\\PIL\\__init__.py')
+2026-10-15 13:27:37  Ikon sidebar gagal dibuat: ImportError("cannot import name 'ImageDraw' from 'PIL' (C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011ec2\\PIL\\__init__.py)", name='PIL', path='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011ec2\\PIL\\__init__.py')
+2026-10-15 13:27:37  Ikon sidebar gagal dibuat: ImportError("cannot import name 'ImageDraw' from 'PIL' (C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011ec2\\PIL\\__init__.py)", name='PIL', path='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011ec2\\PIL\\__init__.py')
+2026-10-15 13:27:37  Ikon sidebar gagal dibuat: ImportError("cannot import name 'ImageDraw' from 'PIL' (C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011ec2\\PIL\\__init__.py)", name='PIL', path='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011ec2\\PIL\\__init__.py')
+2026-10-15 13:27:37  Ikon sidebar gagal dibuat: ImportError("cannot import name 'ImageDraw' from 'PIL' (C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011ec2\\PIL\\__init__.py)", name='PIL', path='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011ec2\\PIL\\__init__.py')
+2026-10-15 13:27:38  Ikon sidebar gagal dibuat: ImportError("cannot import name 'ImageDraw' from 'PIL' (C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011ec2\\PIL\\__init__.py)", name='PIL', path='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011ec2\\PIL\\__init__.py')
+2026-10-15 13:27:38  Ikon sidebar gagal dibuat: ImportError("cannot import name 'ImageDraw' from 'PIL' (C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011ec2\\PIL\\__init__.py)", name='PIL', path='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011ec2\\PIL\\__init__.py')
+2026-10-15 13:27:38  Ikon sidebar gagal dibuat: ImportError("cannot import name 'ImageDraw' from 'PIL' (C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011ec2\\PIL\\__init__.py)", name='PIL', path='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011ec2\\PIL\\__init__.py')
+2026-10-15 13:27:38  Ikon sidebar gagal dibuat: ImportError("cannot import name 'ImageDraw' from 'PIL' (C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011ec2\\PIL\\__init__.py)", name='PIL', path='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000011ec2\\PIL\\__init__.py')
+2026-10-15 13:33:21  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000020d02\\assets\\icon.ico' ada=True
+2026-10-15 13:33:21  Ikon: iconbitmap OK
+2026-10-15 13:33:21  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 13:33:21  Ikon: WM_SETICON OK
+2026-10-15 13:33:21  Ikon: WM_SETICON OK
+2026-10-15 13:40:09  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000027e42\\assets\\icon.ico' ada=True
+2026-10-15 13:40:09  Ikon: iconbitmap OK
+2026-10-15 13:40:09  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 13:40:09  Ikon: WM_SETICON OK
+2026-10-15 13:40:09  Ikon: WM_SETICON OK
+2026-10-15 14:14:03  Kode di folder 'app' gagal dimuat, memakai kode bawaan .exe:
+Traceback (most recent call last):
+  File "main.py", line 39, in _load_app_class
+  File "C:\BlenderELearning\dist\app\elearning\ui\window.py", line 11, in <module>
+    from elearning.ui.course_screen import CourseScreen
+  File "C:\BlenderELearning\dist\app\elearning\ui\course_screen.py", line 10, in <module>
+    from elearning.ui.lesson_view import LessonsPanel
+  File "C:\BlenderELearning\dist\app\elearning\ui\lesson_view.py", line 21, in <module>
+    from tkinter import filedialog
+ImportError: cannot import name 'filedialog' from 'tkinter' (C:\Users\M3DAN-~1\AppData\Local\Temp\_MEI000031e82\tkinter\__init__.py)
+
+2026-10-15 14:14:08  Gagal menampilkan frame video: TclError('image "pyimage1" does not exist') -> pakai latar polos
+2026-10-15 14:36:55  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000021882\\assets\\icon.ico' ada=True
+2026-10-15 14:36:55  Ikon: iconbitmap OK
+2026-10-15 14:36:55  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 14:36:55  Ikon: WM_SETICON OK
+2026-10-15 14:36:55  Ikon: WM_SETICON OK
+2026-10-15 14:38:47  Pemutar mpv tidak aktif (pakai OpenCV tanpa suara): ModuleNotFoundError("No module named 'ctypes.util'", name='ctypes.util')
+2026-10-15 14:47:45  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI00001f642\\assets\\icon.ico' ada=True
+2026-10-15 14:47:45  Ikon: iconbitmap OK
+2026-10-15 14:47:45  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 14:47:45  Ikon: WM_SETICON OK
+2026-10-15 14:47:48  Ikon: WM_SETICON OK
+2026-10-15 14:47:56  Pemutar mpv tidak aktif (pakai OpenCV tanpa suara): ModuleNotFoundError("No module named 'ctypes.util'", name='ctypes.util')
+2026-10-15 14:52:01  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI0000086c2\\assets\\icon.ico' ada=True
+2026-10-15 14:52:01  Ikon: iconbitmap OK
+2026-10-15 14:52:01  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 14:52:01  Ikon: WM_SETICON OK
+2026-10-15 14:52:02  Ikon: WM_SETICON OK
+2026-10-15 14:52:13  Pemutar mpv tidak aktif (pakai OpenCV tanpa suara): ModuleNotFoundError("No module named 'ctypes.util'", name='ctypes.util')
+2026-10-15 14:56:29  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI0000299c2\\assets\\icon.ico' ada=True
+2026-10-15 14:56:29  Ikon: iconbitmap OK
+2026-10-15 14:56:29  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 14:56:29  Ikon: WM_SETICON OK
+2026-10-15 14:56:30  Ikon: WM_SETICON OK
+2026-10-15 14:57:49  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI00000cc02\\assets\\icon.ico' ada=True
+2026-10-15 14:57:49  Ikon: iconbitmap OK
+2026-10-15 14:57:49  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 14:57:49  Ikon: WM_SETICON OK
+2026-10-15 14:57:50  Ikon: WM_SETICON OK
+2026-10-15 14:57:57  Pemutar mpv tidak aktif (pakai OpenCV tanpa suara): ModuleNotFoundError("No module named 'ctypes.util'", name='ctypes.util')
+2026-10-15 15:01:10  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 15:15:53  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI00002fec2\\assets\\icon.ico' ada=True
+2026-10-15 15:15:53  Ikon: iconbitmap OK
+2026-10-15 15:15:53  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 15:15:53  Ikon: WM_SETICON OK
+2026-10-15 15:15:54  Ikon: WM_SETICON OK
+2026-10-15 15:15:58  Pemutar mpv tidak aktif (pakai OpenCV tanpa suara): ModuleNotFoundError("No module named 'ctypes.util'", name='ctypes.util')
+2026-10-15 15:19:20  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000032542\\assets\\icon.ico' ada=True
+2026-10-15 15:19:20  Ikon: iconbitmap OK
+2026-10-15 15:19:20  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 15:19:20  Ikon: WM_SETICON OK
+2026-10-15 15:19:21  Ikon: WM_SETICON OK
+2026-10-15 15:19:27  Pelajaran superkids-1: folder='C:\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=False video=0
+2026-10-15 15:19:27  Pemutar mpv tidak aktif (pakai OpenCV tanpa suara): ModuleNotFoundError("No module named 'ctypes.util'", name='ctypes.util')
+2026-10-15 15:24:03  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI00002c642\\assets\\icon.ico' ada=True
+2026-10-15 15:24:03  Ikon: iconbitmap OK
+2026-10-15 15:24:03  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 15:24:03  Ikon: WM_SETICON OK
+2026-10-15 15:24:05  Ikon: WM_SETICON OK
+2026-10-15 15:24:25  Pelajaran superkids-1: folder='C:\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 15:24:25  Pemutar mpv tidak aktif (pakai OpenCV tanpa suara): ModuleNotFoundError("No module named 'ctypes.util'", name='ctypes.util')
+2026-10-15 15:31:32  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI00000c502\\assets\\icon.ico' ada=True
+2026-10-15 15:31:32  Ikon: iconbitmap OK
+2026-10-15 15:31:32  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 15:31:32  Ikon: WM_SETICON OK
+2026-10-15 15:31:33  Ikon: WM_SETICON OK
+2026-10-15 15:31:38  Pelajaran superkids-1: folder='C:\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 15:31:38  Pemutar mpv tidak aktif (pakai OpenCV tanpa suara): ModuleNotFoundError("No module named 'ctypes.util'", name='ctypes.util') dll_ditemukan=True folder_dicek=['C:\\BlenderELearning\\dist', 'C:\\BlenderELearning\\dist\\app']
+2026-10-15 15:33:23  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000017982\\assets\\icon.ico' ada=True
+2026-10-15 15:33:23  Ikon: iconbitmap OK
+2026-10-15 15:33:23  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 15:33:23  Ikon: WM_SETICON OK
+2026-10-15 15:33:24  Ikon: WM_SETICON OK
+2026-10-15 15:33:29  Pelajaran superkids-1: folder='C:\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 15:33:40  Pelajaran superkids-2: folder='C:\\BlenderELearning\\dist\\assets\\lessons\\superkids-2' ada=True video=0
+2026-10-15 15:35:13  Pelajaran superkids-1: folder='C:\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 15:37:32  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI00002c5c2\\assets\\icon.ico' ada=True
+2026-10-15 15:37:32  Ikon: iconbitmap OK
+2026-10-15 15:37:32  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 15:37:32  Ikon: WM_SETICON OK
+2026-10-15 15:37:33  Ikon: WM_SETICON OK
+2026-10-15 15:37:40  Pelajaran superkids-1: folder='C:\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 15:37:41  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 15:38:55  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 15:43:17  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000030042\\assets\\icon.ico' ada=True
+2026-10-15 15:43:17  Ikon: iconbitmap OK
+2026-10-15 15:43:17  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 15:43:17  Ikon: WM_SETICON OK
+2026-10-15 15:43:18  Ikon: WM_SETICON OK
+2026-10-15 15:43:27  Pelajaran superkids-1: folder='C:\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 15:43:27    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 15:43:27    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 15:43:27    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 15:43:27    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 15:43:27  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 15:43:28  mpv: subtitle terbaca=['English', 'Indonesia']
+2026-10-15 15:54:46  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000016cc2\\assets\\icon.ico' ada=True
+2026-10-15 15:54:46  Ikon: iconbitmap OK
+2026-10-15 15:54:46  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 15:54:46  Ikon: WM_SETICON OK
+2026-10-15 15:54:47  Ikon: WM_SETICON OK
+2026-10-15 15:55:14  Pelajaran superkids-1: folder='C:\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 15:55:14    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 15:55:14    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 15:55:14    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 15:55:14    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 15:55:15  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 15:55:16  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 16:06:40  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000032582\\assets\\icon.ico' ada=True
+2026-10-15 16:06:40  Ikon: iconbitmap OK
+2026-10-15 16:06:40  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 16:06:40  Ikon: WM_SETICON OK
+2026-10-15 16:06:40  Ikon: WM_SETICON OK
+2026-10-15 16:06:47  Pelajaran superkids-1: folder='C:\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 16:06:47    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 16:06:47    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 16:06:47    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 16:06:47    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 16:06:47  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 16:06:48  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 16:07:13  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 16:09:46  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000012f02\\assets\\icon.ico' ada=True
+2026-10-15 16:09:46  Ikon: iconbitmap OK
+2026-10-15 16:09:46  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 16:09:46  Ikon: WM_SETICON OK
+2026-10-15 16:09:47  Ikon: WM_SETICON OK
+2026-10-15 16:09:54  Pelajaran superkids-1: folder='C:\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 16:09:54    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 16:09:54    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 16:09:54    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 16:09:54    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 16:09:54  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 16:09:55  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 16:13:04  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000029302\\assets\\icon.ico' ada=True
+2026-10-15 16:13:04  Ikon: iconbitmap OK
+2026-10-15 16:13:04  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 16:13:04  Ikon: WM_SETICON OK
+2026-10-15 16:13:06  Ikon: WM_SETICON OK
+2026-10-15 16:14:29  Pelajaran superkids-1: folder='C:\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 16:14:29    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 16:14:29    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 16:14:29    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 16:14:29    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 16:14:30  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 16:14:31  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 16:14:34  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 16:14:35  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 16:14:35  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 16:14:36  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 16:14:37  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 16:14:38  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 16:14:38  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 16:14:39  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 16:14:40  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 16:14:41  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 16:14:41  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 16:14:42  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 16:17:12  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000010a42\\assets\\icon.ico' ada=True
+2026-10-15 16:17:12  Ikon: iconbitmap OK
+2026-10-15 16:17:12  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 16:17:12  Ikon: WM_SETICON OK
+2026-10-15 16:17:13  Ikon: WM_SETICON OK
+2026-10-15 16:17:17  Pelajaran superkids-1: folder='C:\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 16:17:17    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 16:17:17    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 16:17:17    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 16:17:17    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 16:17:17  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 16:17:18  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 16:17:20  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 16:17:21  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 16:17:21  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 16:17:22  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 16:17:23  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 16:17:24  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 16:17:25  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 16:17:26  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 16:17:27  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 16:17:28  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 16:17:29  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 16:17:30  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 16:17:31  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 16:17:32  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 16:50:54  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000021f02\\assets\\icon.ico' ada=True
+2026-10-15 16:50:54  Ikon: iconbitmap OK
+2026-10-15 16:50:54  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 16:50:54  Ikon: WM_SETICON OK
+2026-10-15 16:50:55  Ikon: WM_SETICON OK
+2026-10-15 17:14:14  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI000008782\\assets\\icon.ico' ada=True
+2026-10-15 17:14:14  Ikon: iconbitmap OK
+2026-10-15 17:14:14  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 17:14:14  Ikon: WM_SETICON OK
+2026-10-15 17:14:15  Ikon: WM_SETICON OK
+2026-10-15 17:26:02  Ikon: file='C:\\Users\\M3DAN-~1\\AppData\\Local\\Temp\\_MEI00001d782\\assets\\icon.ico' ada=True
+2026-10-15 17:26:02  Ikon: iconbitmap OK
+2026-10-15 17:26:02  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 17:26:02  Ikon: WM_SETICON OK
+2026-10-15 17:26:03  Ikon: WM_SETICON OK
+2026-10-15 19:25:53  Ikon: file='F:\\Scratch\\Temp\\_MEI00003a982\\assets\\icon.ico' ada=True
+2026-10-15 19:25:53  Ikon: iconbitmap OK
+2026-10-15 19:25:53  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 19:25:53  Ikon: WM_SETICON OK
+2026-10-15 19:25:53  Ikon: WM_SETICON OK
+2026-10-15 19:26:38  Pelajaran trial-animation: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\trial-animation' ada=True video=0
+2026-10-15 19:26:38  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 19:26:41  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 19:26:43  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 19:26:58  Pelajaran trial-modeling: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\trial-modeling' ada=True video=0
+2026-10-15 19:26:59  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 19:27:00  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 19:27:08  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 19:27:14  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 19:27:14    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 19:27:14    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 19:27:14    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 19:27:14    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 19:27:14  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 19:27:15  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 19:27:25  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 19:27:25  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 19:27:29  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 19:27:29  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 19:27:30  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 19:27:30  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 19:29:52  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 19:29:53  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 19:30:33  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 19:31:58  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 19:31:59  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 19:32:00  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 19:32:00  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 19:32:01  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 19:32:01  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 19:32:02  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 19:32:02  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 19:32:03  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 19:32:03  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 19:32:03  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 19:38:44  Ikon: file='F:\\Scratch\\Temp\\_MEI000027d02\\assets\\icon.ico' ada=True
+2026-10-15 19:38:44  Ikon: iconbitmap OK
+2026-10-15 19:38:44  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 19:38:44  Ikon: WM_SETICON OK
+2026-10-15 19:38:44  Ikon: WM_SETICON OK
+2026-10-15 19:38:48  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 19:38:48    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 19:38:48    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 19:38:48    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 19:38:48    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 19:38:48  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 19:38:49  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 19:39:00  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 19:41:21  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 19:41:21  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 19:41:29  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 19:41:29  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 19:41:33  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 19:41:33  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 19:43:26  Pelajaran superkids-2: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-2' ada=True video=0
+2026-10-15 19:43:26  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 19:51:04  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 19:51:04    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 19:51:04    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 19:51:04    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 19:51:04    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 19:51:04  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 19:51:05  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 19:51:05  Pelajaran superkids-2: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-2' ada=True video=0
+2026-10-15 19:51:05  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 19:51:05  Pelajaran superkids-3: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-3' ada=True video=0
+2026-10-15 19:51:06  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 19:51:06  Pelajaran superkids-2: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-2' ada=True video=0
+2026-10-15 19:51:07  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 19:51:07  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 19:51:07    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 19:51:07    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 19:51:07    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 19:51:07    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 19:51:07  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 19:51:07  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 20:48:53  Ikon: file='F:\\Scratch\\Temp\\_MEI00002c782\\assets\\icon.ico' ada=True
+2026-10-15 20:48:53  Ikon: iconbitmap OK
+2026-10-15 20:48:53  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 20:48:53  Ikon: WM_SETICON OK
+2026-10-15 20:48:54  Ikon: WM_SETICON OK
+2026-10-15 20:48:59  Pelajaran superkids-2: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-2' ada=True video=0
+2026-10-15 20:48:59  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 20:49:02  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 20:49:02    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 20:49:02    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 20:49:02    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 20:49:02    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 20:49:02  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 20:49:03  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 20:49:10  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 20:49:10  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 20:49:28  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 20:49:29  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 20:49:29  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 20:51:54  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 20:51:54  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 20:58:18  Ikon: file='F:\\Scratch\\Temp\\_MEI000010042\\assets\\icon.ico' ada=True
+2026-10-15 20:58:18  Ikon: iconbitmap OK
+2026-10-15 20:58:18  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 20:58:18  Ikon: WM_SETICON OK
+2026-10-15 20:58:18  Ikon: WM_SETICON OK
+2026-10-15 20:58:24  Pelajaran superkids-2: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-2' ada=True video=0
+2026-10-15 20:58:24  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 20:58:25  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 20:58:25    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 20:58:25    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 20:58:25    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 20:58:25    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 20:58:25  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 20:58:26  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 20:58:30  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 20:58:31  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 20:58:31  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:02:10  Ikon: file='F:\\Scratch\\Temp\\_MEI000017202\\assets\\icon.ico' ada=True
+2026-10-15 21:02:10  Ikon: iconbitmap OK
+2026-10-15 21:02:10  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 21:02:10  Ikon: WM_SETICON OK
+2026-10-15 21:02:10  Ikon: WM_SETICON OK
+2026-10-15 21:02:13  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 21:02:13    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:02:13    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:02:13    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:02:13    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:02:13  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:02:14  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:02:19  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 21:02:19  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:02:19  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:07:44  Ikon: file='F:\\Scratch\\Temp\\_MEI000009942\\assets\\icon.ico' ada=True
+2026-10-15 21:07:44  Ikon: iconbitmap OK
+2026-10-15 21:07:45  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 21:07:45  Ikon: WM_SETICON OK
+2026-10-15 21:07:45  Ikon: WM_SETICON OK
+2026-10-15 21:07:49  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 21:07:49    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:07:49    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:07:49    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:07:49    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:07:49  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:07:50  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:07:53  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 21:07:54  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:07:54  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:08:07  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:08:07  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:08:07  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:08:07  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:08:08  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:08:08  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:08:08  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:08:08  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:08:08  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:08:08  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:08:08  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:08:08  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:08:10  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:08:10  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:08:10  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:08:10  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:08:10  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:08:11  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:08:11  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:08:11  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:08:11  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:08:11  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:15:32  Ikon: file='F:\\Scratch\\Temp\\_MEI00003e3c2\\assets\\icon.ico' ada=True
+2026-10-15 21:15:32  Ikon: iconbitmap OK
+2026-10-15 21:15:32  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 21:15:32  Ikon: WM_SETICON OK
+2026-10-15 21:15:33  Ikon: WM_SETICON OK
+2026-10-15 21:15:36  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 21:15:36    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:15:36    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:15:36    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:15:36    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:15:37  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:15:37  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:15:47  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 21:15:48  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:15:48  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:19:54  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:19:54  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:20:39  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:20:39  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:20:47  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:20:47  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:20:50  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:20:50  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:30:45  Ikon: file='F:\\Scratch\\Temp\\_MEI000015c82\\assets\\icon.ico' ada=True
+2026-10-15 21:30:45  Ikon: iconbitmap OK
+2026-10-15 21:30:45  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 21:30:45  Ikon: WM_SETICON OK
+2026-10-15 21:30:45  Ikon: WM_SETICON OK
+2026-10-15 21:30:49  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 21:30:49    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:30:49    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:30:49    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:30:49    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:30:49  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:30:50  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:30:52  Pelajaran superkids-2: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-2' ada=True video=0
+2026-10-15 21:30:53  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:31:22  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:31:30  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 21:31:30    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:31:30    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:31:30    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:31:30    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:31:30  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:31:31  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:31:34  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:31:34  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:32:43  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:32:43  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:41:28  Ikon: file='F:\\Scratch\\Temp\\_MEI000047a02\\assets\\icon.ico' ada=True
+2026-10-15 21:41:28  Ikon: iconbitmap OK
+2026-10-15 21:41:28  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 21:41:28  Ikon: WM_SETICON OK
+2026-10-15 21:41:29  Ikon: WM_SETICON OK
+2026-10-15 21:41:32  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 21:41:32    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:41:32    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:41:32    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:41:32    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:41:32  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:41:33  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:41:34  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:41:35  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:41:51  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:41:51  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:46:17  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:46:18  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:46:19  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:46:19  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:46:21  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:46:21  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:46:23  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:46:23  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:46:26  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:46:27  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:46:30  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:46:31  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:46:36  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:46:36  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:46:38  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:46:38  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:46:41  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:46:41  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:46:44  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:46:44  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:46:58  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:46:58  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:46:59  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:46:59  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:47:01  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:47:01  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:47:02  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:47:02  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:47:41  Ikon: file='F:\\Scratch\\Temp\\_MEI00001acc2\\assets\\icon.ico' ada=True
+2026-10-15 21:47:41  Ikon: iconbitmap OK
+2026-10-15 21:47:41  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 21:47:41  Ikon: WM_SETICON OK
+2026-10-15 21:47:41  Ikon: WM_SETICON OK
+2026-10-15 21:47:49  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 21:47:49    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:47:49    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:47:49    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:47:49    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:47:50  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:47:50  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:47:51  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 21:47:52  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:47:52  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:48:03  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:48:04  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:48:05  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:48:06  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:48:07  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:48:07  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:48:09  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:48:09  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:48:20  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:48:20  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:48:21  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:48:22  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:48:23  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:48:23  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:48:26  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 21:48:48  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 21:49:02  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:49:02  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:49:03  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:49:04  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:49:05  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:49:05  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:50:50  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:50:50  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:50:51  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:50:52  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:50:55  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:50:56  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:52:32  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:52:32  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:53:05  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:53:06  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:53:15  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:53:15  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:53:29  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:53:29  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:54:24  Ikon: file='F:\\Scratch\\Temp\\_MEI000029a42\\assets\\icon.ico' ada=True
+2026-10-15 21:54:24  Ikon: iconbitmap OK
+2026-10-15 21:54:24  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 21:54:24  Ikon: WM_SETICON OK
+2026-10-15 21:54:24  Ikon: WM_SETICON OK
+2026-10-15 21:54:45  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 21:54:45    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:54:45    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:54:45    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:54:45    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 21:54:45  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:54:46  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:54:50  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 21:54:50  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:54:50  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:54:52  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 21:54:54  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 21:54:58  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:54:58  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:55:00  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:55:00  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:55:29  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:55:29  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:55:31  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:55:31  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:55:38  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:55:39  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 21:58:06  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 21:58:06  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:01:06  Ikon: file='F:\\Scratch\\Temp\\_MEI000037ac2\\assets\\icon.ico' ada=True
+2026-10-15 22:01:06  Ikon: iconbitmap OK
+2026-10-15 22:01:06  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 22:01:06  Ikon: WM_SETICON OK
+2026-10-15 22:01:06  Ikon: WM_SETICON OK
+2026-10-15 22:01:11  Ikon: file='F:\\Scratch\\Temp\\_MEI00002c942\\assets\\icon.ico' ada=True
+2026-10-15 22:01:11  Ikon: iconbitmap OK
+2026-10-15 22:01:11  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 22:01:11  Ikon: WM_SETICON OK
+2026-10-15 22:01:11  Ikon: WM_SETICON OK
+2026-10-15 22:01:19  Ikon: file='F:\\Scratch\\Temp\\_MEI00001f242\\assets\\icon.ico' ada=True
+2026-10-15 22:01:19  Ikon: iconbitmap OK
+2026-10-15 22:01:19  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 22:01:19  Ikon: WM_SETICON OK
+2026-10-15 22:01:19  Ikon: WM_SETICON OK
+2026-10-15 22:01:28  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 22:01:28    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 22:01:28    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 22:01:28    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 22:01:28    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 22:01:28  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:01:29  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:01:29  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 22:01:29  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x00000294FF5541D0>, <ctypes.LP_MpvNode object at 0x00000294A184B0B0>, <ctypes.LP_MpvNode object at 0x00000294A184A600>))
+2026-10-15 22:01:29  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:01:30  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:08:48  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 22:08:49  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x00000294FF4AA440>, <ctypes.LP_MpvNode object at 0x00000294A17F6DE0>, <ctypes.LP_MpvNode object at 0x00000294A17F6D50>))
+2026-10-15 22:08:49  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:08:49  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:09:00  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x00000294FF27EDB0>, <ctypes.LP_MpvNode object at 0x00000294A17F5880>, <ctypes.LP_MpvNode object at 0x00000294A17F5520>))
+2026-10-15 22:09:00  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:09:00  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:09:02  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x00000294FF4BECF0>, <ctypes.LP_MpvNode object at 0x00000294A17F4320>, <ctypes.LP_MpvNode object at 0x00000294A17F72F0>))
+2026-10-15 22:09:02  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:09:02  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:09:03  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x00000294FF53F250>, <ctypes.LP_MpvNode object at 0x00000294A17F6F90>, <ctypes.LP_MpvNode object at 0x00000294A17F40E0>))
+2026-10-15 22:09:03  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:09:03  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:09:04  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x00000294FF534640>, <ctypes.LP_MpvNode object at 0x00000294A17F4680>, <ctypes.LP_MpvNode object at 0x00000294A17F5640>))
+2026-10-15 22:09:04  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:09:04  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:09:05  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x00000294FF501480>, <ctypes.LP_MpvNode object at 0x00000294A184A3C0>, <ctypes.LP_MpvNode object at 0x00000294A184B9B0>))
+2026-10-15 22:09:05  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:09:06  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:09:08  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x00000294FF4CE550>, <ctypes.LP_MpvNode object at 0x00000294A17F6060>, <ctypes.LP_MpvNode object at 0x00000294A17F7890>))
+2026-10-15 22:09:08  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:09:08  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:09:09  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x00000294FF547D40>, <ctypes.LP_MpvNode object at 0x00000294A17F4050>, <ctypes.LP_MpvNode object at 0x00000294A17F7770>))
+2026-10-15 22:09:09  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:09:09  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:12:45  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x00000294FF5844B0>, <ctypes.LP_MpvNode object at 0x00000294A184AE70>, <ctypes.LP_MpvNode object at 0x00000294A1848950>))
+2026-10-15 22:12:45  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:12:45  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:12:46  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x00000294FF583C70>, <ctypes.LP_MpvNode object at 0x00000294A18A5250>, <ctypes.LP_MpvNode object at 0x00000294A18A5370>))
+2026-10-15 22:12:46  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:12:46  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:12:47  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x00000294FF4956D0>, <ctypes.LP_MpvNode object at 0x00000294A18488C0>, <ctypes.LP_MpvNode object at 0x00000294A184BAD0>))
+2026-10-15 22:12:47  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:12:47  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:12:48  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x00000294A17F8260>, <ctypes.LP_MpvNode object at 0x00000294A17F7DA0>, <ctypes.LP_MpvNode object at 0x00000294A17F4050>))
+2026-10-15 22:12:48  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:12:48  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:12:50  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x00000294FF1D0550>, <ctypes.LP_MpvNode object at 0x00000294A17F7BF0>, <ctypes.LP_MpvNode object at 0x00000294A17F7A40>))
+2026-10-15 22:12:50  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:12:50  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:20:25  Ikon: file='F:\\Scratch\\Temp\\_MEI0000054c2\\assets\\icon.ico' ada=True
+2026-10-15 22:20:25  Ikon: iconbitmap OK
+2026-10-15 22:20:25  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 22:20:25  Ikon: WM_SETICON OK
+2026-10-15 22:20:25  Ikon: WM_SETICON OK
+2026-10-15 22:20:29  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 22:20:29    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 22:20:29    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 22:20:29    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 22:20:29    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 22:20:29  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:20:29  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:20:31  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 22:20:32  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x00000276E1059850>, <ctypes.LP_MpvNode object at 0x00000276DF196F00>, <ctypes.LP_MpvNode object at 0x00000276DF1979B0>))
+2026-10-15 22:20:32  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:20:32  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:20:35  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x00000276DF0DA2D0>, <ctypes.LP_MpvNode object at 0x00000276DF196600>, <ctypes.LP_MpvNode object at 0x00000276DF196720>))
+2026-10-15 22:20:35  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:20:35  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:20:36  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x00000276DEEFF070>, <ctypes.LP_MpvNode object at 0x00000276DF1970B0>, <ctypes.LP_MpvNode object at 0x00000276DF196F00>))
+2026-10-15 22:20:36  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:20:36  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:20:51  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x00000276DF0EECF0>, <ctypes.LP_MpvNode object at 0x00000276DF180830>, <ctypes.LP_MpvNode object at 0x00000276DF180E60>))
+2026-10-15 22:20:51  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:20:51  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:21:07  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x00000276DF162490>, <ctypes.LP_MpvNode object at 0x00000276DF197770>, <ctypes.LP_MpvNode object at 0x00000276DF197EC0>))
+2026-10-15 22:21:07  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:21:07  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:21:28  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 22:21:31  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 22:21:32  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 22:21:34  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 22:31:16  Ikon: file='F:\\Scratch\\Temp\\_MEI000004b02\\assets\\icon.ico' ada=True
+2026-10-15 22:31:16  Ikon: iconbitmap OK
+2026-10-15 22:31:16  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 22:31:16  Ikon: WM_SETICON OK
+2026-10-15 22:31:16  Ikon: WM_SETICON OK
+2026-10-15 22:31:20  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 22:31:20    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 22:31:20    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 22:31:20    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 22:31:20    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 22:31:20  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:31:20  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:31:22  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 22:31:23  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000018E24C7D550>, <ctypes.LP_MpvNode object at 0x0000018E22D430B0>, <ctypes.LP_MpvNode object at 0x0000018E22D439B0>))
+2026-10-15 22:31:23  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:31:23  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:32:48  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000018E22CFE440>, <ctypes.LP_MpvNode object at 0x0000018E22D404D0>, <ctypes.LP_MpvNode object at 0x0000018E22D40950>))
+2026-10-15 22:32:48  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:32:48  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:32:54  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000018E22B1EF10>, <ctypes.LP_MpvNode object at 0x0000018E24C41FD0>, <ctypes.LP_MpvNode object at 0x0000018E24C41F40>))
+2026-10-15 22:32:54  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:32:55  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:33:00  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000018E22D0ECF0>, <ctypes.LP_MpvNode object at 0x0000018E22D42D50>, <ctypes.LP_MpvNode object at 0x0000018E22D43530>))
+2026-10-15 22:33:00  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:33:00  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:33:02  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000018E22B039D0>, <ctypes.LP_MpvNode object at 0x0000018E24C42450>, <ctypes.LP_MpvNode object at 0x0000018E24C422A0>))
+2026-10-15 22:33:02  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:33:02  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:33:07  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000018E22D87BB0>, <ctypes.LP_MpvNode object at 0x0000018E22D43380>, <ctypes.LP_MpvNode object at 0x0000018E22D40680>))
+2026-10-15 22:33:07  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:33:07  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:33:17  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000018E22B93680>, <ctypes.LP_MpvNode object at 0x0000018E24C40C20>, <ctypes.LP_MpvNode object at 0x0000018E24C42060>))
+2026-10-15 22:33:17  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:33:18  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:33:21  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000018E22D5AE50>, <ctypes.LP_MpvNode object at 0x0000018E22D43A40>, <ctypes.LP_MpvNode object at 0x0000018E22D42A80>))
+2026-10-15 22:33:21  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:33:21  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:33:56  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000018E22D93980>, <ctypes.LP_MpvNode object at 0x0000018E22D43C80>, <ctypes.LP_MpvNode object at 0x0000018E22D43BF0>))
+2026-10-15 22:33:56  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:33:56  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:36:12  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000018E22B6B930>, <ctypes.LP_MpvNode object at 0x0000018E22D40680>, <ctypes.LP_MpvNode object at 0x0000018E22D434A0>))
+2026-10-15 22:36:12  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:36:12  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:36:14  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000018E24C61F30>, <ctypes.LP_MpvNode object at 0x0000018E24C41A30>, <ctypes.LP_MpvNode object at 0x0000018E24C43380>))
+2026-10-15 22:36:14  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:36:14  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:36:43  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 22:36:44  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 22:36:45  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 22:36:46  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 22:36:46  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 22:36:47  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 22:36:48  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 22:36:49  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 22:36:50  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 22:36:51  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 22:36:52  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 22:36:53  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 22:36:55  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 22:36:57  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 22:37:03  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000018E22CE16D0>, <ctypes.LP_MpvNode object at 0x0000018E24C41D00>, <ctypes.LP_MpvNode object at 0x0000018E24C43410>))
+2026-10-15 22:37:03  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:37:04  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:37:06  layar penuh: want=True siap setelah 1 cek (changed=True)
+2026-10-15 22:37:08  layar penuh: want=False siap setelah 1 cek (changed=True)
+2026-10-15 22:39:31  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000018E22DCA360>, <ctypes.LP_MpvNode object at 0x0000018E24C41010>, <ctypes.LP_MpvNode object at 0x0000018E24C429F0>))
+2026-10-15 22:39:31  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:39:32  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:39:33  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000018E22DAAAD0>, <ctypes.LP_MpvNode object at 0x0000018E22D40950>, <ctypes.LP_MpvNode object at 0x0000018E22D43140>))
+2026-10-15 22:39:33  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:39:33  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:41:31  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000018E24C408C0>, <ctypes.LP_MpvNode object at 0x0000018E24C432F0>, <ctypes.LP_MpvNode object at 0x0000018E24C410A0>))
+2026-10-15 22:41:31  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:41:32  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:41:34  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000018E24C41760>, <ctypes.LP_MpvNode object at 0x0000018E24C42DE0>, <ctypes.LP_MpvNode object at 0x0000018E24C40F80>))
+2026-10-15 22:41:34  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:41:34  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:41:35  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000018E24C40440>, <ctypes.LP_MpvNode object at 0x0000018E22D43800>, <ctypes.LP_MpvNode object at 0x0000018E22D434A0>))
+2026-10-15 22:41:35  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:41:36  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:41:37  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000018E24C43B60>, <ctypes.LP_MpvNode object at 0x0000018E24C41A30>, <ctypes.LP_MpvNode object at 0x0000018E24C41010>))
+2026-10-15 22:41:37  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:41:38  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:41:43  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000018E24C43B60>, <ctypes.LP_MpvNode object at 0x0000018E24C41BE0>, <ctypes.LP_MpvNode object at 0x0000018E24C40E60>))
+2026-10-15 22:41:43  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:41:43  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:41:45  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000018E22D43B60>, <ctypes.LP_MpvNode object at 0x0000018E24C40D40>, <ctypes.LP_MpvNode object at 0x0000018E24C40170>))
+2026-10-15 22:41:45  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:41:45  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:41:46  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000018E24C41130>, <ctypes.LP_MpvNode object at 0x0000018E24C43890>, <ctypes.LP_MpvNode object at 0x0000018E24C40200>))
+2026-10-15 22:41:46  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:41:47  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:41:48  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000018E24C41640>, <ctypes.LP_MpvNode object at 0x0000018E24C408C0>, <ctypes.LP_MpvNode object at 0x0000018E24C40F80>))
+2026-10-15 22:41:48  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:41:48  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:41:49  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000018E22D40D40>, <ctypes.LP_MpvNode object at 0x0000018E24C40200>, <ctypes.LP_MpvNode object at 0x0000018E24C416D0>))
+2026-10-15 22:41:49  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:41:50  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:41:51  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000018E24C42B10>, <ctypes.LP_MpvNode object at 0x0000018E22D40C20>, <ctypes.LP_MpvNode object at 0x0000018E22D42DE0>))
+2026-10-15 22:41:51  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:41:51  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:42:26  Ikon: file='F:\\Scratch\\Temp\\_MEI00003e482\\assets\\icon.ico' ada=True
+2026-10-15 22:42:26  Ikon: iconbitmap OK
+2026-10-15 22:42:26  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 22:42:26  Ikon: WM_SETICON OK
+2026-10-15 22:42:27  Ikon: WM_SETICON OK
+2026-10-15 22:42:32  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 22:42:32    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 22:42:32    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 22:42:32    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 22:42:32    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 22:42:32  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:42:32  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:42:36  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 22:42:36  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x000001FDEA8F84D0>, <ctypes.LP_MpvNode object at 0x000001FDEC7B51C0>, <ctypes.LP_MpvNode object at 0x000001FDEC7B5130>))
+2026-10-15 22:42:36  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:42:39  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x000001FDEA85E890>, <ctypes.LP_MpvNode object at 0x000001FDEC7A07A0>, <ctypes.LP_MpvNode object at 0x000001FDEC7A0710>))
+2026-10-15 22:42:39  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:42:40  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x000001FDEA67F070>, <ctypes.LP_MpvNode object at 0x000001FDEC7CC950>, <ctypes.LP_MpvNode object at 0x000001FDEC7CC8C0>))
+2026-10-15 22:42:40  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:42:40  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:43:43  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x000001FDEA86C2F0>, <ctypes.LP_MpvNode object at 0x000001FDEC7B84D0>, <ctypes.LP_MpvNode object at 0x000001FDEC7B8440>))
+2026-10-15 22:43:43  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:43:44  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:45:26  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x000001FDEA8E3610>, <ctypes.LP_MpvNode object at 0x000001FDEC7B9D90>, <ctypes.LP_MpvNode object at 0x000001FDEC7B9250>))
+2026-10-15 22:45:26  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:46:21  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x000001FDEA8EBE10>, <ctypes.LP_MpvNode object at 0x000001FDEA8A31D0>, <ctypes.LP_MpvNode object at 0x000001FDEA8A1B50>))
+2026-10-15 22:46:21  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:46:27  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:47:59  Ikon: file='F:\\Scratch\\Temp\\_MEI0000204c2\\assets\\icon.ico' ada=True
+2026-10-15 22:47:59  Ikon: iconbitmap OK
+2026-10-15 22:47:59  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 22:47:59  Ikon: WM_SETICON OK
+2026-10-15 22:47:59  Ikon: WM_SETICON OK
+2026-10-15 22:48:05  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 22:48:05    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 22:48:05    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 22:48:05    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 22:48:05    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 22:48:05  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:48:06  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:48:14  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 22:48:15  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x000002B795C4D250>, <ctypes.LP_MpvNode object at 0x000002B795C80B90>, <ctypes.LP_MpvNode object at 0x000002B795C80B00>))
+2026-10-15 22:48:15  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:48:58  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 22:49:04  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x000002B7FFA0E160>, <ctypes.LP_MpvNode object at 0x000002B7FFA53890>, <ctypes.LP_MpvNode object at 0x000002B7FFA53920>))
+2026-10-15 22:49:04  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:49:06  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x000002B7FF82EF10>, <ctypes.LP_MpvNode object at 0x000002B7FFA53530>, <ctypes.LP_MpvNode object at 0x000002B7FFA53650>))
+2026-10-15 22:49:06  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:49:12  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x000002B7FFA1EF90>, <ctypes.LP_MpvNode object at 0x000002B7FFA512E0>, <ctypes.LP_MpvNode object at 0x000002B7FFA50D40>))
+2026-10-15 22:49:12  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:49:14  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x000002B7FFA96710>, <ctypes.LP_MpvNode object at 0x000002B795CE5400>, <ctypes.LP_MpvNode object at 0x000002B795CE5370>))
+2026-10-15 22:49:14  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 22:49:15  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 23:28:48  Ikon: file='F:\\Scratch\\Temp\\_MEI000051042\\assets\\icon.ico' ada=True
+2026-10-15 23:28:48  Ikon: iconbitmap OK
+2026-10-15 23:28:48  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 23:28:48  Ikon: WM_SETICON OK
+2026-10-15 23:28:49  Ikon: WM_SETICON OK
+2026-10-15 23:28:53  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 23:28:53    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 23:28:53    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 23:28:53    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 23:28:53    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 23:28:53  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 23:28:53  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 23:29:01  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 23:29:02  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x000002B14E00D250>, <ctypes.LP_MpvNode object at 0x000002B14E03CE60>, <ctypes.LP_MpvNode object at 0x000002B14E03CDD0>))
+2026-10-15 23:29:02  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 23:30:36  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x000002B14C0BE5B0>, <ctypes.LP_MpvNode object at 0x000002B14C100B00>, <ctypes.LP_MpvNode object at 0x000002B14C102690>))
+2026-10-15 23:30:36  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 23:30:45  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x000002B14BEE2F10>, <ctypes.LP_MpvNode object at 0x000002B14E04EDE0>, <ctypes.LP_MpvNode object at 0x000002B14E04ED50>))
+2026-10-15 23:30:45  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 23:30:55  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 23:32:27  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x000002B14C0CEA50>, <ctypes.LP_MpvNode object at 0x000002B14E04D6D0>, <ctypes.LP_MpvNode object at 0x000002B14E04D5B0>))
+2026-10-15 23:32:27  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 23:32:29  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 23:33:42  Ikon: file='F:\\Scratch\\Temp\\_MEI000008c82\\assets\\icon.ico' ada=True
+2026-10-15 23:33:42  Ikon: iconbitmap OK
+2026-10-15 23:33:42  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 23:33:42  Ikon: WM_SETICON OK
+2026-10-15 23:33:43  Ikon: WM_SETICON OK
+2026-10-15 23:34:00  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 23:34:00    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 23:34:00    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 23:34:00    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 23:34:00    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 23:34:01  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 23:34:01  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 23:34:10  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x000001D9C48BAED0>, <ctypes.LP_MpvNode object at 0x000001D9C4B1AB10>, <ctypes.LP_MpvNode object at 0x000001D9C4B184D0>))
+2026-10-15 23:34:10  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 23:34:18  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x000001D9C4AD6160>, <ctypes.LP_MpvNode object at 0x000001D9C6A51880>, <ctypes.LP_MpvNode object at 0x000001D9C6A517F0>))
+2026-10-15 23:34:18  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 23:34:18  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 23:34:41  Ikon: file='F:\\Scratch\\Temp\\_MEI00004f5c2\\assets\\icon.ico' ada=True
+2026-10-15 23:34:41  Ikon: iconbitmap OK
+2026-10-15 23:34:41  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 23:34:41  Ikon: WM_SETICON OK
+2026-10-15 23:34:42  Ikon: WM_SETICON OK
+2026-10-15 23:34:45  Pelajaran trial-animation: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\trial-animation' ada=True video=0
+2026-10-15 23:34:46  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 23:34:46  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 23:34:47  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x00000216FF7F0350>, <ctypes.LP_MpvNode object at 0x00000216FF8251C0>, <ctypes.LP_MpvNode object at 0x00000216FF824950>))
+2026-10-15 23:34:56  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x00000216FF81CD40>, <ctypes.LP_MpvNode object at 0x00000216878A0560>, <ctypes.LP_MpvNode object at 0x00000216878A04D0>))
+2026-10-15 23:35:08  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x00000216FF5E26D0>, <ctypes.LP_MpvNode object at 0x00000216FF8252E0>, <ctypes.LP_MpvNode object at 0x00000216FF825400>))
+2026-10-15 23:35:09  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x00000216FF85DFD0>, <ctypes.LP_MpvNode object at 0x00000216FF8279B0>, <ctypes.LP_MpvNode object at 0x00000216FF827A40>))
+2026-10-15 23:35:11  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 23:41:38  Ikon: file='F:\\Scratch\\Temp\\_MEI000053082\\assets\\icon.ico' ada=True
+2026-10-15 23:41:38  Ikon: iconbitmap OK
+2026-10-15 23:41:38  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 23:41:38  Ikon: WM_SETICON OK
+2026-10-15 23:41:38  Ikon: WM_SETICON OK
+2026-10-15 23:47:22  Ikon: file='F:\\Scratch\\Temp\\_MEI000042e42\\assets\\icon.ico' ada=True
+2026-10-15 23:47:22  Ikon: iconbitmap OK
+2026-10-15 23:47:22  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 23:47:22  Ikon: WM_SETICON OK
+2026-10-15 23:47:22  Ikon: WM_SETICON OK
+2026-10-15 23:47:30  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-15 23:47:30    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 23:47:30    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 23:47:30    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 23:47:30    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-15 23:47:30  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 23:47:30  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-15 23:47:31  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-15 23:47:31  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000022BB9E6B950>, <ctypes.LP_MpvNode object at 0x0000022BBA0C6D50>, <ctypes.LP_MpvNode object at 0x0000022BBA0C6840>))
+2026-10-15 23:47:31  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-15 23:52:02  Ikon: file='F:\\Scratch\\Temp\\_MEI000032f82\\assets\\icon.ico' ada=True
+2026-10-15 23:52:02  Ikon: iconbitmap OK
+2026-10-15 23:52:02  Ikon: iconphoto OK (4 ukuran)
+2026-10-15 23:52:02  Ikon: WM_SETICON OK
+2026-10-15 23:52:03  Ikon: WM_SETICON OK
+2026-10-16 19:37:13  Ikon: file='F:\\Scratch\\Temp\\_MEI000012002\\assets\\icon.ico' ada=True
+2026-10-16 19:37:13  Ikon: iconbitmap OK
+2026-10-16 19:37:13  Ikon: iconphoto OK (4 ukuran)
+2026-10-16 19:37:13  Ikon: WM_SETICON OK
+2026-10-16 19:37:13  Slideshow login: 2 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 19:37:13  Ikon: WM_SETICON OK
+2026-10-16 19:38:18  Ikon: file='F:\\Scratch\\Temp\\_MEI00001d642\\assets\\icon.ico' ada=True
+2026-10-16 19:38:18  Ikon: iconbitmap OK
+2026-10-16 19:38:18  Ikon: iconphoto OK (4 ukuran)
+2026-10-16 19:38:18  Ikon: WM_SETICON OK
+2026-10-16 19:38:18  Slideshow login: 2 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 19:38:18  Ikon: WM_SETICON OK
+2026-10-16 20:17:50  Ikon: file='F:\\Scratch\\Temp\\_MEI00002e7c2\\assets\\icon.ico' ada=True
+2026-10-16 20:17:50  Ikon: iconbitmap OK
+2026-10-16 20:17:50  Ikon: iconphoto OK (4 ukuran)
+2026-10-16 20:17:50  Ikon: WM_SETICON OK
+2026-10-16 20:17:50  Slideshow login: 2 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 20:17:50  Ikon: WM_SETICON OK
+2026-10-16 20:18:06  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-16 20:18:06    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 20:18:06    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 20:18:06    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 20:18:06    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 20:18:07  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:18:07  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 20:19:13  Slideshow login: 2 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 20:19:17  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-16 20:19:17    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 20:19:17    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 20:19:17    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 20:19:17    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 20:19:17  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:19:17  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 20:19:32  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:19:32  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 20:19:55  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-16 20:19:55    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 20:19:55    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 20:19:55    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 20:19:55    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 20:19:55  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:19:56  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 20:20:21  Blender: dibuka dari 'C:\\Program Files\\Blender Foundation\\Blender 4.2\\blender.exe'
+2026-10-16 20:20:22  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x000001765A0E1FD0>, <ctypes.LP_MpvNode object at 0x000001765A0C6690>, <ctypes.LP_MpvNode object at 0x000001765A0C7A40>))
+2026-10-16 20:20:22  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:20:34  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 20:20:47  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x000001765A105A90>, <ctypes.LP_MpvNode object at 0x000001765A0C7B60>, <ctypes.LP_MpvNode object at 0x000001765A0C5760>))
+2026-10-16 20:20:47  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:20:56  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000017659CCD810>, <ctypes.LP_MpvNode object at 0x000001765A0C7AD0>, <ctypes.LP_MpvNode object at 0x000001765A0C6E70>))
+2026-10-16 20:20:56  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:20:58  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x000001767B6CE360>, <ctypes.LP_MpvNode object at 0x000001765A0C7530>, <ctypes.LP_MpvNode object at 0x000001765A0C7770>))
+2026-10-16 20:20:58  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:21:00  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000017659CC5C50>, <ctypes.LP_MpvNode object at 0x000001765A0C7260>, <ctypes.LP_MpvNode object at 0x000001765A0C4D40>))
+2026-10-16 20:21:00  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:21:01  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 20:21:04  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x000001767B6B7980>, <ctypes.LP_MpvNode object at 0x000001765A0C7DA0>, <ctypes.LP_MpvNode object at 0x000001765A0C7BF0>))
+2026-10-16 20:21:04  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:21:13  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x000001767B6C2C10>, <ctypes.LP_MpvNode object at 0x000001765A0C4E60>, <ctypes.LP_MpvNode object at 0x000001765A0C67B0>))
+2026-10-16 20:21:13  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:21:15  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x0000017659C5E340>, <ctypes.LP_MpvNode object at 0x000001765A0C7B60>, <ctypes.LP_MpvNode object at 0x000001765A0C55B0>))
+2026-10-16 20:21:15  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:21:19  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x000001765A095FD0>, <ctypes.LP_MpvNode object at 0x000001765A0C6D50>, <ctypes.LP_MpvNode object at 0x000001765A0C6840>))
+2026-10-16 20:21:19  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:21:21  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 20:21:31  Mini player: mpv focus-on-open tidak bisa diatur: SystemError('Error running mpv command', -12, (<MpvHandle object at 0x000001765A078730>, <ctypes.LP_MpvNode object at 0x000001765A0C7410>, <ctypes.LP_MpvNode object at 0x000001765A0C6DE0>))
+2026-10-16 20:21:31  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:21:32  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 20:24:15  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:24:16  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 20:24:19  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:24:20  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 20:24:24  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:24:25  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 20:33:44  Ikon: file='F:\\Scratch\\Temp\\_MEI000046982\\assets\\icon.ico' ada=True
+2026-10-16 20:33:44  Ikon: iconbitmap OK
+2026-10-16 20:33:44  Ikon: iconphoto OK (4 ukuran)
+2026-10-16 20:33:44  Ikon: WM_SETICON OK
+2026-10-16 20:33:45  Slideshow login: 2 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 20:33:45  Ikon: WM_SETICON OK
+2026-10-16 20:33:50  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-16 20:33:50    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 20:33:50    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 20:33:50    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 20:33:50    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 20:33:50  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:33:51  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 20:43:44  Ikon: file='F:\\Scratch\\Temp\\_MEI000046842\\assets\\icon.ico' ada=True
+2026-10-16 20:43:44  Ikon: iconbitmap OK
+2026-10-16 20:43:44  Ikon: iconphoto OK (4 ukuran)
+2026-10-16 20:43:44  Ikon: WM_SETICON OK
+2026-10-16 20:43:44  Slideshow login: 2 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 20:43:44  Ikon: WM_SETICON OK
+2026-10-16 20:43:47  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-16 20:43:47    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 20:43:47    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 20:43:47    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 20:43:47    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 20:43:48  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:43:48  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 20:54:13  Ikon: file='F:\\Scratch\\Temp\\_MEI000011842\\assets\\icon.ico' ada=True
+2026-10-16 20:54:13  Ikon: iconbitmap OK
+2026-10-16 20:54:13  Ikon: iconphoto OK (4 ukuran)
+2026-10-16 20:54:13  Ikon: WM_SETICON OK
+2026-10-16 20:54:14  Slideshow login: 2 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 20:54:14  Ikon: WM_SETICON OK
+2026-10-16 20:54:17  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-16 20:54:17    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 20:54:17    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 20:54:17    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 20:54:17    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 20:54:17  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:54:18  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 20:54:30  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:54:31  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:54:31  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 20:54:34  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:54:34  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 20:54:35  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:54:35  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:54:35  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 20:54:37  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:54:37  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 20:54:37  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:54:37  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 20:54:37  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 20:54:38  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 20:57:56  Ikon: file='F:\\Scratch\\Temp\\_MEI0000087c2\\assets\\icon.ico' ada=True
+2026-10-16 20:57:56  Ikon: iconbitmap OK
+2026-10-16 20:57:56  Ikon: iconphoto OK (4 ukuran)
+2026-10-16 20:57:56  Ikon: WM_SETICON OK
+2026-10-16 20:57:56  Slideshow login: 2 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 20:57:56  Ikon: WM_SETICON OK
+2026-10-16 21:03:03  Ikon: file='F:\\Scratch\\Temp\\_MEI000039b42\\assets\\icon.ico' ada=True
+2026-10-16 21:03:03  Ikon: iconbitmap OK
+2026-10-16 21:03:03  Ikon: iconphoto OK (4 ukuran)
+2026-10-16 21:03:03  Ikon: WM_SETICON OK
+2026-10-16 21:03:03  Slideshow login: 2 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 21:03:03  Ikon: WM_SETICON OK
+2026-10-16 21:03:13  Ikon: file='F:\\Scratch\\Temp\\_MEI000048582\\assets\\icon.ico' ada=True
+2026-10-16 21:03:13  Ikon: iconbitmap OK
+2026-10-16 21:03:13  Ikon: iconphoto OK (4 ukuran)
+2026-10-16 21:03:13  Ikon: WM_SETICON OK
+2026-10-16 21:03:13  Slideshow login: 2 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 21:03:13  Ikon: WM_SETICON OK
+2026-10-16 21:20:38  Ikon: file='F:\\Scratch\\Temp\\_MEI000033682\\assets\\icon.ico' ada=True
+2026-10-16 21:20:38  Ikon: iconbitmap OK
+2026-10-16 21:20:38  Ikon: iconphoto OK (4 ukuran)
+2026-10-16 21:20:38  Ikon: WM_SETICON OK
+2026-10-16 21:20:39  Slideshow login: 2 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 21:20:39  Ikon: WM_SETICON OK
+2026-10-16 21:27:41  Ikon: file='F:\\Scratch\\Temp\\_MEI000029402\\assets\\icon.ico' ada=True
+2026-10-16 21:27:41  Ikon: iconbitmap OK
+2026-10-16 21:27:41  Ikon: iconphoto OK (4 ukuran)
+2026-10-16 21:27:41  Ikon: WM_SETICON OK
+2026-10-16 21:27:41  Slideshow login: 2 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 21:27:41  Ikon: WM_SETICON OK
+2026-10-16 21:32:13  Ikon: file='F:\\Scratch\\Temp\\_MEI00003b482\\assets\\icon.ico' ada=True
+2026-10-16 21:32:13  Ikon: iconbitmap OK
+2026-10-16 21:32:13  Ikon: iconphoto OK (4 ukuran)
+2026-10-16 21:32:13  Ikon: WM_SETICON OK
+2026-10-16 21:32:13  Slideshow login: 2 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 21:32:13  Ikon: WM_SETICON OK
+2026-10-16 21:35:55  Pelajaran superkids-2: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-2' ada=True video=0
+2026-10-16 21:35:55  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 21:38:05  Ikon: file='F:\\Scratch\\Temp\\_MEI000038402\\assets\\icon.ico' ada=True
+2026-10-16 21:38:05  Ikon: iconbitmap OK
+2026-10-16 21:38:05  Ikon: iconphoto OK (4 ukuran)
+2026-10-16 21:38:05  Ikon: WM_SETICON OK
+2026-10-16 21:38:05  Slideshow login: 2 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 21:38:05  Ikon: WM_SETICON OK
+2026-10-16 21:44:54  Ikon: file='F:\\Scratch\\Temp\\_MEI000026302\\assets\\icon.ico' ada=True
+2026-10-16 21:44:54  Ikon: iconbitmap OK
+2026-10-16 21:44:54  Ikon: iconphoto OK (4 ukuran)
+2026-10-16 21:44:54  Ikon: WM_SETICON OK
+2026-10-16 21:44:54  Slideshow login: 2 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 21:44:54  Ikon: WM_SETICON OK
+2026-10-16 21:45:13  Slideshow login: 2 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 21:45:30  Slideshow login: 2 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 21:45:56  Slideshow login: 2 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 21:47:19  Slideshow login: 2 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 21:47:30  Pelajaran intermediate-2: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\intermediate-2' ada=True video=0
+2026-10-16 21:47:31  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 21:47:32  Pelajaran intermediate-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\intermediate-1' ada=True video=0
+2026-10-16 21:47:32  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 21:47:32  Pelajaran basic-2: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\basic-2' ada=True video=0
+2026-10-16 21:47:33  Pelajaran basic-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\basic-1' ada=True video=0
+2026-10-16 21:47:33  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 21:51:32  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 21:52:33  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 21:52:40  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 21:52:45  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 21:54:26  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 21:54:27  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 21:54:28  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 21:54:37  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 21:54:38  Pelajaran basic-2: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\basic-2' ada=True video=0
+2026-10-16 21:54:38  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 21:54:39  Pelajaran intermediate-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\intermediate-1' ada=True video=0
+2026-10-16 21:54:39  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 21:54:41  Pelajaran basic-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\basic-1' ada=True video=0
+2026-10-16 21:54:42  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 21:54:43  Pelajaran basic-2: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\basic-2' ada=True video=0
+2026-10-16 21:54:44  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 21:54:45  Pelajaran intermediate-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\intermediate-1' ada=True video=0
+2026-10-16 21:54:46  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 21:54:46  Pelajaran intermediate-2: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\intermediate-2' ada=True video=0
+2026-10-16 21:54:46  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 21:54:47  Pelajaran basic-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\basic-1' ada=True video=0
+2026-10-16 21:54:48  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 21:54:58  Pelajaran basic-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\basic-1' ada=True video=0
+2026-10-16 21:54:58  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 21:57:46  Pelajaran intermediate-2: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\intermediate-2' ada=True video=0
+2026-10-16 21:57:46  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 21:57:47  Pelajaran intermediate-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\intermediate-1' ada=True video=0
+2026-10-16 21:57:47  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 21:57:49  Pelajaran basic-2: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\basic-2' ada=True video=0
+2026-10-16 21:57:49  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 21:57:50  Pelajaran basic-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\basic-1' ada=True video=0
+2026-10-16 21:57:50  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 21:58:08  Pelajaran basic-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\basic-1' ada=True video=0
+2026-10-16 21:58:09  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:01:13  Ikon: file='F:\\Scratch\\Temp\\_MEI000015e42\\assets\\icon.ico' ada=True
+2026-10-16 22:01:13  Ikon: iconbitmap OK
+2026-10-16 22:01:13  Ikon: iconphoto OK (4 ukuran)
+2026-10-16 22:01:13  Ikon: WM_SETICON OK
+2026-10-16 22:01:13  Slideshow login: 2 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 22:01:14  Ikon: WM_SETICON OK
+2026-10-16 22:01:19  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-16 22:01:19    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 22:01:19    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 22:01:19    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 22:01:19    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 22:01:19  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 22:01:19  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:01:38  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 22:01:38  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:01:39  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 22:01:39  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:01:41  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 22:01:41  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:01:41  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 22:01:41  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:01:42  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 22:01:43  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:01:45  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 22:01:46  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:01:48  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 22:01:48  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:01:49  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 22:01:49  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:01:53  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 22:01:54  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 22:01:54  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:02:19  Slideshow login: 2 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 22:02:37  Pelajaran basic-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\basic-1' ada=True video=0
+2026-10-16 22:02:38  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:06:33  Pelajaran basic-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\basic-1' ada=True video=0
+2026-10-16 22:06:34  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:07:16  Pelajaran basic-2: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\basic-2' ada=True video=0
+2026-10-16 22:07:17  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:07:17  Pelajaran intermediate-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\intermediate-1' ada=True video=0
+2026-10-16 22:07:18  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:07:18  Pelajaran intermediate-2: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\intermediate-2' ada=True video=0
+2026-10-16 22:07:18  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:07:29  Pelajaran intermediate-2: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\intermediate-2' ada=True video=0
+2026-10-16 22:07:30  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:07:30  Pelajaran intermediate-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\intermediate-1' ada=True video=0
+2026-10-16 22:07:31  Pelajaran basic-2: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\basic-2' ada=True video=0
+2026-10-16 22:07:31  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:07:31  Pelajaran basic-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\basic-1' ada=True video=0
+2026-10-16 22:07:32  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:07:32  Pelajaran basic-2: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\basic-2' ada=True video=0
+2026-10-16 22:07:33  Pelajaran intermediate-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\intermediate-1' ada=True video=0
+2026-10-16 22:07:33  Pelajaran intermediate-2: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\intermediate-2' ada=True video=0
+2026-10-16 22:07:34  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:07:43  Pelajaran intermediate-2: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\intermediate-2' ada=True video=0
+2026-10-16 22:07:43  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:08:36  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:08:36  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:13:13  Ikon: file='F:\\Scratch\\Temp\\_MEI000013082\\assets\\icon.ico' ada=True
+2026-10-16 22:13:13  Ikon: iconbitmap OK
+2026-10-16 22:13:13  Ikon: iconphoto OK (4 ukuran)
+2026-10-16 22:13:13  Ikon: WM_SETICON OK
+2026-10-16 22:13:13  Slideshow login: 10 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 22:13:13  Ikon: WM_SETICON OK
+2026-10-16 22:13:43  Video latar beranda: C:\Users\JacksonPC\Desktop\BlenderELearning\dist\assets\video\home\latar_beranda.mp4
+2026-10-16 22:14:11  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-16 22:14:11    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 22:14:11    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 22:14:11    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 22:14:11    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 22:14:11  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 22:14:11  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:18:09  Slideshow login: 10 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 22:19:33  Ikon: file='F:\\Scratch\\Temp\\_MEI0000158c2\\assets\\icon.ico' ada=True
+2026-10-16 22:19:33  Ikon: iconbitmap OK
+2026-10-16 22:19:33  Ikon: iconphoto OK (4 ukuran)
+2026-10-16 22:19:33  Ikon: WM_SETICON OK
+2026-10-16 22:19:34  Slideshow login: 10 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 22:19:34  Ikon: WM_SETICON OK
+2026-10-16 22:19:36  Video latar beranda: C:\Users\JacksonPC\Desktop\BlenderELearning\dist\assets\video\home\latar_beranda.mp4
+2026-10-16 22:19:37  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-16 22:19:37    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 22:19:37    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 22:19:37    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 22:19:37    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 22:19:37  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 22:19:38  mpv sub-border-style: AttributeError('mpv property does not exist', -8, (<MpvHandle object at 0x00000284AAE3A120>, b'options/sub-border-style', b'outline-and-shadow'))
+2026-10-16 22:19:38  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:20:31  mpv sub-border-style: AttributeError('mpv property does not exist', -8, (<MpvHandle object at 0x00000284AAE3A120>, b'options/sub-border-style', b'outline-and-shadow'))
+2026-10-16 22:20:38  mpv sub-border-style: AttributeError('mpv property does not exist', -8, (<MpvHandle object at 0x00000284AAE3A120>, b'options/sub-border-style', b'outline-and-shadow'))
+2026-10-16 22:20:40  mpv sub-border-style: AttributeError('mpv property does not exist', -8, (<MpvHandle object at 0x00000284AAE3A120>, b'options/sub-border-style', b'outline-and-shadow'))
+2026-10-16 22:20:45  mpv sub-border-style: AttributeError('mpv property does not exist', -8, (<MpvHandle object at 0x00000284AAE3A120>, b'options/sub-border-style', b'outline-and-shadow'))
+2026-10-16 22:25:49  Ikon: file='F:\\Scratch\\Temp\\_MEI00000bf82\\assets\\icon.ico' ada=True
+2026-10-16 22:25:49  Ikon: iconbitmap OK
+2026-10-16 22:25:49  Ikon: iconphoto OK (4 ukuran)
+2026-10-16 22:25:49  Ikon: WM_SETICON OK
+2026-10-16 22:25:50  Slideshow login: 10 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 22:25:50  Ikon: WM_SETICON OK
+2026-10-16 22:25:52  Video latar beranda: C:\Users\JacksonPC\Desktop\BlenderELearning\dist\assets\video\home\latar_beranda.mp4
+2026-10-16 22:26:01  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-16 22:26:01    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 22:26:01    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 22:26:01    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 22:26:01    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 22:26:02  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 22:26:02  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:41:02  Ikon: file='F:\\Scratch\\Temp\\_MEI0000367c2\\assets\\icon.ico' ada=True
+2026-10-16 22:41:02  Ikon: iconbitmap OK
+2026-10-16 22:41:02  Ikon: iconphoto OK (4 ukuran)
+2026-10-16 22:41:02  Ikon: WM_SETICON OK
+2026-10-16 22:41:02  Slideshow login: 10 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 22:41:02  Ikon: WM_SETICON OK
+2026-10-16 22:41:08  Video latar beranda: C:\Users\JacksonPC\Desktop\BlenderELearning\dist\assets\video\home\latar_beranda.mp4
+2026-10-16 22:41:27  Pelajaran superkids-2: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-2' ada=True video=0
+2026-10-16 22:41:27  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:52:01  Ikon: file='F:\\Scratch\\Temp\\_MEI000045c82\\assets\\icon.ico' ada=True
+2026-10-16 22:52:01  Ikon: iconbitmap OK
+2026-10-16 22:52:01  Ikon: iconphoto OK (4 ukuran)
+2026-10-16 22:52:01  Ikon: WM_SETICON OK
+2026-10-16 22:52:02  Slideshow login: 10 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 22:52:02  Ikon: WM_SETICON OK
+2026-10-16 22:52:05  Video latar beranda: C:\Users\JacksonPC\Desktop\BlenderELearning\dist\assets\video\home\latar_beranda.mp4
+2026-10-16 22:52:37  Pelajaran superkids-1: folder='C:\\Users\\JacksonPC\\Desktop\\BlenderELearning\\dist\\assets\\lessons\\superkids-1' ada=True video=4
+2026-10-16 22:52:37    video '01. Modeling House Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 22:52:37    video '02. Modeling House Part 2.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 22:52:37    video '03. Modeling House Part 3.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 22:52:37    video '04. Modeling Game Assets Part 1.mp4': subtitle ditemukan=['English', 'Indonesia']
+2026-10-16 22:52:38  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 22:52:38  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:52:45  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 22:52:46  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:52:46  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 22:52:46  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:52:47  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 22:52:47  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:52:47  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 22:52:47  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:53:03  mpv[warn] ffmpeg/demuxer: mov,mp4,m4a,3gp,3g2,mj2: Unknown cover type: 0x1.
+2026-10-16 22:53:03  mpv: subtitle terbaca=['Indonesia', 'English']
+2026-10-16 22:53:04  Video latar beranda: C:\Users\JacksonPC\Desktop\BlenderELearning\dist\assets\video\home\latar_beranda.mp4
+2026-10-16 22:54:50  Ikon: file='F:\\Scratch\\Temp\\_MEI0000242c2\\assets\\icon.ico' ada=True
+2026-10-16 22:54:50  Ikon: iconbitmap OK
+2026-10-16 22:54:50  Ikon: iconphoto OK (4 ukuran)
+2026-10-16 22:54:50  Ikon: WM_SETICON OK
+2026-10-16 22:54:51  Slideshow login: 10 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 22:54:51  Ikon: WM_SETICON OK
+2026-10-16 22:59:08  Ikon: file='F:\\Scratch\\Temp\\_MEI00000a842\\assets\\icon.ico' ada=True
+2026-10-16 22:59:08  Ikon: iconbitmap OK
+2026-10-16 22:59:08  Ikon: iconphoto OK (4 ukuran)
+2026-10-16 22:59:08  Ikon: WM_SETICON OK
+2026-10-16 22:59:08  Video latar login: C:\Users\JacksonPC\Desktop\BlenderELearning\dist\assets\video\login\latar_login.mp4
+2026-10-16 22:59:08  Slideshow login: 10 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 22:59:08  Ikon: WM_SETICON OK
+2026-10-16 23:02:52  Ikon: file='F:\\Scratch\\Temp\\_MEI000021302\\assets\\icon.ico' ada=True
+2026-10-16 23:02:52  Ikon: iconbitmap OK
+2026-10-16 23:02:52  Ikon: iconphoto OK (4 ukuran)
+2026-10-16 23:02:52  Ikon: WM_SETICON OK
+2026-10-16 23:02:52  Video latar login: C:\Users\JacksonPC\Desktop\BlenderELearning\dist\assets\video\login\latar_login.mp4
+2026-10-16 23:02:52  Slideshow login: 10 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 23:02:52  Ikon: WM_SETICON OK
+2026-10-16 23:05:04  Ikon: file='F:\\Scratch\\Temp\\_MEI0000096c2\\assets\\icon.ico' ada=True
+2026-10-16 23:05:04  Ikon: iconbitmap OK
+2026-10-16 23:05:04  Ikon: iconphoto OK (4 ukuran)
+2026-10-16 23:05:04  Ikon: WM_SETICON OK
+2026-10-16 23:05:04  Video latar login: C:\Users\JacksonPC\Desktop\BlenderELearning\dist\assets\video\login\latar_login.mp4
+2026-10-16 23:05:04  Slideshow login: 10 karya dari C:\Users\JacksonPC\Desktop\BlenderELearning\dist\data\portfolio
+2026-10-16 23:05:04  Ikon: WM_SETICON OK
+2026-10-16 23:29:51  Ikon: file='F:\\Scratch\\Temp\\_MEI000024142\\assets\\icon.ico' ada=True
+2026-10-16 23:29:51  Ikon: iconbitmap OK
+2026-10-16 23:29:51  Ikon: iconphoto OK (4 ukuran)
+2026-10-16 23:29:51  Ikon: WM_SETICON OK
+2026-10-16 23:29:51  Video latar login: C:\Users\JacksonPC\Desktop\BlenderELearning\dist\assets\video\login\latar_login.mp4
+2026-10-16 23:29:51  Slideshow 3D login: 10 karya
+2026-10-16 23:29:52  Ikon: WM_SETICON OK
+2026-10-17 00:01:13  Ikon: file='F:\\Scratch\\Temp\\_MEI00001b682\\assets\\icon.ico' ada=True
+2026-10-17 00:01:13  Ikon: iconbitmap OK
+2026-10-17 00:01:13  Ikon: iconphoto OK (4 ukuran)
+2026-10-17 00:01:13  Ikon: WM_SETICON OK
+2026-10-17 00:01:13  Video latar login: C:\Users\JacksonPC\Desktop\BlenderELearning\dist\assets\video\login\latar_login.mp4
+2026-10-17 00:01:13  Carousel 3D login: 10 karya
+2026-10-17 00:01:14  Ikon: WM_SETICON OK
+2026-10-17 00:03:55  Video latar beranda: C:\Users\JacksonPC\Desktop\BlenderELearning\dist\assets\video\home\latar_beranda.mp4
+2026-10-17 00:04:19  Video latar login: C:\Users\JacksonPC\Desktop\BlenderELearning\dist\assets\video\login\latar_login.mp4
+2026-10-17 00:04:19  Carousel 3D login: 10 karya
+2026-10-17 00:11:32  Ikon: file='F:\\Scratch\\Temp\\_MEI000023502\\assets\\icon.ico' ada=True
+2026-10-17 00:11:32  Ikon: iconbitmap OK
+2026-10-17 00:11:32  Ikon: iconphoto OK (4 ukuran)
+2026-10-17 00:11:32  Ikon: WM_SETICON OK
+2026-10-17 00:11:32  Video latar login: C:\Users\JacksonPC\Desktop\BlenderELearning\dist\assets\video\login\latar_login.mp4
+2026-10-17 00:11:32  Carousel 3D login: 10 karya
+2026-10-17 00:11:32  Ikon: WM_SETICON OK
+2026-10-17 01:45:59  Ikon: file='F:\\Scratch\\Temp\\_MEI0000106c2\\assets\\icon.ico' ada=True
+2026-10-17 01:45:59  Ikon: iconbitmap OK
+2026-10-17 01:45:59  Ikon: iconphoto OK (4 ukuran)
+2026-10-17 01:45:59  Ikon: WM_SETICON OK
+2026-10-17 01:45:59  Video latar login: C:\Users\JacksonPC\Desktop\BlenderELearning\dist\assets\video\login\latar_login.mp4
+2026-10-17 01:45:59  Carousel 3D login: 10 karya
+2026-10-17 01:45:59  Ikon: WM_SETICON OK
+2026-10-17 01:46:17  Export Excel: 10 sheet, 75 sesi -> C:\Users\JacksonPC\Documents\Data E-Learning Oktober 2026 - Semua murid.xlsx
+2026-10-17 01:47:14  Video latar login: C:\Users\JacksonPC\Desktop\BlenderELearning\dist\assets\video\login\latar_login.mp4
+2026-10-17 01:47:14  Carousel 3D login: 10 karya
+2026-10-17 01:47:17  Video latar beranda: C:\Users\JacksonPC\Desktop\BlenderELearning\dist\assets\video\home\latar_beranda.mp4
+2026-10-17 01:50:02  Ikon: file='F:\\Scratch\\Temp\\_MEI0000396c2\\assets\\icon.ico' ada=True
+2026-10-17 01:50:02  Ikon: iconbitmap OK
+2026-10-17 01:50:02  Ikon: iconphoto OK (4 ukuran)
+2026-10-17 01:50:02  Ikon: WM_SETICON OK
+2026-10-17 01:50:02  Video latar login: C:\Users\JacksonPC\Desktop\BlenderELearning\dist\assets\video\login\latar_login.mp4
+2026-10-17 01:50:02  Carousel 3D login: 10 karya
+2026-10-17 01:50:03  Ikon: WM_SETICON OK
