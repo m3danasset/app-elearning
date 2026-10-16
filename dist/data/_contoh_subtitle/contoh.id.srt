@@ -1,0 +1,479 @@
+1
+00:00:00,000 --> 00:00:04,000
+Ini contoh subtitle Bahasa Indonesia #1
+
+2
+00:00:05,000 --> 00:00:09,000
+Ini contoh subtitle Bahasa Indonesia #2
+
+3
+00:00:10,000 --> 00:00:14,000
+Ini contoh subtitle Bahasa Indonesia #3
+
+4
+00:00:15,000 --> 00:00:19,000
+Ini contoh subtitle Bahasa Indonesia #4
+
+5
+00:00:20,000 --> 00:00:24,000
+Ini contoh subtitle Bahasa Indonesia #5
+
+6
+00:00:25,000 --> 00:00:29,000
+Ini contoh subtitle Bahasa Indonesia #6
+
+7
+00:00:30,000 --> 00:00:34,000
+Ini contoh subtitle Bahasa Indonesia #7
+
+8
+00:00:35,000 --> 00:00:39,000
+Ini contoh subtitle Bahasa Indonesia #8
+
+9
+00:00:40,000 --> 00:00:44,000
+Ini contoh subtitle Bahasa Indonesia #9
+
+10
+00:00:45,000 --> 00:00:49,000
+Ini contoh subtitle Bahasa Indonesia #10
+
+11
+00:00:50,000 --> 00:00:54,000
+Ini contoh subtitle Bahasa Indonesia #11
+
+12
+00:00:55,000 --> 00:00:59,000
+Ini contoh subtitle Bahasa Indonesia #12
+
+13
+00:01:00,000 --> 00:01:04,000
+Ini contoh subtitle Bahasa Indonesia #13
+
+14
+00:01:05,000 --> 00:01:09,000
+Ini contoh subtitle Bahasa Indonesia #14
+
+15
+00:01:10,000 --> 00:01:14,000
+Ini contoh subtitle Bahasa Indonesia #15
+
+16
+00:01:15,000 --> 00:01:19,000
+Ini contoh subtitle Bahasa Indonesia #16
+
+17
+00:01:20,000 --> 00:01:24,000
+Ini contoh subtitle Bahasa Indonesia #17
+
+18
+00:01:25,000 --> 00:01:29,000
+Ini contoh subtitle Bahasa Indonesia #18
+
+19
+00:01:30,000 --> 00:01:34,000
+Ini contoh subtitle Bahasa Indonesia #19
+
+20
+00:01:35,000 --> 00:01:39,000
+Ini contoh subtitle Bahasa Indonesia #20
+
+21
+00:01:40,000 --> 00:01:44,000
+Ini contoh subtitle Bahasa Indonesia #21
+
+22
+00:01:45,000 --> 00:01:49,000
+Ini contoh subtitle Bahasa Indonesia #22
+
+23
+00:01:50,000 --> 00:01:54,000
+Ini contoh subtitle Bahasa Indonesia #23
+
+24
+00:01:55,000 --> 00:01:59,000
+Ini contoh subtitle Bahasa Indonesia #24
+
+25
+00:02:00,000 --> 00:02:04,000
+Ini contoh subtitle Bahasa Indonesia #25
+
+26
+00:02:05,000 --> 00:02:09,000
+Ini contoh subtitle Bahasa Indonesia #26
+
+27
+00:02:10,000 --> 00:02:14,000
+Ini contoh subtitle Bahasa Indonesia #27
+
+28
+00:02:15,000 --> 00:02:19,000
+Ini contoh subtitle Bahasa Indonesia #28
+
+29
+00:02:20,000 --> 00:02:24,000
+Ini contoh subtitle Bahasa Indonesia #29
+
+30
+00:02:25,000 --> 00:02:29,000
+Ini contoh subtitle Bahasa Indonesia #30
+
+31
+00:02:30,000 --> 00:02:34,000
+Ini contoh subtitle Bahasa Indonesia #31
+
+32
+00:02:35,000 --> 00:02:39,000
+Ini contoh subtitle Bahasa Indonesia #32
+
+33
+00:02:40,000 --> 00:02:44,000
+Ini contoh subtitle Bahasa Indonesia #33
+
+34
+00:02:45,000 --> 00:02:49,000
+Ini contoh subtitle Bahasa Indonesia #34
+
+35
+00:02:50,000 --> 00:02:54,000
+Ini contoh subtitle Bahasa Indonesia #35
+
+36
+00:02:55,000 --> 00:02:59,000
+Ini contoh subtitle Bahasa Indonesia #36
+
+37
+00:03:00,000 --> 00:03:04,000
+Ini contoh subtitle Bahasa Indonesia #37
+
+38
+00:03:05,000 --> 00:03:09,000
+Ini contoh subtitle Bahasa Indonesia #38
+
+39
+00:03:10,000 --> 00:03:14,000
+Ini contoh subtitle Bahasa Indonesia #39
+
+40
+00:03:15,000 --> 00:03:19,000
+Ini contoh subtitle Bahasa Indonesia #40
+
+41
+00:03:20,000 --> 00:03:24,000
+Ini contoh subtitle Bahasa Indonesia #41
+
+42
+00:03:25,000 --> 00:03:29,000
+Ini contoh subtitle Bahasa Indonesia #42
+
+43
+00:03:30,000 --> 00:03:34,000
+Ini contoh subtitle Bahasa Indonesia #43
+
+44
+00:03:35,000 --> 00:03:39,000
+Ini contoh subtitle Bahasa Indonesia #44
+
+45
+00:03:40,000 --> 00:03:44,000
+Ini contoh subtitle Bahasa Indonesia #45
+
+46
+00:03:45,000 --> 00:03:49,000
+Ini contoh subtitle Bahasa Indonesia #46
+
+47
+00:03:50,000 --> 00:03:54,000
+Ini contoh subtitle Bahasa Indonesia #47
+
+48
+00:03:55,000 --> 00:03:59,000
+Ini contoh subtitle Bahasa Indonesia #48
+
+49
+00:04:00,000 --> 00:04:04,000
+Ini contoh subtitle Bahasa Indonesia #49
+
+50
+00:04:05,000 --> 00:04:09,000
+Ini contoh subtitle Bahasa Indonesia #50
+
+51
+00:04:10,000 --> 00:04:14,000
+Ini contoh subtitle Bahasa Indonesia #51
+
+52
+00:04:15,000 --> 00:04:19,000
+Ini contoh subtitle Bahasa Indonesia #52
+
+53
+00:04:20,000 --> 00:04:24,000
+Ini contoh subtitle Bahasa Indonesia #53
+
+54
+00:04:25,000 --> 00:04:29,000
+Ini contoh subtitle Bahasa Indonesia #54
+
+55
+00:04:30,000 --> 00:04:34,000
+Ini contoh subtitle Bahasa Indonesia #55
+
+56
+00:04:35,000 --> 00:04:39,000
+Ini contoh subtitle Bahasa Indonesia #56
+
+57
+00:04:40,000 --> 00:04:44,000
+Ini contoh subtitle Bahasa Indonesia #57
+
+58
+00:04:45,000 --> 00:04:49,000
+Ini contoh subtitle Bahasa Indonesia #58
+
+59
+00:04:50,000 --> 00:04:54,000
+Ini contoh subtitle Bahasa Indonesia #59
+
+60
+00:04:55,000 --> 00:04:59,000
+Ini contoh subtitle Bahasa Indonesia #60
+
+61
+00:05:00,000 --> 00:05:04,000
+Ini contoh subtitle Bahasa Indonesia #61
+
+62
+00:05:05,000 --> 00:05:09,000
+Ini contoh subtitle Bahasa Indonesia #62
+
+63
+00:05:10,000 --> 00:05:14,000
+Ini contoh subtitle Bahasa Indonesia #63
+
+64
+00:05:15,000 --> 00:05:19,000
+Ini contoh subtitle Bahasa Indonesia #64
+
+65
+00:05:20,000 --> 00:05:24,000
+Ini contoh subtitle Bahasa Indonesia #65
+
+66
+00:05:25,000 --> 00:05:29,000
+Ini contoh subtitle Bahasa Indonesia #66
+
+67
+00:05:30,000 --> 00:05:34,000
+Ini contoh subtitle Bahasa Indonesia #67
+
+68
+00:05:35,000 --> 00:05:39,000
+Ini contoh subtitle Bahasa Indonesia #68
+
+69
+00:05:40,000 --> 00:05:44,000
+Ini contoh subtitle Bahasa Indonesia #69
+
+70
+00:05:45,000 --> 00:05:49,000
+Ini contoh subtitle Bahasa Indonesia #70
+
+71
+00:05:50,000 --> 00:05:54,000
+Ini contoh subtitle Bahasa Indonesia #71
+
+72
+00:05:55,000 --> 00:05:59,000
+Ini contoh subtitle Bahasa Indonesia #72
+
+73
+00:06:00,000 --> 00:06:04,000
+Ini contoh subtitle Bahasa Indonesia #73
+
+74
+00:06:05,000 --> 00:06:09,000
+Ini contoh subtitle Bahasa Indonesia #74
+
+75
+00:06:10,000 --> 00:06:14,000
+Ini contoh subtitle Bahasa Indonesia #75
+
+76
+00:06:15,000 --> 00:06:19,000
+Ini contoh subtitle Bahasa Indonesia #76
+
+77
+00:06:20,000 --> 00:06:24,000
+Ini contoh subtitle Bahasa Indonesia #77
+
+78
+00:06:25,000 --> 00:06:29,000
+Ini contoh subtitle Bahasa Indonesia #78
+
+79
+00:06:30,000 --> 00:06:34,000
+Ini contoh subtitle Bahasa Indonesia #79
+
+80
+00:06:35,000 --> 00:06:39,000
+Ini contoh subtitle Bahasa Indonesia #80
+
+81
+00:06:40,000 --> 00:06:44,000
+Ini contoh subtitle Bahasa Indonesia #81
+
+82
+00:06:45,000 --> 00:06:49,000
+Ini contoh subtitle Bahasa Indonesia #82
+
+83
+00:06:50,000 --> 00:06:54,000
+Ini contoh subtitle Bahasa Indonesia #83
+
+84
+00:06:55,000 --> 00:06:59,000
+Ini contoh subtitle Bahasa Indonesia #84
+
+85
+00:07:00,000 --> 00:07:04,000
+Ini contoh subtitle Bahasa Indonesia #85
+
+86
+00:07:05,000 --> 00:07:09,000
+Ini contoh subtitle Bahasa Indonesia #86
+
+87
+00:07:10,000 --> 00:07:14,000
+Ini contoh subtitle Bahasa Indonesia #87
+
+88
+00:07:15,000 --> 00:07:19,000
+Ini contoh subtitle Bahasa Indonesia #88
+
+89
+00:07:20,000 --> 00:07:24,000
+Ini contoh subtitle Bahasa Indonesia #89
+
+90
+00:07:25,000 --> 00:07:29,000
+Ini contoh subtitle Bahasa Indonesia #90
+
+91
+00:07:30,000 --> 00:07:34,000
+Ini contoh subtitle Bahasa Indonesia #91
+
+92
+00:07:35,000 --> 00:07:39,000
+Ini contoh subtitle Bahasa Indonesia #92
+
+93
+00:07:40,000 --> 00:07:44,000
+Ini contoh subtitle Bahasa Indonesia #93
+
+94
+00:07:45,000 --> 00:07:49,000
+Ini contoh subtitle Bahasa Indonesia #94
+
+95
+00:07:50,000 --> 00:07:54,000
+Ini contoh subtitle Bahasa Indonesia #95
+
+96
+00:07:55,000 --> 00:07:59,000
+Ini contoh subtitle Bahasa Indonesia #96
+
+97
+00:08:00,000 --> 00:08:04,000
+Ini contoh subtitle Bahasa Indonesia #97
+
+98
+00:08:05,000 --> 00:08:09,000
+Ini contoh subtitle Bahasa Indonesia #98
+
+99
+00:08:10,000 --> 00:08:14,000
+Ini contoh subtitle Bahasa Indonesia #99
+
+100
+00:08:15,000 --> 00:08:19,000
+Ini contoh subtitle Bahasa Indonesia #100
+
+101
+00:08:20,000 --> 00:08:24,000
+Ini contoh subtitle Bahasa Indonesia #101
+
+102
+00:08:25,000 --> 00:08:29,000
+Ini contoh subtitle Bahasa Indonesia #102
+
+103
+00:08:30,000 --> 00:08:34,000
+Ini contoh subtitle Bahasa Indonesia #103
+
+104
+00:08:35,000 --> 00:08:39,000
+Ini contoh subtitle Bahasa Indonesia #104
+
+105
+00:08:40,000 --> 00:08:44,000
+Ini contoh subtitle Bahasa Indonesia #105
+
+106
+00:08:45,000 --> 00:08:49,000
+Ini contoh subtitle Bahasa Indonesia #106
+
+107
+00:08:50,000 --> 00:08:54,000
+Ini contoh subtitle Bahasa Indonesia #107
+
+108
+00:08:55,000 --> 00:08:59,000
+Ini contoh subtitle Bahasa Indonesia #108
+
+109
+00:09:00,000 --> 00:09:04,000
+Ini contoh subtitle Bahasa Indonesia #109
+
+110
+00:09:05,000 --> 00:09:09,000
+Ini contoh subtitle Bahasa Indonesia #110
+
+111
+00:09:10,000 --> 00:09:14,000
+Ini contoh subtitle Bahasa Indonesia #111
+
+112
+00:09:15,000 --> 00:09:19,000
+Ini contoh subtitle Bahasa Indonesia #112
+
+113
+00:09:20,000 --> 00:09:24,000
+Ini contoh subtitle Bahasa Indonesia #113
+
+114
+00:09:25,000 --> 00:09:29,000
+Ini contoh subtitle Bahasa Indonesia #114
+
+115
+00:09:30,000 --> 00:09:34,000
+Ini contoh subtitle Bahasa Indonesia #115
+
+116
+00:09:35,000 --> 00:09:39,000
+Ini contoh subtitle Bahasa Indonesia #116
+
+117
+00:09:40,000 --> 00:09:44,000
+Ini contoh subtitle Bahasa Indonesia #117
+
+118
+00:09:45,000 --> 00:09:49,000
+Ini contoh subtitle Bahasa Indonesia #118
+
+119
+00:09:50,000 --> 00:09:54,000
+Ini contoh subtitle Bahasa Indonesia #119
+
+120
+00:09:55,000 --> 00:09:59,000
+Ini contoh subtitle Bahasa Indonesia #120

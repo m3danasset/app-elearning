@@ -1,0 +1,22 @@
+[
+ {
+  "id": "20261015171512-1",
+  "teacher": "GURU001",
+  "date": "2026-10-15",
+  "kind": "student",
+  "student": "PB003",
+  "text": "sudah selesai",
+  "created": "2026-10-15 17:15:12",
+  "edited": null
+ },
+ {
+  "id": "20261015171542-1",
+  "teacher": "GURU001",
+  "date": "2026-10-15",
+  "kind": "student",
+  "student": "SK002",
+  "text": "sudah submit",
+  "created": "2026-10-15 17:15:42",
+  "edited": null
+ }
+]

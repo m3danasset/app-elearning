@@ -1,0 +1,51 @@
+{
+ "courses": {
+  "superkids-1": {
+   "01. Modeling House Part 1": {
+    "pos": 427,
+    "pct": 85,
+    "sec": 427,
+    "dur": 498,
+    "done": false,
+    "views": 19,
+    "first": "2026-10-16 20:18:07",
+    "last": "2026-10-16 22:52:38",
+    "emote": "seru",
+    "emote_t": "2026-10-16 22:01:46"
+   },
+   "02. Modeling House Part 2": {
+    "pos": 0,
+    "pct": 0,
+    "sec": 0,
+    "dur": 0,
+    "done": false,
+    "views": 9,
+    "first": "2026-10-16 20:54:30",
+    "last": "2026-10-16 22:53:03",
+    "emote": "paham",
+    "emote_t": "2026-10-16 22:01:43"
+   },
+   "03. Modeling House Part 3": {
+    "pos": 0,
+    "pct": 0,
+    "sec": 0,
+    "dur": 0,
+    "done": false,
+    "views": 7,
+    "first": "2026-10-16 20:54:31",
+    "last": "2026-10-16 22:52:47"
+   },
+   "04. Modeling Game Assets Part 1": {
+    "pos": 0,
+    "pct": 0,
+    "sec": 0,
+    "dur": 0,
+    "done": false,
+    "views": 3,
+    "first": "2026-10-16 20:54:34",
+    "last": "2026-10-16 22:52:46"
+   }
+  }
+ },
+ "quiz": {}
+}

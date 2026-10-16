@@ -1,0 +1,65 @@
+{
+  "PB001": {
+    "name": "Murid Dewasa 1",
+    "program": "adult",
+    "courses": [
+      "basic-1",
+      "basic-2",
+      "intermediate-1",
+      "intermediate-2",
+      "ai-character",
+      "ai-interior"
+    ],
+    "status": "active"
+  },
+  "PB002": {
+    "name": "Murid Dewasa 2",
+    "program": "adult",
+    "courses": [
+      "basic-1",
+      "basic-2",
+      "intermediate-1"
+    ],
+    "status": "active"
+  },
+  "PB003": {
+    "name": "Denzell Racquelson Theja",
+    "program": "adult",
+    "courses": [
+      "ai-character"
+    ],
+    "status": "expired"
+  },
+  "SK001": {
+    "name": "Murid Anak 1",
+    "program": "kids",
+    "courses": [
+      "superkids-1",
+      "superkids-2"
+    ],
+    "status": "active"
+  },
+  "SK002": {
+    "name": "Abigail Callystiar",
+    "program": "kids",
+    "courses": [
+      "superkids-1",
+      "superkids-2",
+      "superkids-3"
+    ],
+    "status": "active"
+  },
+  "SK003": {
+    "name": "Murid Anak 3",
+    "program": "kids",
+    "courses": [
+      "superkids-1",
+      "superkids-2",
+      "superkids-3",
+      "superkids-4",
+      "superkids-5",
+      "superkids-6"
+    ],
+    "status": "active"
+  }
+}
