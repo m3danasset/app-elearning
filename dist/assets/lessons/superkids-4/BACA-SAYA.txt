@@ -1,0 +1,3 @@
+Taruh video kursus superkids-4 di folder ini.
+Judul di aplikasi = nama file video. Urutan = urut nama file (awali angka untuk mengatur urutan: 01 Judul.mp4).
+Subtitle (opsional): NamaVideo.id.srt / NamaVideo.en.srt

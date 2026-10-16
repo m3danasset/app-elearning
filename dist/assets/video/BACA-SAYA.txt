@@ -1,0 +1,14 @@
+VIDEO LATAR LAYAR LOGIN
+=======================
+
+Taruh SATU video di folder ini. Aplikasi otomatis memakainya sebagai latar
+layar login (diputar berulang). Untuk mengganti: hapus video lama, taruh
+video baru. Tidak perlu build ulang.
+
+- Format yang didukung : .mp4 (disarankan), .mov, .mkv, .avi, .webm, .m4v
+- Kalau ada banyak video, yang dipakai adalah yang pertama menurut urutan abjad
+- Disarankan: MP4 (H.264), resolusi 1280x720 atau 1920x1080, 10-30 detik, tanpa suara
+- Hindari 4K atau file yang sangat besar, supaya tidak berat di PC siswa
+- Video diperbesar otomatis menutupi seluruh jendela (bagian tepi bisa terpotong)
+- Kalau video tidak ada / gagal diputar, layar login memakai warna polos
+  (catatan masalah ada di file app.log di samping aplikasi)
