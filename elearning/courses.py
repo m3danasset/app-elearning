@@ -28,10 +28,10 @@ ADULT_COURSES = [
      "desc": "Animasi dan rigging.", "color": BLUE},
     {"id": "ai-character", "program": "adult", "group": "AI",
      "title": "AI CHARACTER",
-     "desc": "Membuat karakter dengan bantuan AI.", "color": PURPLE},
+     "desc": "Membuat karakter dengan bantuan AI.", "color": PURPLE, "video": False},
     {"id": "ai-interior", "program": "adult", "group": "AI",
      "title": "AI INTERIOR",
-     "desc": "Merancang interior dengan bantuan AI.", "color": PURPLE},
+     "desc": "Merancang interior dengan bantuan AI.", "color": PURPLE, "video": False},
 ]
 
 KIDS_COURSES = [
@@ -67,6 +67,11 @@ TRIAL_COURSES = [
 ]
 
 COURSES = ADULT_COURSES + KIDS_COURSES + TRIAL_COURSES
+
+
+def has_video(course):
+    """False untuk kursus tanpa video pelajaran (AI CHARACTER, AI INTERIOR)."""
+    return course.get("video", True)
 
 
 def courses_for(program):

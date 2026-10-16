@@ -76,12 +76,16 @@ class _Hook:
 _HOOK = _Hook()
 
 
+_after = None    # jadwal _tick berikutnya (dibatalkan saat splash ditutup)
+
+
 def _tick():
     root = getattr(sys, _KEY, None)
     if root is not None:   # jalan juga saat thread utama sedang menunggu event Tk
         _pump()
         try:
-            root.after(16, _tick)
+            global _after
+            _after = root.after(16, _tick)
         except Exception:
             pass
 
@@ -167,7 +171,8 @@ def show():
         setattr(sys, _KEY, root)
         if _HOOK not in sys.meta_path:
             sys.meta_path.insert(0, _HOOK)   # animasi tetap jalan selama impor berat
-        root.after(16, _tick)
+        global _after
+        _after = root.after(16, _tick)
     except Exception:
         setattr(sys, _KEY, None)
 
@@ -181,6 +186,11 @@ def close():
     except ValueError:
         pass
     if root is not None:
+        try:
+            if _after is not None:
+                root.after_cancel(_after)
+        except Exception:
+            pass
         try:
             root.destroy()
         except Exception:

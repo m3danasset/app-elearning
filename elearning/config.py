@@ -39,6 +39,10 @@ ICON_PATH = resource_path("assets", "icon.ico")
 # kapan saja tanpa build ulang: <folder .exe>\assets\video\
 VIDEO_DIR = os.path.join(APP_DIR, "assets", "video")
 VIDEO_DIM = 0.45  # 1.0 = terang asli, makin kecil makin gelap (biar kartu login terbaca)
+LOGIN_VIDEO_OPACITY = 0.22  # video latar layar login (assets\\video\\login): 0 = tak terlihat, 1 = penuh
+# Carousel 3D layar login: frame per detik (maks. 30; turunkan ke 24 kalau PC terasa berat)
+LOGIN_CAROUSEL_FPS = 30
+HOME_VIDEO_OPACITY = 0.22  # video latar halaman utama murid (assets\\video\\home): 0 = tak terlihat, 1 = penuh
 # Video pelajaran, DI LUAR .exe juga: <folder .exe>\assets\lessons\<id kursus>\01.mp4, 02.mp4, ...
 LESSON_DIR = os.path.join(APP_DIR, "assets", "lessons")
 LOG_PATH = os.path.join(APP_DIR, "app.log")
@@ -84,6 +88,7 @@ SIDEBAR_LINE = "#2e2d2a"    # garis pemisah sidebar | isi
 SEARCH_BG = "#1a1918"       # kolom cari
 
 # Layar login & splash
+SEG_ON = "#3a3935"         # tab / pilihan yang aktif (gaya claude.ai: netral, bukan oranye)
 LOGIN_BG = BG               # latar login & splash = latar seluruh aplikasi
 SERIF = "Georgia"           # huruf judul besar (ada di semua Windows)
 LOGIN_HEADLINE = "Wujudkan karya 3D-mu"

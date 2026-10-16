@@ -58,8 +58,30 @@ def _safe_id(value):
     return "".join(ch for ch in str(value) if ch.isalnum() or ch in "-_") or "x"
 
 
-def course_dir(student_id, course_id):
-    return os.path.join(root(), _safe_id(str(student_id).upper()), _safe_id(course_id))
+ASSIGNMENT = "assignment"   # bagian kedua: hasil render assignment (folder _assignment)
+
+
+CONTOH = "contoh"           # contoh gambar assignment dari guru (per kursus, untuk semua murid)
+CONTOH_PF = "contoh_pf"     # inspirasi portfolio dari guru (per kursus, untuk semua murid)
+TEACHER_SECTIONS = (CONTOH, CONTOH_PF)
+LARGE_W, LARGE_H = 480, 360  # sampul galeri (4:3), dibuat sekali lalu disimpan di _thumbs
+
+
+def section_root(section=None):
+    """Folder portfolio, atau  <portfolio>\\_assignment  untuk hasil render assignment.
+    Nama berawalan '_' sehingga tidak ikut slideshow login maupun hitungan portfolio."""
+    if section == CONTOH:
+        return os.path.join(root(), "_contoh_assignment")
+    if section == CONTOH_PF:
+        return os.path.join(root(), "_contoh_portfolio")
+    return os.path.join(root(), "_assignment") if section == ASSIGNMENT else root()
+
+
+def course_dir(student_id, course_id, section=None):
+    if section in TEACHER_SECTIONS:     # milik kursus, bukan milik satu murid
+        return os.path.join(section_root(section), _safe_id(course_id))
+    return os.path.join(section_root(section), _safe_id(str(student_id).upper()),
+                        _safe_id(course_id))
 
 
 def _thumb_dir(student_id, course_id):
@@ -157,8 +179,43 @@ def load_thumb(item_path):
         return Image.new("RGB", (THUMB_W, THUMB_H), (38, 43, 57))
 
 
+def load_large(item_path):
+    """Sampul galeri 480x360 (Pillow), dibuat sekali di _thumbs\\<nama>.lg.jpg."""
+    if not HAS_PIL:
+        return None
+    folder, name = os.path.split(item_path)
+    lp = os.path.join(folder, "_thumbs", name + ".lg.jpg")
+    try:
+        if not os.path.isfile(lp) or os.path.getmtime(lp) < os.path.getmtime(item_path):
+            kind = kind_of(item_path) or "image"
+            img = None
+            if kind == "image":
+                with Image.open(item_path) as f:
+                    try:
+                        f.draft("RGB", (LARGE_W * 2, LARGE_H * 2))   # JPEG besar: cepat
+                    except Exception:
+                        pass
+                    f.load()
+                    img = photos._flatten(photos._fix_orientation(f))
+            else:
+                img = _video_frame(item_path)
+            if img is None:
+                return None
+            img = _cover(img.convert("RGB"), LARGE_W, LARGE_H)
+            os.makedirs(os.path.dirname(lp), exist_ok=True)
+            tmp = lp + ".tmp"
+            img.save(tmp, format="JPEG", quality=85)
+            os.replace(tmp, lp)
+            return img
+        with Image.open(lp) as f:
+            return f.convert("RGB")
+    except Exception as exc:
+        C.log(f"Sampul galeri {item_path!r} gagal: {exc!r}")
+        return None
+
+
 # --- menambah / membaca / menghapus ---------------------------------------------
-def add_file(student_id, course_id, source_path):
+def add_file(student_id, course_id, source_path, section=None):
     """Salin file milik murid ke portfolio. Mengembalikan path file baru.
 
     Melempar ValueError (pesan siap tampil) kalau file tidak bisa dipakai.
@@ -175,7 +232,7 @@ def add_file(student_id, course_id, source_path):
     if size > MAX_MB * 1024 * 1024:
         raise ValueError(f"terlalu besar (maksimal {MAX_MB} MB)")
 
-    folder = course_dir(student_id, course_id)
+    folder = course_dir(student_id, course_id, section)
     os.makedirs(folder, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     ext = os.path.splitext(source_path)[1].lower()
@@ -224,9 +281,9 @@ def _parse_name(filename):
     return None, filename
 
 
-def list_items(student_id, course_id):
+def list_items(student_id, course_id, section=None):
     """Isi portfolio satu murid di satu kursus, terbaru dulu. List dict."""
-    folder = course_dir(student_id, course_id)
+    folder = course_dir(student_id, course_id, section)
     items = []
     try:
         names = os.listdir(folder)
@@ -250,8 +307,8 @@ def list_items(student_id, course_id):
     return items
 
 
-def count(student_id, course_id):
-    return len(list_items(student_id, course_id))
+def count(student_id, course_id, section=None):
+    return len(list_items(student_id, course_id, section))
 
 
 def remove_item(path):
@@ -260,13 +317,14 @@ def remove_item(path):
     if os.path.commonpath([real, base]) != base:
         raise ValueError("File di luar folder portfolio.")
     _silent_remove(thumb_path(path))
+    _silent_remove(thumb_path(path)[:-4] + ".lg.jpg")
     os.remove(path)
 
 
 def delete_student(student_id):
     """Hapus seluruh portfolio seorang murid (dipanggil saat murid dihapus)."""
-    folder = os.path.join(root(), _safe_id(str(student_id).upper()))
-    shutil.rmtree(folder, ignore_errors=True)
+    for base in (root(), section_root(ASSIGNMENT)):
+        shutil.rmtree(os.path.join(base, _safe_id(str(student_id).upper())), ignore_errors=True)
 
 
 def format_size(n):

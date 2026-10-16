@@ -28,11 +28,12 @@ MONTHS = ("Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", 
 
 
 # --- bantuan ---------------------------------------------------------------------
-def _sessions():
-    """Semua sesi: [(id, mulai, selesai)] (selesai diperkirakan kalau aplikasi mati)."""
+def _sessions(since=None):
+    """Sesi sejak 'since' (None = semua, termasuk arsip): [(id, mulai, selesai)].
+    Selesai diperkirakan kalau aplikasi mati. Arsip bulan lebih lama tidak dibuka."""
     out = []
     now = datetime.now()
-    for r in sessions._read():
+    for r in sessions.records(since):
         start = sessions._parse(r["in"])
         end = sessions._parse(r.get("out")) if r.get("out") else None
         if end is None:
@@ -91,7 +92,8 @@ def compute(period="30d", program="all"):
     names = {s["id"]: s["name"] for s in all_students}
     teachers = T.list_teachers()
     teacher_ids = {t["id"] for t in teachers}
-    sess = _sessions()
+    # Arsip hanya dibuka sejauh yang dipakai: periode ini + periode pembanding sebelumnya
+    sess = _sessions(None if n_days is None else today - timedelta(days=2 * n_days))
 
     # Portfolio semua murid (terfilter program)
     uploads = []   # (id murid, waktu, jenis, judul kursus)
@@ -192,10 +194,9 @@ def compute(period="30d", program="all"):
             course_rows.append({"title": c["title"], "color": c["color"], "count": n})
 
     # --- murid yang perlu diperhatikan ----------------------------------------------------
-    last_seen = {}
-    for rid, _s0, s1 in sess:
-        if rid in student_ids and (rid not in last_seen or s1 > last_seen[rid]):
-            last_seen[rid] = s1
+    # login terakhir sepanjang masa (ringkasan arsip sudah diingat, jadi ringan)
+    last_seen = {rid: min(st["last_seen"], now) for rid, st in
+                 sessions.overview(student_ids).items() if st["last_seen"] is not None}
     attention = []
     for s in students:
         if s.get("status") == STATUS_EXPIRED:
