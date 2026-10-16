@@ -12,6 +12,7 @@ from elearning.ui.course_screen import CourseScreen
 from elearning.ui.teacher_screen import TeacherScreen
 from elearning.ui.admin_screen import AdminScreen
 from elearning.ui.floating import BlenderFloat
+from elearning.ui.controls import ResizeCurtain, dark_titlebar
 
 
 class App(tk.Tk):
@@ -31,7 +32,16 @@ class App(tk.Tk):
         self.configure(bg=config.BG)
         self.minsize(860, 600)
         self._set_icon()
-        self._center(1000, 640)
+        dark_titlebar(self)   # bilah judul Windows ikut gelap (tema aplikasi)
+        # Tirai sesaat saat jendela <-> layar penuh (seluruh jendela, semua layar):
+        # tidak tampak kartu terpotong / blok hitam selama widget digambar ulang
+        # (halaman video murid dikecualikan: pemutar punya animasi layar penuh sendiri)
+        self.curtain = ResizeCurtain(
+            self, bg=config.BG,
+            skip=lambda: isinstance(self._screen, CourseScreen))
+        # Lebih lebar dari sebelumnya karena ada sidebar kiri (tetap muat di layar kecil)
+        self._center(min(1240, self.winfo_screenwidth() - 60),
+                     min(760, self.winfo_screenheight() - 80))
 
         self._screen = None
         self.blender_float = BlenderFloat(self)   # ikon mengambang saat Blender terbuka (murid)
@@ -145,6 +155,8 @@ class App(tk.Tk):
             self._screen.destroy()
         self._screen = screen
         screen.pack(fill="both", expand=True)
+        if self.curtain.cover.winfo_ismapped():
+            self.curtain.cover.lift()
 
     def show_login(self):
         self._show(LoginScreen(self, on_success=self.login_student,

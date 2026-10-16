@@ -10,6 +10,7 @@ import tkinter as tk
 from datetime import datetime
 
 from elearning import config as C
+from elearning.ui.controls import RoundButton, RoundPanel
 from elearning import photos, portfolio
 from elearning.ui.dialogs import ConfirmDialog
 from elearning.ui.widgets import ScrollFrame, add_hover
@@ -56,12 +57,17 @@ class ThumbGrid(tk.Frame):
                 self.on_error("File tidak bisa dibuka. Mungkin sudah dipindah atau dihapus.")
 
     def _make_card(self, item):
-        card = tk.Frame(self, bg=C.CARD, highlightthickness=1,
-                        highlightbackground=C.BORDER, padx=_CARD_PAD, pady=_CARD_PAD)
+        panel = RoundPanel(self, padx=_CARD_PAD, pady=_CARD_PAD, radius=12, fit_width=True)
+        card = panel.inner
 
         photo = None
         try:
             img = portfolio.load_thumb(item["path"])
+            if img is not None:   # sudut thumbnail ikut membulat
+                from elearning.ui import ui_icons as I
+                base = photos.Image.new("RGB", img.size, I._rgb(C.CARD))
+                base.paste(img, (0, 0), I.round_mask(img.width, img.height, 8))
+                img = base
             photo = photos.to_photoimage(img) if img is not None else None
         except Exception as exc:
             C.log(f"Thumbnail {item['path']!r} tidak bisa ditampilkan: {exc!r}")
@@ -94,7 +100,7 @@ class ThumbGrid(tk.Frame):
                             font=(C.FONT, 8, "underline"))
             dele.pack(side="right")
             dele.bind("<Button-1>", lambda e, it=item: self.on_delete(it))
-        return card
+        return panel
 
 
 class PortfolioPanel(tk.Frame):
@@ -109,7 +115,7 @@ class PortfolioPanel(tk.Frame):
 
         head = tk.Frame(self, bg=C.BG)
         head.pack(fill="x", padx=28, pady=(22, 0))
-        self.upload_btn = tk.Button(
+        self.upload_btn = RoundButton(
             head, text="+  Upload gambar / video", command=self._upload, bg=C.ACCENT,
             fg="white", activebackground=C.ACCENT_HOVER, activeforeground="white",
             disabledforeground="#ffd9b0", relief="flat", bd=0, highlightthickness=0,

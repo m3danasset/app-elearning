@@ -29,6 +29,7 @@ import traceback
 # Dialog dipanggil lewat perintah Tk bawaan (tk_getOpenFile), seperti di teacher_screen.py.
 
 from elearning import config as C
+from elearning.ui.controls import RoundButton
 from elearning import lessons, mpv_support
 from elearning import blender_launcher as BL
 from elearning.ui import aa_icons as AA
@@ -50,7 +51,7 @@ BAR_H = 48      # tinggi bar kontrol
 FOOT_H = 64     # tinggi baris tombol Sebelumnya / Selanjutnya
 FS_FADE_OUT_MS = 60     # animasi: layar meredup sebelum berganti layar penuh (0 = mati)
 FS_FADE_IN_MS = 150     # animasi: layar muncul perlahan setelah berganti (0 = mati)
-TRACK = "#3a3f4d"
+TRACK = C.TRACK_OFF
 OV_MAIN = 88      # ukuran tombol putar/jeda di tengah video (jendela biasa)
 OV_FULL = 120     # ... dan saat layar penuh
 OV_IDLE = 2.2     # detik kursor diam saat video diputar -> tombol disembunyikan
@@ -633,8 +634,9 @@ class LessonPlayer(tk.Frame):
         bg = "#000000" if want else C.BG
         for w in (self.holder, self.column):
             w.config(bg=bg)
-        self._foot = 0 if want else FOOT_H
-        if want:
+        no_footer = want or getattr(self, "no_footer", False)   # trial: tanpa baris tombol
+        self._foot = 0 if no_footer else FOOT_H
+        if no_footer:
             self.footer.pack_forget()
         else:
             self.footer.pack(fill="x", side="bottom")
@@ -1199,7 +1201,8 @@ class LessonsPanel(tk.Frame):
     items: daftar dari lessons.lessons_for(); on_select(index) dipanggil saat pelajaran berganti.
     """
 
-    def __init__(self, master, course, items, index=0, on_select=None, on_fullscreen=None):
+    def __init__(self, master, course, items, index=0, on_select=None, on_fullscreen=None,
+                 show_nav=True):
         super().__init__(master, bg=C.BG)
         self.course = course
         self.items = items
@@ -1223,8 +1226,15 @@ class LessonsPanel(tk.Frame):
         self.player.on_fullscreen = self._fullscreen
         self.player.pack(fill="both", expand=True, padx=28, pady=(0, 8))
 
-        self.prev_btn = self._nav_button("‹   Sebelumnya", "left", self.previous)
-        self.next_btn = self._nav_button("Selanjutnya   ›", "right", self.next)
+        self.show_nav = show_nav   # False = trial: tanpa tombol Sebelumnya / Selanjutnya
+        self.prev_btn = self.next_btn = None
+        if not show_nav:   # baris tombol di bawah video dihilangkan, video jadi lebih besar
+            self.player.no_footer = True
+            self.player._foot = 0
+            self.player.footer.pack_forget()
+        if show_nav:
+            self.prev_btn = self._nav_button("‹   Sebelumnya", "left", self.previous)
+            self.next_btn = self._nav_button("Selanjutnya   ›", "right", self.next)
 
         start = min(max(index, 0), max(len(items) - 1, 0))
         self.after(80, lambda: self.select(start, notify=False))   # tunggu jendela tampil (mpv)
@@ -1241,13 +1251,15 @@ class LessonsPanel(tk.Frame):
             self.on_fullscreen(want)
 
     def _nav_button(self, text, side, command):
-        btn = tk.Button(self.player.footer, text=text, command=command, relief="flat", bd=0,
+        btn = RoundButton(self.player.footer, text=text, command=command, relief="flat", bd=0,
                         highlightthickness=0, font=(C.FONT, 11, "bold"), padx=26, pady=9,
                         cursor="hand2")
         btn.pack(side=side, pady=(12, 8))
         return btn
 
     def _style_nav(self):
+        if not self.show_nav:
+            return
         last = len(self.items) - 1
         for btn, enabled, primary in ((self.prev_btn, self.index > 0, False),
                                       (self.next_btn, self.index < last, True)):

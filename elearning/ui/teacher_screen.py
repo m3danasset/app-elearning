@@ -8,6 +8,7 @@ laporan untuk admin (lihat report_panel.py).
 import tkinter as tk
 
 from elearning import config as C
+from elearning.ui.controls import RoundButton, RoundPanel
 from elearning import photos, portfolio, sessions
 from elearning.courses import courses_for
 from elearning.students import (STATUS_ACTIVE, STATUS_EXPIRED, STATUS_LABEL,
@@ -18,17 +19,17 @@ from elearning.ui.avatar import Avatar
 from elearning.ui.dialogs import ConfirmDialog, StudentDialog
 from elearning.ui.portfolio_view import ThumbGrid
 from elearning.ui.report_panel import ReportPanel
+from elearning.ui.sidebar import AppSidebar, PageHeader, SidebarLayout
 from elearning.ui.widgets import ScrollFrame, Switch, add_hover
 
 PROGRAM_LABEL = {"adult": "Murid dewasa", "kids": "Murid anak"}
 CATEGORIES = ("adult", "kids")  # urutan kategori di sidebar kiri
-SIDEBAR_W = 270
 VIEW_TITLE = {"students": "Atur Akses Kursus", "reports": "Laporan Kerja"}
 
 
-class TeacherScreen(tk.Frame):
+class TeacherScreen(SidebarLayout):
     def __init__(self, master, teacher, on_logout):
-        super().__init__(master, bg=C.BG)
+        super().__init__(master)
         self.teacher = teacher
         self.on_logout = on_logout
         self.view = "students"   # "students" (murid & kursus) atau "reports" (laporan kerja)
@@ -36,35 +37,18 @@ class TeacherScreen(tk.Frame):
         self.collapsed = set()   # kategori yang sedang dilipat
         self.current_id = self.students[0]["id"] if self.students else None
         self.tab = "courses"     # tab detail murid: "courses", "history" atau "portfolio"
-        self.list_scroll = None  # daftar murid di sidebar (hanya ada di menu Murid)
         self._row_widgets = {}   # id murid -> baris di sidebar
 
-        self.sidebar = tk.Frame(self, bg=C.CARD, width=SIDEBAR_W)
-        self.sidebar.pack(side="left", fill="y")
-        self.sidebar.pack_propagate(False)
-        tk.Frame(self, bg=C.BORDER, width=1).pack(side="left", fill="y")
+        self.sb = AppSidebar(self, teacher, f"Guru  ·  {teacher['id']}", on_logout,
+                             self._populate, placeholder="Cari murid (nama / ID)",
+                             on_search=self._on_search)
+        self.attach(self.sb)
 
         # --- Kanan: judul menu + isi ---------------------------------------------
-        content = tk.Frame(self, bg=C.BG)
-        content.pack(side="left", fill="both", expand=True)
-        bar = tk.Frame(content, bg=C.CARD, height=56, highlightthickness=1,
-                       highlightbackground=C.BORDER)
-        bar.pack(fill="x")
-        bar.pack_propagate(False)
-        self.title_lbl = tk.Label(bar, text=VIEW_TITLE[self.view], bg=C.CARD, fg=C.TEXT,
-                                  font=(C.FONT, 13, "bold"))
-        self.title_lbl.pack(side="left", padx=20)
-        out = tk.Button(bar, text="Keluar", command=on_logout, bg=C.CARD, fg=C.MUTED,
-                        activebackground=C.BORDER, activeforeground=C.TEXT,
-                        relief="flat", bd=0, highlightthickness=0, font=(C.FONT, 10),
-                        cursor="hand2", padx=14)
-        out.pack(side="right", padx=12, pady=12)
-        add_hover(out, C.CARD, C.BORDER)
-
-        self.body = tk.Frame(content, bg=C.BG)
+        self.header = PageHeader(self.content, VIEW_TITLE[self.view])
+        self.header.pack(fill="x")
+        self.body = tk.Frame(self.content, bg=C.BG)
         self.body.pack(fill="both", expand=True)
-
-        self._build_sidebar()
         self._render_body()
 
     # --- pindah menu -------------------------------------------------------------
@@ -72,8 +56,8 @@ class TeacherScreen(tk.Frame):
         if view == self.view:
             return
         self.view = view
-        self.title_lbl.config(text=VIEW_TITLE[view])
-        self._build_sidebar()
+        self.header.set_title(VIEW_TITLE[view])
+        self.sb.refresh()
         self._render_body()
 
     def _render_body(self):
@@ -85,105 +69,55 @@ class TeacherScreen(tk.Frame):
         self._build_student_panel()
 
     # --- sidebar kiri ------------------------------------------------------------
-    def _build_sidebar(self):
-        for w in self.sidebar.winfo_children():
-            w.destroy()
-        sb, t = self.sidebar, self.teacher
-        self.list_scroll = None
+    def _populate(self, sb):
         self._row_widgets = {}
+        sb.nav("Tambah murid", "plus", self._add_student, primary=True)
+        sb.nav("Murid & Kursus", "users", lambda: self._set_view("students"),
+               active=self.view == "students")
+        sb.nav("Laporan Kerja", "report", lambda: self._set_view("reports"),
+               active=self.view == "reports")
 
-        if self.view == "students":   # paling bawah: tombol tambah murid
-            add_btn = tk.Button(sb, text="+  Tambah murid", command=self._add_student,
-                                bg=C.ACCENT, fg="white", activebackground=C.ACCENT_HOVER,
-                                activeforeground="white", relief="flat", bd=0,
-                                highlightthickness=0, font=(C.FONT, 11, "bold"),
-                                cursor="hand2", pady=8)
-            add_btn.pack(side="bottom", fill="x", padx=12, pady=(6, 14))
-            add_hover(add_btn, C.ACCENT, C.ACCENT_HOVER)
-
-        # Paling atas: foto + nama guru
-        head = tk.Frame(sb, bg=C.CARD, padx=16, pady=16)
-        head.pack(fill="x")
-        Avatar(head, t["id"], t["name"], size=56, bg=C.CARD).pack(side="left")
-        who = tk.Frame(head, bg=C.CARD)
-        who.pack(side="left", fill="x", expand=True, padx=(12, 4))
-        tk.Label(who, text=t["name"], bg=C.CARD, fg=C.TEXT, anchor="w", justify="left",
-                 wraplength=160, font=(C.FONT, 12, "bold")).pack(fill="x")
-        tk.Label(who, text=f"Guru  ·  {t['id']}", bg=C.CARD, fg=C.MUTED, anchor="w",
-                 font=(C.FONT, 9)).pack(fill="x")
-        tk.Frame(sb, bg=C.BORDER, height=1).pack(fill="x")
-
-        tk.Label(sb, text="MENU", bg=C.CARD, fg=C.MUTED, anchor="w",
-                 font=(C.FONT, 9, "bold")).pack(fill="x", padx=20, pady=(16, 6))
-        self._nav_item("Murid & Kursus", "students")
-        self._nav_item("Laporan Kerja", "reports")
-
-        if self.view != "students":
-            return
-        tk.Label(sb, text="MURID", bg=C.CARD, fg=C.MUTED, anchor="w",
-                 font=(C.FONT, 9, "bold")).pack(fill="x", padx=20, pady=(18, 6))
-        self.list_scroll = ScrollFrame(sb, bg=C.CARD)
-        self.list_scroll.pack(fill="both", expand=True, padx=(0, 6))
-        self._rebuild_list(keep_scroll=False)
-
-    def _nav_item(self, text, view):
-        current = self.view == view
-        bg = C.CARD_HOVER if current else C.CARD
-        row = tk.Frame(self.sidebar, bg=bg)
-        row.pack(fill="x", padx=10, pady=1)
-        tk.Frame(row, bg=C.ACCENT if current else "#3a3f4d", width=4).pack(
-            side="left", fill="y")
-        lbl = tk.Label(row, text=text, bg=bg, fg=C.TEXT, anchor="w", padx=12, pady=8,
-                       font=(C.FONT, 10, "bold" if current else "normal"), cursor="hand2")
-        lbl.pack(side="left", fill="x", expand=True)
-        for w in (row, lbl):
-            w.bind("<Button-1>", lambda e, v=view: self._set_view(v))
-        if not current:
-            for w in (row, lbl):
-                w.bind("<Enter>", lambda e, r=row, l=lbl: (r.config(bg=C.CARD_HOVER),
-                                                          l.config(bg=C.CARD_HOVER)))
-                w.bind("<Leave>", lambda e, r=row, l=lbl: (r.config(bg=C.CARD),
-                                                          l.config(bg=C.CARD)))
-
-    def _rebuild_list(self, keep_scroll=True):
-        """Isi ulang daftar murid di sidebar (dikelompokkan per kategori)."""
-        sc = self.list_scroll
-        if self.view != "students" or sc is None:
-            return
-        top = sc.canvas.yview()[0]
-        for w in sc.inner.winfo_children():
-            w.destroy()
-        self._row_widgets = {}
         if not self.students:
-            tk.Label(sc.inner, text="Belum ada murid.", bg=C.CARD, fg=C.MUTED,
-                     font=(C.FONT, 10), anchor="w").pack(fill="x", padx=20, pady=6)
+            sb.section("Murid")
+            sb.note("Belum ada murid. Klik “Tambah murid” untuk menambah.")
+            return
+        searching = bool(sb.query.strip())
+        found = 0
         for program in CATEGORIES:
-            group = [s for s in self.students if s["program"] == program]
+            group = [s for s in self.students if s["program"] == program
+                     and sb.matches(s["id"], s["name"])]
             if not group:
                 continue
-            folded = program in self.collapsed
-            self._group_header(program, len(group), folded)
+            found += len(group)
+            folded = program in self.collapsed and not searching   # saat mencari: selalu terbuka
+            sb.section(PROGRAM_LABEL[program], right=str(len(group)), folded=folded,
+                       on_click=lambda p=program: self._toggle_group(p))
             if folded:
                 continue
             for s in group:
-                self._student_row(s)
-        self.update_idletasks()
-        if keep_scroll:
-            sc.canvas.yview_moveto(top)
-        else:   # murid terpilih (mis. yang baru ditambah) dibawa ke area yang terlihat
-            row = self._row_widgets.get(self.current_id)
-            height = max(1, sc.inner.winfo_reqheight())
-            sc.canvas.yview_moveto(max(0.0, (row.winfo_y() - 60) / height) if row else 0.0)
+                self._row_widgets[s["id"]] = self._student_row(sb, s)
+        if not found:
+            sb.section("Murid")
+            sb.note(f"Tidak ada murid yang cocok dengan “{sb.query.strip()}”.")
 
-    def _group_header(self, program, count, folded):
-        lbl = tk.Label(self.list_scroll.inner,
-                       text=f"{'▸' if folded else '▾'}  {PROGRAM_LABEL[program].upper()}  ({count})",
-                       bg=C.CARD, fg=C.MUTED, anchor="w", padx=20, pady=5,
-                       font=(C.FONT, 9, "bold"), cursor="hand2")
-        lbl.pack(fill="x", pady=(4, 0))
-        lbl.bind("<Button-1>", lambda e, p=program: self._toggle_group(p))
-        lbl.bind("<Enter>", lambda e: lbl.config(fg=C.TEXT))
-        lbl.bind("<Leave>", lambda e: lbl.config(fg=C.MUTED))
+    def _student_row(self, sb, s):
+        expired = s.get("status") == STATUS_EXPIRED
+        current = s["id"] == self.current_id and self.view == "students"
+        return sb.item(s["name"], lambda sid=s["id"]: self._on_student_click(sid),
+                       active=current, fg=C.ERROR if expired else None,
+                       right=f"{s['id']}  ·  expired" if expired else s["id"])
+
+    def _on_search(self, _query):
+        if self.view != "students" and self.sb.query.strip():
+            self._set_view("students")   # hasil pencarian murid tampil di menu Murid & Kursus
+            return
+        self.sb.refresh(keep_scroll=False)
+
+    def _rebuild_list(self, keep_scroll=True):
+        """Isi ulang daftar murid di sidebar (dikelompokkan per kategori)."""
+        self.sb.refresh(keep_scroll=keep_scroll)
+        if not keep_scroll:   # murid terpilih (mis. yang baru ditambah) dibawa ke area yang terlihat
+            self.sb.scroll_to(self._row_widgets.get(self.current_id))
 
     def _toggle_group(self, program):   # klik judul kategori = lipat / buka
         if program in self.collapsed:
@@ -192,30 +126,11 @@ class TeacherScreen(tk.Frame):
             self.collapsed.add(program)
         self._rebuild_list()
 
-    def _student_row(self, s):
-        current = s["id"] == self.current_id
-        expired = s.get("status") == STATUS_EXPIRED
-        bg = C.CARD_HOVER if current else C.CARD
-        row = tk.Frame(self.list_scroll.inner, bg=bg)
-        row.pack(fill="x", padx=10, pady=1)
-        self._row_widgets[s["id"]] = row
-        tk.Frame(row, bg=C.ERROR if expired else (C.ACCENT if current else "#3a3f4d"),
-                 width=4).pack(side="left", fill="y")
-        text = f"{s['id']}   {s['name']}" + ("   [EXPIRED]" if expired else "")
-        lbl = tk.Label(row, text=text, bg=bg, fg=C.ERROR if expired else C.TEXT,
-                       anchor="w", justify="left", padx=12, pady=7, wraplength=190,
-                       font=(C.FONT, 10, "bold" if current else "normal"), cursor="hand2")
-        lbl.pack(side="left", fill="x", expand=True)
-        for w in (row, lbl):
-            w.bind("<Button-1>", lambda e, sid=s["id"]: self._on_student_click(sid))
-        if not current:
-            for w in (row, lbl):
-                w.bind("<Enter>", lambda e, r=row, l=lbl: (r.config(bg=C.CARD_HOVER),
-                                                          l.config(bg=C.CARD_HOVER)))
-                w.bind("<Leave>", lambda e, r=row, l=lbl: (r.config(bg=C.CARD),
-                                                          l.config(bg=C.CARD)))
-
     def _on_student_click(self, student_id):
+        if self.view != "students":
+            self.current_id = student_id
+            self._set_view("students")
+            return
         if student_id == self.current_id:
             return
         self.current_id = student_id
@@ -243,7 +158,8 @@ class TeacherScreen(tk.Frame):
                                  font=(C.FONT, 20, "bold"), anchor="w")
         self.name_lbl.pack(side="left")
         # Status akun (Active / Expired): di sebelah kanan nama murid
-        self.badge = tk.Label(name_row, text="", bg=C.CARD, font=(C.FONT, 10, "bold"),
+        self.badge = RoundButton(name_row, text="", bg=C.CARD, font=(C.FONT, 10, "bold"),
+                                 radius=13, cursor="arrow",
                               padx=12, pady=3)
         self.badge.pack(side="left", padx=(14, 0))
         self.sub_lbl = tk.Label(
@@ -265,7 +181,7 @@ class TeacherScreen(tk.Frame):
         self.tab_btns = {}
         for key, label in (("courses", "Akses Kursus"), ("history", "Riwayat Login"),
                            ("portfolio", "Portfolio")):
-            b = tk.Button(tabs, text=label, command=lambda k=key: self._set_tab(k),
+            b = RoundButton(tabs, text=label, command=lambda k=key: self._set_tab(k),
                           relief="flat", bd=0, highlightthickness=0, cursor="hand2",
                           font=(C.FONT, 10, "bold"), padx=16, pady=6)
             b.pack(side="left", padx=(0, 6))
@@ -416,9 +332,9 @@ class TeacherScreen(tk.Frame):
         total = sum(e["seconds"] for e in items)
 
         # Ringkasan: total belajar, jumlah masuk, terakhir masuk
-        box = tk.Frame(self.rows, bg=C.CARD, highlightthickness=1,
-                       highlightbackground=C.BORDER)
-        box.pack(fill="x", pady=(0, 10))
+        panel = RoundPanel(self.rows, padx=4, pady=2)
+        panel.pack(fill="x", pady=(0, 10))
+        box = panel.inner
         last = (f"{sessions.format_date(items[0]['start'])}, "
                 f"{sessions.format_time(items[0]['start'])}") if items else "—"
         for label, value in (("Total belajar", sessions.format_duration(total)),
@@ -439,9 +355,9 @@ class TeacherScreen(tk.Frame):
             return
 
         for e in items[:200]:
-            row = tk.Frame(self.rows, bg=C.CARD, highlightthickness=1,
-                           highlightbackground=C.BORDER)
-            row.pack(fill="x", pady=3)
+            panel = RoundPanel(self.rows, padx=2, pady=0)
+            panel.pack(fill="x", pady=3)
+            row = panel.inner
             dur = tk.Label(row, text=sessions.format_duration(e["seconds"]), bg=C.CARD,
                            fg=C.ACCENT, font=(C.FONT, 12, "bold"), width=9, anchor="e")
             dur.pack(side="right", padx=(8, 16))
@@ -523,6 +439,8 @@ class TeacherScreen(tk.Frame):
         self.students = list_students()
         self.current_id = created["id"]
         self.collapsed.discard(created["program"])  # pastikan kategorinya terbuka
+        if self.view != "students":   # ditambah dari menu Laporan Kerja: pindah ke menu Murid
+            self._set_view("students")
         self._rebuild_list(keep_scroll=False)
         self._show_student(created["id"])
         self.status.config(
@@ -556,7 +474,7 @@ class TeacherScreen(tk.Frame):
     # --- foto profil murid ---------------------------------------------------
     @staticmethod
     def _small_button(parent, text, command):
-        btn = tk.Button(parent, text=text, command=command, bg=C.CARD, fg=C.TEXT,
+        btn = RoundButton(parent, text=text, command=command, bg=C.CARD, fg=C.TEXT,
                         activebackground=C.BORDER, activeforeground=C.TEXT,
                         disabledforeground=C.LOCKED, relief="flat", bd=0,
                         highlightthickness=0, font=(C.FONT, 10), cursor="hand2",
@@ -622,10 +540,9 @@ class TeacherScreen(tk.Frame):
         self.status.config(text=f"Foto {sid} dihapus.", fg=C.MUTED)
 
     def _build_row(self, student_id, course, unlocked):
-        row = tk.Frame(self.rows, bg=C.CARD, highlightthickness=1,
-                       highlightbackground=C.BORDER)
-        row.pack(fill="x", pady=4)
-        tk.Frame(row, bg=course["color"], width=5).pack(side="left", fill="y")
+        panel = RoundPanel(self.rows, padx=4, pady=2, stripe=course["color"])
+        panel.pack(fill="x", pady=4)
+        row = panel.inner
 
         info = tk.Frame(row, bg=C.CARD, padx=16, pady=10)
         info.pack(side="left", fill="x", expand=True)

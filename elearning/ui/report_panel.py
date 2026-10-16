@@ -8,6 +8,7 @@ Admin melihat hasilnya di Panel Admin, tab "Laporan Guru".
 import tkinter as tk
 
 from elearning import config as C
+from elearning.ui.controls import RoundButton
 from elearning import reports
 from elearning.students import list_students
 from elearning.ui.dialogs import ConfirmDialog, ReportDialog
@@ -25,7 +26,7 @@ class ReportPanel(tk.Frame):
 
         bar = tk.Frame(self, bg=C.BG)
         bar.pack(fill="x")
-        write = tk.Button(bar, text="+  Tulis laporan", command=self._write,
+        write = RoundButton(bar, text="+  Tulis laporan", command=self._write,
                           bg=C.ACCENT, fg="white", activebackground=C.ACCENT_HOVER,
                           activeforeground="white", relief="flat", bd=0,
                           highlightthickness=0, font=(C.FONT, 11, "bold"),

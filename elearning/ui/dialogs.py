@@ -8,6 +8,8 @@ from elearning import photos, reports
 from elearning import students as S
 from elearning.ui.avatar import Avatar
 from elearning.ui.report_widgets import KIND_COLOR
+from elearning.ui.controls import (RoundButton, RoundEntry, RoundPanel, RoundSelect,
+                                   dark_titlebar)
 from elearning.ui.widgets import add_hover
 
 PROGRAMS = (("adult", "Murid dewasa"), ("kids", "Murid anak"))
@@ -28,6 +30,7 @@ class StudentDialog(tk.Toplevel):
         self.title(title)
         self.resizable(False, False)
         self.transient(master.winfo_toplevel())
+        dark_titlebar(self)
         try:
             self.iconbitmap(C.ICON_PATH)
         except Exception:
@@ -52,7 +55,7 @@ class StudentDialog(tk.Toplevel):
             row.pack(fill="x", pady=(6, 0))
             self._prog_btns = {}
             for key, label in PROGRAMS:
-                b = tk.Button(row, text=label, relief="flat", bd=0,
+                b = RoundButton(row, text=label, relief="flat", bd=0,
                               highlightthickness=0, cursor="hand2",
                               font=(C.FONT, 10, "bold"), padx=16, pady=6,
                               command=lambda k=key: self._set_program(k))
@@ -75,14 +78,14 @@ class StudentDialog(tk.Toplevel):
 
         btns = tk.Frame(body, bg=C.CARD)
         btns.pack(fill="x", pady=(10, 0))
-        ok = tk.Button(btns, text=submit_text, command=self._submit, bg=C.ACCENT,
+        ok = RoundButton(btns, text=submit_text, command=self._submit, bg=C.ACCENT,
                        fg="white", activebackground=C.ACCENT_HOVER,
                        activeforeground="white", relief="flat", bd=0,
                        highlightthickness=0, font=(C.FONT, 11, "bold"),
                        cursor="hand2", padx=22, pady=7)
         ok.pack(side="right")
         add_hover(ok, C.ACCENT, C.ACCENT_HOVER)
-        cancel = tk.Button(btns, text="Batal", command=self.destroy, bg=C.CARD,
+        cancel = RoundButton(btns, text="Batal", command=self.destroy, bg=C.CARD,
                            fg=C.MUTED, activebackground=C.BORDER,
                            activeforeground=C.TEXT, relief="flat", bd=0,
                            highlightthickness=0, font=(C.FONT, 11),
@@ -103,19 +106,15 @@ class StudentDialog(tk.Toplevel):
 
     # --- bagian-bagian dialog ---------------------------------------------------
     @staticmethod
-    def _field(parent, label, var, width, pady=0):
+    def _field(parent, label, var, width, pady=0, show=None):
         wrap = tk.Frame(parent, bg=C.CARD)
         wrap.pack(fill="x", pady=(pady, 0))
         tk.Label(wrap, text=label, bg=C.CARD, fg=C.MUTED, font=(C.FONT, 10),
                  anchor="w").pack(fill="x")
-        border = tk.Frame(wrap, bg=C.BORDER, padx=1, pady=1)
-        border.pack(fill="x", pady=(6, 0))
-        entry = tk.Entry(border, textvariable=var, width=width, bg=C.BG, fg=C.TEXT,
-                         insertbackground=C.TEXT, relief="flat", font=(C.FONT, 12))
-        entry.pack(fill="x", ipady=7, padx=1, pady=1)
-        entry.bind("<FocusIn>", lambda e: border.config(bg=C.ACCENT))
-        entry.bind("<FocusOut>", lambda e: border.config(bg=C.BORDER))
-        return entry
+        box = RoundEntry(wrap, var, show=show, width_chars=width, font=(C.FONT, 12),
+                         height=40, fill=C.BG, radius=9)
+        box.pack(fill="x", pady=(6, 0))
+        return box.entry
 
     def _set_program(self, key):
         self.program = key
@@ -168,6 +167,7 @@ class ConfirmDialog(tk.Toplevel):
         self.title(title)
         self.resizable(False, False)
         self.transient(master.winfo_toplevel())
+        dark_titlebar(self)
         try:
             self.iconbitmap(C.ICON_PATH)
         except Exception:
@@ -187,14 +187,14 @@ class ConfirmDialog(tk.Toplevel):
 
         btns = tk.Frame(body, bg=C.CARD)
         btns.pack(fill="x", pady=(10, 0))
-        ok = tk.Button(btns, text=confirm_text, command=self._confirm,
+        ok = RoundButton(btns, text=confirm_text, command=self._confirm,
                        bg=self.DANGER, fg="white", activebackground=self.DANGER_HOVER,
                        activeforeground="white", relief="flat", bd=0,
                        highlightthickness=0, font=(C.FONT, 11, "bold"),
                        cursor="hand2", padx=22, pady=7)
         ok.pack(side="right")
         add_hover(ok, self.DANGER, self.DANGER_HOVER)
-        self.cancel = tk.Button(btns, text="Batal", command=self.destroy, bg=C.BORDER,
+        self.cancel = RoundButton(btns, text="Batal", command=self.destroy, bg=C.BORDER,
                                 fg=C.TEXT, activebackground=C.CARD_HOVER,
                                 activeforeground=C.TEXT, relief="flat", bd=0,
                                 highlightthickness=0, font=(C.FONT, 11),
@@ -245,6 +245,7 @@ class ReportDialog(tk.Toplevel):
         self.title(title)
         self.resizable(False, False)
         self.transient(master.winfo_toplevel())
+        dark_titlebar(self)
         try:
             self.iconbitmap(C.ICON_PATH)
         except Exception:
@@ -267,7 +268,7 @@ class ReportDialog(tk.Toplevel):
         chips.pack(fill="x", pady=(6, 0))
         self._kind_btns = {}
         for i, (key, label) in enumerate(reports.KINDS):
-            b = tk.Button(chips, text=label, command=lambda k=key: self._set_kind(k),
+            b = RoundButton(chips, text=label, command=lambda k=key: self._set_kind(k),
                           relief="flat", bd=0, highlightthickness=0, cursor="hand2",
                           font=(C.FONT, 9, "bold"), padx=8, pady=5)
             b.grid(row=i // 3, column=i % 3, sticky="ew", padx=(0, 6), pady=(0, 6))
@@ -288,25 +289,19 @@ class ReportDialog(tk.Toplevel):
             if rec and s["id"] == rec["student"]:
                 chosen = label
         self.student_var = tk.StringVar(value=chosen)
-        menu = tk.OptionMenu(body, self.student_var, *labels)
-        menu.config(bg=C.BG, fg=C.TEXT, activebackground=C.BORDER,
-                    activeforeground=C.TEXT, relief="flat", bd=0, anchor="w",
-                    highlightthickness=1, highlightbackground=C.BORDER,
-                    font=(C.FONT, 10), cursor="hand2")
-        menu["menu"].config(bg=C.CARD, fg=C.TEXT, activebackground=C.ACCENT,
-                            activeforeground="white", font=(C.FONT, 10), bd=0)
+        menu = RoundSelect(body, self.student_var, *labels, bg=C.BG)
         menu.pack(fill="x", pady=(6, 0), ipady=3)
 
         tk.Label(body, text="Catatan", bg=C.CARD, fg=C.MUTED, font=(C.FONT, 10),
                  anchor="w").pack(fill="x", pady=(12, 0))
-        border = tk.Frame(body, bg=C.BORDER, padx=1, pady=1)
+        border = RoundPanel(body, fill=C.BG, padx=6, pady=6, radius=10)
         border.pack(fill="x", pady=(6, 0))
-        self.text = tk.Text(border, width=40, height=7, wrap="word", bg=C.BG, fg=C.TEXT,
+        self.text = tk.Text(border.inner, width=40, height=7, wrap="word", bg=C.BG, fg=C.TEXT,
                             insertbackground=C.TEXT, relief="flat", highlightthickness=0,
                             font=(C.FONT, 11), padx=8, pady=6, undo=True)
         self.text.pack(fill="x")
-        self.text.bind("<FocusIn>", lambda e: border.config(bg=C.ACCENT))
-        self.text.bind("<FocusOut>", lambda e: border.config(bg=C.BORDER))
+        self.text.bind("<FocusIn>", lambda e: border.set_style(border=RoundEntry.FOCUS_BORDER))
+        self.text.bind("<FocusOut>", lambda e: border.set_style(border=C.BORDER))
         if rec:
             self.text.insert("1.0", rec["text"])
 
@@ -316,14 +311,14 @@ class ReportDialog(tk.Toplevel):
 
         btns = tk.Frame(body, bg=C.CARD)
         btns.pack(fill="x", pady=(10, 0))
-        ok = tk.Button(btns, text="Simpan perubahan" if rec else "Simpan laporan",
+        ok = RoundButton(btns, text="Simpan perubahan" if rec else "Simpan laporan",
                        command=self._submit, bg=C.ACCENT, fg="white",
                        activebackground=C.ACCENT_HOVER, activeforeground="white",
                        relief="flat", bd=0, highlightthickness=0,
                        font=(C.FONT, 11, "bold"), cursor="hand2", padx=22, pady=7)
         ok.pack(side="right")
         add_hover(ok, C.ACCENT, C.ACCENT_HOVER)
-        cancel = tk.Button(btns, text="Batal", command=self.destroy, bg=C.CARD,
+        cancel = RoundButton(btns, text="Batal", command=self.destroy, bg=C.CARD,
                            fg=C.MUTED, activebackground=C.BORDER,
                            activeforeground=C.TEXT, relief="flat", bd=0,
                            highlightthickness=0, font=(C.FONT, 11),
@@ -391,6 +386,7 @@ class TeacherDialog(tk.Toplevel):
         self.title(title)
         self.resizable(False, False)
         self.transient(master.winfo_toplevel())
+        dark_titlebar(self)
         try:
             self.iconbitmap(C.ICON_PATH)
         except Exception:
@@ -445,14 +441,14 @@ class TeacherDialog(tk.Toplevel):
 
         btns = tk.Frame(body, bg=C.CARD)
         btns.pack(fill="x", pady=(10, 0))
-        ok = tk.Button(btns, text=submit_text, command=self._submit, bg=C.ACCENT,
+        ok = RoundButton(btns, text=submit_text, command=self._submit, bg=C.ACCENT,
                        fg="white", activebackground=C.ACCENT_HOVER,
                        activeforeground="white", relief="flat", bd=0,
                        highlightthickness=0, font=(C.FONT, 11, "bold"),
                        cursor="hand2", padx=22, pady=7)
         ok.pack(side="right")
         add_hover(ok, C.ACCENT, C.ACCENT_HOVER)
-        cancel = tk.Button(btns, text="Batal", command=self.destroy, bg=C.CARD,
+        cancel = RoundButton(btns, text="Batal", command=self.destroy, bg=C.CARD,
                            fg=C.MUTED, activebackground=C.BORDER,
                            activeforeground=C.TEXT, relief="flat", bd=0,
                            highlightthickness=0, font=(C.FONT, 11),
@@ -475,7 +471,7 @@ class TeacherDialog(tk.Toplevel):
     # --- foto ---------------------------------------------------------------------
     @staticmethod
     def _small_button(parent, text, command):
-        btn = tk.Button(parent, text=text, command=command, bg=C.BG, fg=C.TEXT,
+        btn = RoundButton(parent, text=text, command=command, bg=C.BG, fg=C.TEXT,
                         activebackground=C.BORDER, activeforeground=C.TEXT,
                         disabledforeground=C.LOCKED, relief="flat", bd=0,
                         highlightthickness=0, font=(C.FONT, 10), cursor="hand2",

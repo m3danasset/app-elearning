@@ -10,6 +10,7 @@ ReportCard        : satu laporan; tombol Ubah / Hapus hanya muncul kalau diberi 
 import tkinter as tk
 
 from elearning import config as C
+from elearning.ui.controls import RoundButton, RoundPanel
 from elearning import reports, sessions
 from elearning.ui.widgets import add_hover
 
@@ -38,7 +39,7 @@ def empty_note(parent, text):
 
 
 def small_button(parent, text, command, fg=C.MUTED, bg=C.CARD, hover=C.BORDER):
-    btn = tk.Button(parent, text=text, command=command, bg=bg, fg=fg,
+    btn = RoundButton(parent, text=text, command=command, bg=bg, fg=fg,
                     activebackground=hover, activeforeground=fg, relief="flat", bd=0,
                     highlightthickness=0, font=(C.FONT, 9), cursor="hand2",
                     padx=10, pady=3)
@@ -55,7 +56,7 @@ class PeriodBar(tk.Frame):
         self.on_change = on_change
         self._btns = {}
         for k, label in reports.PERIODS:
-            b = tk.Button(self, text=label, command=lambda k=k: self.select(k),
+            b = RoundButton(self, text=label, command=lambda k=k: self.select(k),
                           relief="flat", bd=0, highlightthickness=0, cursor="hand2",
                           font=(C.FONT, 10), padx=12, pady=5)
             b.pack(side="left", padx=(0, 6))
@@ -114,9 +115,9 @@ class PortfolioSummary(tk.Frame):
             frame.grid_columnconfigure(i, weight=weight, uniform="pcol")
 
     def _row(self, r):
-        row = tk.Frame(self, bg=C.CARD, highlightthickness=1,
-                       highlightbackground=C.BORDER, padx=14, pady=8)
-        row.pack(fill="x", pady=(6, 0))
+        panel = RoundPanel(self, padx=14, pady=8)
+        panel.pack(fill="x", pady=(6, 0))
+        row = panel.inner
         self._columns(row)
 
         who = tk.Frame(row, bg=C.CARD)
@@ -150,7 +151,7 @@ class PortfolioSummary(tk.Frame):
                      anchor="w", font=(C.FONT, 10)).grid(row=0, column=col, sticky="w")
 
 
-class ReportCard(tk.Frame):
+class ReportCard(RoundPanel):
     """Satu laporan.
 
     rec          : item dari reports.list_reports()
@@ -161,12 +162,9 @@ class ReportCard(tk.Frame):
 
     def __init__(self, master, rec, student_name, teacher_name=None,
                  on_edit=None, on_delete=None):
-        super().__init__(master, bg=C.CARD, highlightthickness=1,
-                         highlightbackground=C.BORDER)
         color = KIND_COLOR.get(rec["kind"], C.MUTED)
-        tk.Frame(self, bg=color, width=5).pack(side="left", fill="y")
-        body = tk.Frame(self, bg=C.CARD, padx=16, pady=10)
-        body.pack(side="left", fill="both", expand=True)
+        super().__init__(master, padx=14, pady=12, stripe=color)
+        body = self.inner
 
         head = tk.Frame(body, bg=C.CARD)
         head.pack(fill="x")

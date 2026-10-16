@@ -176,7 +176,7 @@ class DarkScrollbar(tk.Canvas):
         self.delete("all")
         y0, y1 = self._thumb()
         w = self.W
-        color = "#5a6072" if active else C.TRACK_OFF
+        color = C.LOCKED if active else C.TRACK_OFF
         self.create_oval(0, y0, w, y0 + w, fill=color, outline=color)
         self.create_oval(0, y1 - w, w, y1, fill=color, outline=color)
         self.create_rectangle(0, y0 + w / 2, w, y1 - w / 2, fill=color, outline=color)
