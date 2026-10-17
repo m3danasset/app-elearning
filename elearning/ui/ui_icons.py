@@ -108,6 +108,10 @@ def _chevrons(x, y):
                _lines(x, y, (6.6, 12.0), (10, 15.2), (13.4, 12.0)))
 
 
+def _chev_up(x, y):
+    return _lines(x, y, (6.2, 11.8), (10, 8.0), (13.8, 11.8))
+
+
 def _chev_down(x, y):
     return _lines(x, y, (6.2, 8.2), (10, 12.0), (13.8, 8.2))
 
@@ -286,7 +290,7 @@ SHAPES = {
     "emo_seru": _emo_seru, "emo_paham": _emo_paham, "emo_bingung": _emo_bingung,
     "emo_keren": _emo_keren, "emo_capek": _emo_capek, "emo_bosan": _emo_bosan,
     "clock": _clock, "enter": _enter, "chev_left": _chev_left, "arrow_up": _arrow_up,
-    "list": _list, "pen": _pen,
+    "list": _list, "pen": _pen, "chev_up": _chev_up,
 }
 
 

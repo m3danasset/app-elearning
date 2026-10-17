@@ -299,3 +299,9 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   tersembunyi" (chip) menggantikan sapaan; SERET chip ke slot, seret widget antar slot (tukar),
   seret ke baki / klik x = sembunyikan. Klik widget (mode biasa) = buka menu terkait. Angka
   widget dihitung di thread (dashboard.info); muat ulang diantre (_again).
+- Laci kartu (drawer): KECIL (bawaan) = sapaan besar (40 pt) di tengah antara widget & laci,
+  hanya baris kartu pertama (3 kartu / sesuai kolom) di paling bawah, tanpa pudar. Tombol
+  panah minimalis (ui_icons chev_up / chev_down) di atas kartu: "x dari n · Tampilkan semua"
+  / "Kecilkan". PENUH = laci naik tepat di bawah widget, menutupi sapaan, bisa digulir +
+  pudar bawah. Roda mouse: ke bawah di laci kecil = buka; ke atas di laci penuh (posisi
+  paling atas) = kecilkan. Mode atur widget memakai susunan lama (baki, kartu di bawahnya).

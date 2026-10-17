@@ -36,6 +36,7 @@ PER_ROW = 6                 # maks. 6 per baris, 2 baris (dashboard.MAX_WIDGETS)
 PEN_D = 36                  # tombol pena (mode atur widget)
 DEL_D = 22                  # tombol x (sembunyikan widget, mode atur)
 CHIP_H = 34                 # widget tersembunyi di baki (mode atur)
+HANDLE_D = 30               # tombol panah laci kartu (kecilkan / tampilkan semua)
 WIDGET_ACCENT = {"clock": BLUE, "done": "#3fb68b", "online": "#ea7600", "date": "#b39af0",
                  "signups": "#ea7600", "certs": "#3fb68b", "classes": BLUE,
                  "students": BLUE, "idle": "#e3c26f", "unscheduled": "#e3c26f",
@@ -141,6 +142,8 @@ class DashboardView(tk.Canvas):
         self.scroll = 0
         self.shift = 0                 # ruang tambahan di atas (layar tinggi)
         self.card_scroll = 0           # gulir area kartu (px); widget & sapaan tidak ikut
+        self.drawer_open = False       # laci kartu: kecil (1 baris di bawah) / penuh
+        self._handle = None            # (cx, cy) tombol panah laci
         self.cards_top = TOP_H
         self._size = (0, 0)
         self._layer = None
@@ -161,7 +164,7 @@ class DashboardView(tk.Canvas):
             "btn": tkfont.Font(family=C.FONT, size=9, weight="bold"),
             "big": tkfont.Font(family=C.FONT, size=16, weight="bold"),
             "small": tkfont.Font(family=C.FONT, size=9),
-            "hero": tkfont.Font(family=C.FONT, size=30, weight="bold"),
+            "hero": tkfont.Font(family=C.FONT, size=40, weight="bold"),
             "clock": tkfont.Font(family=C.FONT, size=28, weight="bold"),
         }
         path = None
@@ -308,15 +311,34 @@ class DashboardView(tk.Canvas):
         n = len(self.items or [])
         rows = -(-n // cols) if n else 0
         rowh = CARD_H + GAP
-        top = self.cards_top = self._hero_h() + self.shift - 12
-        # bisa digulir sampai baris terakhir keluar dari area pudar bawah
+        self._handle = None
+        if self.editing:
+            top = self.cards_top = self._hero_h() + self.shift - 12
+            first_y = top + 12
+        else:
+            self.shift = 0                   # widget di atas, sapaan di tengah layar
+            wb = (max(r[3] for r in self._widget_rects()) if self.widgets
+                  else WIDGET_Y + 36)
+            if self.drawer_open:             # laci penuh: naik sampai di bawah widget
+                hy = wb + 34
+            else:                            # laci kecil: 1 baris kartu di paling bawah
+                hy = H - PAD - CARD_H - 30
+            self._handle = (W / 2, hy) if rows > 1 or self.drawer_open else None
+            top = self.cards_top = hy + 22
+            first_y = top + 6
+            if not self.drawer_open:
+                self.card_scroll = 0
+        # laci penuh / mode atur: bisa digulir sampai baris terakhir keluar dari area pudar
         self.card_scroll = max(0, min(self.card_scroll,
                                       rows * rowh + FADE_BOTTOM - (H - top)))
         self.rects = []
         for i in range(n):
             r, c = divmod(i, cols)
             x0 = PAD + c * (cw + GAP)
-            y0 = top + 12 + r * rowh - self.card_scroll       # koordinat layar
+            if not self.editing and not self.drawer_open and r > 0:
+                y0 = -10_000                 # laci kecil: hanya baris pertama
+            else:
+                y0 = first_y + r * rowh - self.card_scroll       # koordinat layar
             self.rects.append((x0, y0, x0 + cw, y0 + CARD_H))
         self.hover = None
         self.itemconfigure(self._hover_item, state="hidden")
@@ -850,6 +872,8 @@ class DashboardView(tk.Canvas):
         t0 = self.cards_top
         if y < t0:
             return 0.0
+        if not self.drawer_open and not self.editing:    # laci kecil: utuh, tanpa pudar
+            return 1.0 if y <= H else 0.0
         return max(0.0, min(1.0, (y - t0) / FADE_TOP, (H - y) / FADE_BOTTOM))
 
     def _fade_mask(self, W, H):
@@ -860,7 +884,7 @@ class DashboardView(tk.Canvas):
             col = Image.new("L", (1, H))
             col.putdata([int(255 * self._fade(y + 0.5)) for y in range(H)])
             return col.resize((W, H))
-        return _cached(("fade", W, H, t0), make)
+        return _cached(("fade", W, H, t0, self.drawer_open or self.editing), make)
 
     def _btn_size(self, it):
         text = it["action"] + "  →"
@@ -894,6 +918,17 @@ class DashboardView(tk.Canvas):
                 self._draw_cards_text(W, H)
                 self._fade_text()
             return
+        self._draw_handle()
+        if self.drawer_open:                 # laci penuh menutupi sapaan
+            self._draw_widgets(rects, dy)
+            if self.items is not None:
+                self._draw_cards_text(W, H)
+                self._fade_text()
+            return
+        wb = max(r[3] for r in rects) if rects else WIDGET_Y + 36
+        bottom = self._handle[1] - HANDLE_D if self._handle else \
+            (min(r[1] for r in self.rects if r[1] > -1000) if self.rects else H)
+        gy = max(wb + 30, (wb + bottom) / 2 - 46)       # tengah antara widget & laci
         self.create_text(W / 2, gy + dy, anchor="n", tags="txt", font=self.f["hero"],
                          fill=C.TEXT, text=f"{D.greeting()}, {name}")
         if self.items is None:
@@ -902,13 +937,40 @@ class DashboardView(tk.Canvas):
             todo = sum(1 for it in self.items if it["level"] in ("urgent", "todo"))
             sub = (f"{D.today_text()}  ·  " +
                    (f"{todo} hal perlu dikerjakan" if todo else "semua beres, kerja bagus!"))
-        self.create_text(W / 2, gy + 56 + dy, anchor="n", tags="txt", font=self.f["sub"],
+        self.create_text(W / 2, gy + 70 + dy, anchor="n", tags="txt", font=self.f["sub"],
                          fill=C.MUTED, text=sub)
         self._draw_widgets(rects, dy)
         if self.items is None:
             return
         self._draw_cards_text(W, H)
         self._fade_text()
+
+    def _draw_handle(self):
+        """Tombol panah minimalis di atas laci kartu + keterangan kecil."""
+        self.delete("handle")
+        if self._handle is None or self.items is None:
+            return
+        cx, cy = self._handle
+        up = not self.drawer_open
+        img = self._disc(HANDLE_D, "#2c2b28", 230, "chev_up" if up else "chev_down", "#d8d5cc")
+        tag = ("txt", "handle")
+        self.create_image(cx, cy, image=img, tags=tag)
+        n = len(self.items)
+        shown = min(n, self._cols(self._size[0]))
+        label = f"Tampilkan semua ({n})" if up else "Kecilkan"
+        self.create_text(cx + HANDLE_D / 2 + 10, cy, anchor="w", tags=tag,
+                         font=self.f["small"], fill=C.MUTED, text=label)
+        if up and n > shown:
+            self.create_text(cx - HANDLE_D / 2 - 10, cy, anchor="e", tags=tag,
+                             font=self.f["small"], fill=C.MUTED, text=f"{shown} dari {n}")
+        self.tag_bind("handle", "<Button-1>", self._toggle_drawer)
+        self.tag_bind("handle", "<Enter>", lambda e: self.config(cursor="hand2"))
+
+    def _toggle_drawer(self, _e=None):
+        self._ate_click = True
+        self.drawer_open = not self.drawer_open
+        self.card_scroll = 0
+        self._layout()
 
     def _fade_text(self):
         """Teks kartu di tepi area gulir: warnanya dicampur ke latar (ikut memudar)."""
@@ -1040,6 +1102,17 @@ class DashboardView(tk.Canvas):
     def _wheel(self, e):
         """Roda mouse: area kartu digulir atas-bawah (tanpa scrollbar); widget & sapaan diam.
         Kartu memudar di batas atas area dan di bawah layar."""
+        if not self.editing and self._handle is not None:
+            if not self.drawer_open and e.delta < 0:
+                self._toggle_drawer()
+                self._ate_click = False
+                return
+            if self.drawer_open and e.delta > 0 and self.card_scroll == 0:
+                self._toggle_drawer()
+                self._ate_click = False
+                return
+        if not self.editing and not self.drawer_open:
+            return
         old = self.card_scroll
         self.card_scroll = max(0, old - int(e.delta / 120 * 80))
         self._layout()                  # dibatasi otomatis
