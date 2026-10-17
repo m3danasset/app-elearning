@@ -43,7 +43,8 @@ def _start_folder():
     try:
         with open(LAST_FILE, encoding="utf-8") as f:
             last = f.read().strip()
-        if last and os.path.isdir(last) and (not drives or
+        from elearning.ui.file_browser import blocked
+        if last and os.path.isdir(last) and not blocked(last) and (not drives or
                                              any(last.upper().startswith(d) for d in drives)):
             return last
     except OSError:
@@ -88,6 +89,10 @@ def save_items(widget, items, on_done, subfolder=""):
         return
     folder = choose_folder(widget)
     if not folder:
+        return
+    from elearning.ui.file_browser import blocked
+    if blocked(folder):   # B: = sistem e-learning: murid tidak boleh menyimpan ke sana
+        on_done("Tidak boleh menyimpan ke drive sistem. Pilih flashdisk atau drive Z:.", False)
         return
     if subfolder:
         folder = os.path.join(folder, "".join(ch for ch in subfolder if ch not in '\\/:*?"<>|'))

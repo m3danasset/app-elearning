@@ -61,6 +61,17 @@ def _norm(path):
 
 
 # --- tempat (mode pick) ------------------------------------------------------------------
+def blocked(path):
+    """True kalau path ada di drive terlarang (config.BLOCKED_DRIVES, mis. B: sistem)."""
+    try:
+        drives = {os.path.splitdrive(os.path.realpath(path))[0].upper(),
+                  os.path.splitdrive(path)[0].upper()}
+    except OSError:
+        return True
+    bad = {d.rstrip("\\/").upper() for d in getattr(C, "BLOCKED_DRIVES", ())}
+    return bool(drives & bad)
+
+
 def _roots():
     """Drive yang BOLEH dibuka murid: drive lokal murid (config.STUDENT_DRIVE, mis. Z:)
     dan flashdisk yang tercolok. [(label, path)]"""
@@ -74,7 +85,7 @@ def _roots():
             out.append((f"Flashdisk {d[:2]}", d))
     except Exception:
         pass
-    return out
+    return [(label, p) for label, p in out if not blocked(p)]   # B: tidak pernah tampil
 
 
 def _inside(path, roots):
@@ -91,7 +102,7 @@ def _inside(path, roots):
         real = os.path.realpath(path)
     except OSError:
         return False
-    return bool(roots) and ok(path) and ok(real)
+    return bool(roots) and ok(path) and ok(real) and not blocked(path)
 
 
 def _places():

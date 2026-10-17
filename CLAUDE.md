@@ -68,6 +68,8 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   Mode "pick": tombol Upload murid (Portfolio / Assignment) memilih gambar & video dari PC
   HANYA drive lokal murid (config.STUDENT_DRIVE, default Z:\) dan flashdisk yang tercolok;
   folder lain, naik di atas akar drive, dan shortcut/junction ke luar drive ditolak.
+  Drive sistem B: (config.BLOCKED_DRIVES) diblok total: tidak tampil, tidak bisa dibuka,
+  dan Simpan ke flashdisk menolak tujuan di B: (usb_save).
   centang banyak file -> Upload. Guru tetap memakai dialog bawaan Windows.
   Mode "resource": ResourcePage di layar kursus, hanya baca: buka (Enter / klik dua kali),
   centang -> Simpan ke flashdisk; tidak bisa naik di atas folder kursus.
