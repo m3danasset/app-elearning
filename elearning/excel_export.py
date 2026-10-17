@@ -619,7 +619,7 @@ def export(path, label, start, end, who="all", sheets=None):
                 bdt = None
             mine = [_slot_text(sl) for sl in slots_all if s["id"] in sl["students"]]
             try:
-                n_badge = len(achievements.earned(s["id"]))
+                n_badge = len(achievements.earned_all(s["id"]))   # semua kursus
             except Exception:
                 n_badge = 0
             n_asg = sum(1 for u in uploads if u[0]["id"] == s["id"] and u[6] == "Assignment")
@@ -859,11 +859,11 @@ def export(path, label, start, end, who="all", sheets=None):
         bg_rows = []
         for s in students:
             try:
-                got = achievements.earned(s["id"])
+                got = achievements.earned_all(s["id"])     # badge per kursus
             except Exception as exc:
                 C.log(f"Export: badge {s['id']} gagal dibaca: {exc!r}")
-                got = {}
-            for bid, t in sorted(got.items(), key=lambda kv: kv[1]):
+                got = []
+            for cid, bid, t in sorted(got, key=lambda r: r[2]):
                 b = achievements.BY_ID.get(bid)
                 if b is None:
                     continue
@@ -875,11 +875,12 @@ def export(path, label, start, end, who="all", sheets=None):
                     continue
                 cat = dict((k, n) for k, n, _c in achievements.CATEGORIES).get(b["cat"], "")
                 bg_rows.append([len(bg_rows) + 1, when, s["id"], s["name"], _label(s),
-                                b["name"], cat, b["desc"]])
+                                titles.get(cid, cid), b["name"], cat, b["desc"]])
         out.append(("Badge Murid", _sheet(
-            "Badge Murid", f"{sub}   ·   {len(bg_rows)} badge didapat",
-            ["No", "Didapat", "ID", "Nama", "Label", "Badge", "Kategori", "Cara mendapat"],
-            [6, 18, 10, 26, 8, 24, 13, 50], bg_rows, [0, 4, 0, 0, 0, 0, 0, 8])))
+            "Badge Murid", f"{sub}   ·   {len(bg_rows)} badge didapat (badge berlaku per kursus)",
+            ["No", "Didapat", "ID", "Nama", "Label", "Kursus", "Badge", "Kategori",
+             "Cara mendapat"],
+            [6, 18, 10, 26, 8, 18, 24, 13, 50], bg_rows, [0, 4, 0, 0, 0, 0, 0, 0, 8])))
 
     if not out:
         raise ValueError("tidak ada sheet yang dipilih")

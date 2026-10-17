@@ -85,7 +85,7 @@ def _roots():
     try:
         from elearning.ui.usb_save import removable_drives
         for d in removable_drives():
-            out.append((f"Flashdisk {d[:2]}", d))
+            out.append((f"Flash drive {d[:2]}", d))
     except Exception:
         pass
     return [(label, p) for label, p in out if not blocked(p)]   # B: tidak pernah tampil
@@ -310,8 +310,8 @@ class FileBrowser(OverlayPanel):
             if not start or not os.path.isdir(start) or not _inside(start, self.tabs_roots()):
                 start = self.tabs[0][0] if self.tabs else DRIVES
         else:
-            self.tabs = [("all", "Semua"), ("image", "Gambar"), ("video", "Video"),
-                         ("file", "Lainnya")]
+            self.tabs = [("all", "All"), ("image", "Images"), ("video", "Videos"),
+                         ("file", "Other")]
             self.filter = "all"
             start = self.root
 
@@ -520,7 +520,7 @@ class FileBrowser(OverlayPanel):
                 self.loading = False
                 if isinstance(data, Exception):
                     C.log(f"File browser: {path!r} tidak bisa dibuka: {data!r}")
-                    self.error = "Folder ini tidak bisa dibuka."
+                    self.error = "This folder cannot be opened."
                     self.entries = []
                 else:
                     if self.pick and path != DRIVES:   # shortcut ke luar drive murid: sembunyi
@@ -720,8 +720,8 @@ class FileBrowser(OverlayPanel):
         W, H = self.W, self.H
         y = H - FOOT_H / 2
         x = 20
-        hints = [("Tutup", "Esc"), ("Naik", "Backspace")]
-        hints.append(("Centang", "Spasi") if self.pick else ("Buka", "Enter"))
+        hints = [("Close", "Esc"), ("Up", "Backspace")]
+        hints.append(("Check", "Space") if self.pick else ("Open", "Enter"))
         for text, key in hints:
             t = cv.create_text(x, y, text=text, anchor="w", fill=C.MUTED, font=self._f_sub,
                                tags="frame")
@@ -731,9 +731,9 @@ class FileBrowser(OverlayPanel):
         right = W - 16
         if self.pick:
             n = len(self.checked)
-            label = f"Upload {n} file" if n else "Upload"
+            label = f"Upload {n} file(s)" if n else "Upload"
         else:
-            label = "Buka"
+            label = "Open"
         ok = self._primary_ok()
         bw = self._f_btn.measure(label) + 32
         hover = self._hover == ("primary", None) and ok
@@ -748,7 +748,7 @@ class FileBrowser(OverlayPanel):
         right -= bw + 8
         if not self.pick and self.on_save is not None:
             n = len(self.checked)
-            label = f"Simpan {n} ke flashdisk" if n else "Simpan ke flashdisk"
+            label = f"Save {n} to flash drive" if n else "Save to flash drive"
             bw = self._f_tab.measure(label) + 28
             self._btn(cv, right - bw, y - 15, bw, 30, "secondary", None, C.CARD, C.CARD,
                       text=label, border=C.BORDER, r=9)
@@ -761,9 +761,9 @@ class FileBrowser(OverlayPanel):
     def _info(self):
         if self.checked:
             size = sum(e["size"] for e in self.checked.values())
-            return f"{len(self.checked)} dipilih  ·  {portfolio.format_size(size)}"
+            return f"{len(self.checked)} selected  ·  {portfolio.format_size(size)}"
         files = sum(1 for e in self.shown if not e["is_dir"])
-        return f"{files} file" if files else ""
+        return f"{files} file(s)" if files else ""
 
     # --- gambar: daftar ---------------------------------------------------------------------
     def _draw_list(self):
@@ -774,22 +774,22 @@ class FileBrowser(OverlayPanel):
         cv._imgs = []
         lw, lh = self.lw, self.lh
         if not self.loading and (self.error or not self.shown):
-            msg = self.error or ("Folder kosong." if not self.pick
-                                 else "Tidak ada gambar atau video di folder ini.")
+            msg = self.error or ("Empty folder." if not self.pick
+                                 else "No images or videos in this folder.")
             if not self.pick and self.cur == self.root and not self.entries:
-                msg = "Belum ada resource untuk kursus ini."
+                msg = "No resources for this course yet."
             if self.pick and self.cur == DRIVES and not self.entries:
-                msg = "Drive Z: dan flashdisk tidak ditemukan. Hubungi guru."
+                msg = "Drive Z: and flash drives were not found. Ask your teacher."
             cv.create_text(lw / 2, 70, text=msg, fill=C.MUTED, font=self._f_row)
             return
         if self.loading:
-            cv.create_text(lw / 2, 70, text="Memuat…", fill=C.MUTED, font=self._f_row)
+            cv.create_text(lw / 2, 70, text="Loading…", fill=C.MUTED, font=self._f_row)
             return
         if self.view == "details":
             y = -self.offset
             if y + HEAD_H > 0:
-                for text, x, anchor in (("Nama", 70, "w"), ("Diubah", lw - 230, "w"),
-                                        ("Ukuran", lw - 22, "e")):
+                for text, x, anchor in (("Name", 70, "w"), ("Modified", lw - 230, "w"),
+                                        ("Size", lw - 22, "e")):
                     cv.create_text(x, y + HEAD_H / 2, text=text, anchor=anchor,
                                    fill=C.MUTED, font=self._f_sub)
         for i in self._visible_range():
@@ -1081,11 +1081,11 @@ class ResourcePage(tk.Frame):
             lb = tk.Label(box, image=ic, bg=C.BG, bd=0)
             lb.image = ic
             lb.pack(pady=(0, 10))
-        tk.Label(box, text=f"Resource {course['title']}", bg=C.BG, fg=C.TEXT,
+        tk.Label(box, text=f"{course['title']} Resources", bg=C.BG, fg=C.TEXT,
                  font=(C.FONT, 18, "bold")).pack()
         self.info = tk.Label(box, text="", bg=C.BG, fg=C.MUTED, font=(C.FONT, 10))
         self.info.pack(pady=(4, 16))
-        self.btn = RoundButton(box, text="Buka file", command=self.open_browser, bg=C.ACCENT,
+        self.btn = RoundButton(box, text="Open files", command=self.open_browser, bg=C.ACCENT,
                                fg="white", activebackground=C.ACCENT_HOVER,
                                activeforeground="white", font=(C.FONT, 11, "bold"),
                                padx=22, pady=8)
@@ -1120,16 +1120,16 @@ class ResourcePage(tk.Frame):
                 return
             files, folders = box["res"]
             if not files and not folders:
-                self.info.config(text="Belum ada resource untuk kursus ini.")
+                self.info.config(text="No resources for this course yet.")
                 return
-            parts = [f"{files} file"] + ([f"{folders} folder"] if folders else [])
-            self.info.config(text="  ·  ".join(parts) + "  ·  buka, lihat, simpan ke flashdisk")
+            parts = [f"{files} file(s)"] + ([f"{folders} folder(s)"] if folders else [])
+            self.info.config(text="  ·  ".join(parts) + "  ·  open, view, save to flash drive")
             self.btn.pack()
         poll()
 
     def open_browser(self):
         open_file_browser(self, mode="resource", root=self.folder,
-                          title=f"Resource {self.course['title']}", on_save=self._save)
+                          title=f"{self.course['title']} Resources", on_save=self._save)
 
     def _save(self, items):
         from elearning.ui import usb_save

@@ -26,6 +26,7 @@ import time
 import tkinter as tk
 import tkinter.font as tkfont
 
+from elearning.i18n import L
 from elearning import config as C
 from elearning import recents
 from elearning.ui import ui_icons as I
@@ -370,7 +371,7 @@ class SearchPalette(OverlayPanel):
 
     def _build(self, top, sources, tab="all"):
         self.src = sources
-        self.tabs = list(sources.get("tabs") or [("all", "Semua")])
+        self.tabs = list(sources.get("tabs") or [("all", L("Semua", "All"))])
         keys = [k for k, _ in self.tabs]
         self.tab = tab if tab in keys else keys[0]
         self.items = list(sources.get("items") or [])
@@ -398,7 +399,7 @@ class SearchPalette(OverlayPanel):
         e = self.entry = tk.Entry(self.cv, textvariable=self.var, bg=C.CARD, fg=C.TEXT,
                                   insertbackground=C.TEXT, relief="flat", bd=0,
                                   highlightthickness=0, font=self._f_in)
-        self.ph = tk.Label(e, text=sources.get("placeholder", "Cari"), bg=C.CARD, fg=C.MUTED,
+        self.ph = tk.Label(e, text=sources.get("placeholder", L("Cari", "Search")), bg=C.CARD, fg=C.MUTED,
                            font=self._f_in, bd=0, padx=0, cursor="xterm")
         self.ph.bind("<Button-1>", lambda ev: e.focus_set())
         self.cv.create_window(24, 34, anchor="w", window=e, width=self.W - 84, height=28)
@@ -473,8 +474,8 @@ class SearchPalette(OverlayPanel):
         # petunjuk tombol
         y = H - FOOT_H / 2
         x = 20
-        for text, keys in (("Tutup", ("Esc",)), ("Ganti tipe", ("←", "→")),
-                           ("Pilih", ("↑", "↓"))):
+        for text, keys in ((L("Tutup", "Close"), ("Esc",)), (L("Ganti tipe", "Switch type"), ("←", "→")),
+                           (L("Pilih", "Select"), ("↑", "↓"))):
             t = cv.create_text(x, y, text=text, anchor="w", fill=C.MUTED, font=self._f_sub,
                                tags="frame")
             x = cv.bbox(t)[2] + 8
@@ -482,7 +483,7 @@ class SearchPalette(OverlayPanel):
                 x += _keycap(cv, x, y, k, C.CARD, self._f_key, tags="frame") + 4
             x += 18
         kw = _keycap(cv, W - 20, y, "Enter", C.CARD, self._f_key, anchor="e", tags="frame")
-        cv.create_text(W - 28 - kw, y, text="Buka", anchor="e", fill=C.MUTED,
+        cv.create_text(W - 28 - kw, y, text=L("Buka", "Open"), anchor="e", fill=C.MUTED,
                        font=self._f_sub, tags="frame")
         cv.tag_lower("frame")
 
@@ -620,20 +621,20 @@ class SearchPalette(OverlayPanel):
                     section(self._label(k),
                             self._search([it for it in self.items if it["kind"] == k],
                                          words, PER_KIND))
-                section("Aksi", self._search(self.actions, words, PER_KIND))
+                section(L("Aksi", "Actions"), self._search(self.actions, words, PER_KIND))
             else:
-                section("Terakhir dibuka", self._recent())
-                section("Aksi", self.actions)
+                section(L("Terakhir dibuka", "Recently opened"), self._recent())
+                section(L("Aksi", "Actions"), self.actions)
         elif self.tab == "actions":
-            section("Aksi", self._search(self.actions, words, MAX_ROWS) if words
+            section(L("Aksi", "Actions"), self._search(self.actions, words, MAX_ROWS) if words
                     else self.actions)
         else:
             pool = [it for it in self.items if it["kind"] == self.tab]
             if words:
-                section("Hasil", self._search(pool, words, MAX_ROWS))
+                section(L("Hasil", "Results"), self._search(pool, words, MAX_ROWS))
             else:
                 rec = self._recent(self.tab, 5)
-                section("Terakhir dibuka", rec)
+                section(L("Terakhir dibuka", "Recently opened"), rec)
                 seen = {id(it) for it in rec}
                 section(self._label(self.tab),
                         [it for it in pool if id(it) not in seen][:MAX_ROWS])
@@ -656,7 +657,8 @@ class SearchPalette(OverlayPanel):
         cv._imgs = []
         if not self.rows:
             q = self.var.get().strip()
-            msg = (f"Tidak ada hasil untuk “{q}”." if q else "Belum ada isi di sini.")
+            msg = (L(f"Tidak ada hasil untuk “{q}”.", f"No results for “{q}”.") if q
+                   else L("Belum ada isi di sini.", "Nothing here yet."))
             cv.create_text(lw / 2, 60, text=msg, fill=C.MUTED, font=self._f_row)
             return
         top, bottom = self.offset, self.offset + lh

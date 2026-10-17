@@ -228,17 +228,18 @@ def compute(period="30d", program="all"):
 
     # --- badge ---------------------------------------------------------------------------
     badge_period = badge_prev = 0
-    badge_count = {}          # id badge -> jumlah murid yang punya (sepanjang masa)
-    badges_by_student = {}
+    badge_count = {}          # id badge -> jumlah murid yang punya (di kursus mana pun)
+    badges_by_student = {}    # badge per kursus: dijumlah semua kursus
     for s in students:
         try:
-            got = achievements.earned(s["id"])
+            got = achievements.earned_all(s["id"])
         except Exception as exc:
             C.log(f"Analytics: badge {s['id']} gagal dibaca: {exc!r}")
-            got = {}
+            got = []
         badges_by_student[s["id"]] = len(got)
-        for bid, t in got.items():
+        for bid in {b for _cid, b, _t in got}:
             badge_count[bid] = badge_count.get(bid, 0) + 1
+        for _cid, bid, t in got:
             try:
                 when = datetime.strptime(t, achievements.FMT)
             except Exception:

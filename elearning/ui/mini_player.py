@@ -269,7 +269,7 @@ class MiniPlayer(tk.Toplevel):
         self.can_prev, self.can_next = can_prev, can_next
         if not self._ensure_engine():
             self.has_video = False
-            self._message("Video tidak bisa diputar.")
+            self._message("Video cannot be played.")
             return
         e = self.engine
         self.playing = False
@@ -340,7 +340,7 @@ class MiniPlayer(tk.Toplevel):
         self.has_video = False
         self.playing = False
         if not LV.HAS_VIDEO or not path:
-            self._message("Video tidak bisa diputar (lihat app.log).")
+            self._message("Video cannot be played (see app.log).")
             return
         C.log(f"Mini player: pindah ke OpenCV: {why}")
         self.engine = LV._CvEngine()
@@ -633,7 +633,7 @@ class MiniPlayer(tk.Toplevel):
             e.stop()
             self.has_video = False
             self.playing = False
-            self._message("Video tidak bisa diputar.")
+            self._message("Video cannot be played.")
             return
         if self._start is not None and (not e.has_audio or e.loaded):
             pos, play = self._start      # video sudah termuat: lanjut dari posisi terakhir

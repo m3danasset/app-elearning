@@ -1,15 +1,14 @@
-"""Layar utama setelah login (murid & trial): sidebar kiri + pilihan kursus / halaman Badge."""
+"""Layar utama setelah login (murid & trial): sidebar kiri + pilihan kursus.
+Badge berlaku per kursus (halaman Badges ada di layar kursus). Teks English (layar murid)."""
 
 import tkinter as tk
 
-from elearning import achievements
 from elearning import config as C
 from elearning.courses import visible_for
 from elearning.trial import is_trial
 from elearning.ui.course_dock import CourseDock
-from elearning.ui.sidebar import (AppSidebar, PageHeader, SidebarLayout, blender_footer,
+from elearning.ui.sidebar import (AppSidebar, SidebarLayout, blender_footer,
                                   course_items, student_subtitle)
-from elearning.ui.widgets import ScrollFrame
 
 
 class HomeScreen(SidebarLayout):
@@ -20,15 +19,15 @@ class HomeScreen(SidebarLayout):
         self.trial = is_trial(student)
         self.courses = visible_for(student)   # dewasa / anak / trial, minus yang disembunyikan
         self.allowed = set(student["courses"])
-        self.view = "courses" if self.trial else view    # "courses" atau "badges"
+        self.view = "courses"     # badge per kursus: halaman Badges ada di layar kursus
         self.dock = None
 
         self.sb = AppSidebar(self, student, student_subtitle(student), on_logout,
-                             self._populate, placeholder="Cari kursus",
+                             self._populate, placeholder="Search courses",
                              on_search=self._on_search)
         self.attach(self.sb)
-        self.enable_search("Cari kursus atau aksi" if self.trial
-                           else "Cari kursus, pelajaran, atau aksi")
+        self.enable_search("Search courses or actions" if self.trial
+                           else "Search courses, lessons, or actions")
         self._render_view()
 
     def search_sources(self):
@@ -37,12 +36,9 @@ class HomeScreen(SidebarLayout):
 
     # --- sidebar ---------------------------------------------------------------------
     def _populate(self, sb):
-        sb.nav("Semua kursus", "grid", lambda: self._set_view("courses"),
+        # Badge berlaku per kursus: menu Badges ada di sidebar layar kursus, bukan di sini
+        sb.nav("All courses", "grid", lambda: self._set_view("courses"),
                active=self.view == "courses")
-        if not self.trial:     # akun trial dipakai bersama: tanpa badge
-            got, total = achievements.summary(self.student)
-            sb.nav("Badge", "award", lambda: self._set_view("badges"),
-                   active=self.view == "badges", right=f"{got}/{total}")
         course_items(sb, self.courses, self.allowed, None, self.on_open_course)
         blender_footer(sb)
 
@@ -63,20 +59,12 @@ class HomeScreen(SidebarLayout):
         for w in self.content.winfo_children():
             w.destroy()
         self.dock = None
-        if self.view == "badges":
-            PageHeader(self.content, "Badge",
-                       "Kumpulkan badge dengan belajar, berkarya, dan rajin datang.").pack(fill="x")
-            scroll = ScrollFrame(self.content, bg=C.BG)
-            scroll.pack(fill="both", expand=True, padx=(28, 12), pady=(4, 12))
-            from elearning.ui.badge_ui import BadgeBoard
-            BadgeBoard(scroll.inner, self.student).pack(fill="x", pady=(0, 12))
-            return
-        hello = ("Selamat datang, calon murid! Pilih satu kelas untuk mencoba belajar."
+        hello = ("Welcome! Pick a class to try learning."
                  if self.trial else
-                 f"Halo, {self.student['name']}! Lanjutkan belajar dari kursus yang terbuka.")
+                 f"Hi, {self.student['name']}! Continue learning from your open courses.")
         # Kartu kursus mendatar di tengah (gaya Dock), latar video opsional
         self.dock = CourseDock(self.content, self.courses, self.allowed, self.on_open_course,
-                               "Pilih kelas trial" if self.trial else "Pilih kursus", hello)
+                               "Pick a trial class" if self.trial else "Pick a course", hello)
         self.dock.pack(fill="both", expand=True)
         self._build_grid()
 
@@ -85,5 +73,5 @@ class HomeScreen(SidebarLayout):
         if self.dock is None:
             return
         courses = [c for c in self.courses if self.sb.matches(c["title"], c["group"], c["desc"])]
-        self.dock.set_courses(courses, f"Tidak ada kursus yang cocok dengan "
+        self.dock.set_courses(courses, f"No courses match "
                                        f"“{self.sb.query.strip()}”.")

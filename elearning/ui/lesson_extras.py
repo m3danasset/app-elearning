@@ -47,7 +47,7 @@ class NoteBox(tk.Frame):
         self.var = tk.StringVar()
         self.entry = RoundEntry(self, textvariable=self.var, width_chars=10, height=38,
                                 fill=C.CARD, font=(C.FONT, 10), right_pad=130,
-                                placeholder="Catatan singkat video ini (guru bisa membaca)")
+                                placeholder="Short note for this video (your teacher can read it)")
         self.entry.pack(fill="x", expand=True)
         self.var.trace_add("write", lambda *a: self._changed())
         self.entry.entry.bind("<FocusOut>", lambda e: self.save_now(), add="+")
@@ -96,8 +96,8 @@ class NoteBox(tk.Frame):
 
     def _paint(self, saved):
         n = progress.count_words(self.var.get())
-        state = "Tersimpan  ·  " if saved and n else ""
-        self.entry.set_right_text(f"{state}{n}/{progress.NOTE_WORDS} kata",
+        state = "Saved  ·  " if saved and n else ""
+        self.entry.set_right_text(f"{state}{n}/{progress.NOTE_WORDS} words",
                                   C.ERROR if n >= progress.NOTE_WORDS else C.MUTED)
 
     def destroy(self):
@@ -159,7 +159,7 @@ class EmoteBar(tk.Canvas):
         for x, k in self._slots():   # nama reaksi tepat di bawah tiap emote
             on = k == self.chosen or k == self._hover
             self.create_text(x + self.SIZE / 2, y + self.SIZE + 11,
-                             text=progress.EMOTE_LABEL[k], font=self._font,
+                             text=progress.EMOTE_LABEL_EN[k], font=self._font,
                              fill=C.TEXT if on else C.MUTED)
 
     def _at(self, x, y):
@@ -201,7 +201,7 @@ class QuizPopup(tk.Toplevel):
 
     def __init__(self, master, student_id, items, lesson_title, on_close=None):
         super().__init__(master, bg=C.CARD, highlightthickness=1, highlightbackground=C.BORDER)
-        self.title("Kuis singkat")
+        self.title("Quick quiz")
         self.resizable(False, False)
         self.transient(master.winfo_toplevel())
         dark_titlebar(self)
@@ -217,7 +217,7 @@ class QuizPopup(tk.Toplevel):
         body.pack(fill="both", expand=True)
         top = tk.Frame(body, bg=C.CARD)
         top.pack(fill="x")
-        tk.Label(top, text="Kuis singkat", bg=C.CARD, fg=C.TEXT,
+        tk.Label(top, text="Quick quiz", bg=C.CARD, fg=C.TEXT,
                  font=(C.FONT, 14, "bold"), anchor="w").pack(side="left")
         self.step = tk.Label(top, text="", bg=C.CARD, fg=C.MUTED, font=(C.FONT, 10))
         self.step.pack(side="right")
@@ -228,19 +228,19 @@ class QuizPopup(tk.Toplevel):
         self.q.pack(fill="x")
         self.var = tk.StringVar()
         self.entry = RoundEntry(body, textvariable=self.var, width_chars=30, height=40,
-                                fill=C.BG, placeholder="Ketik jawabanmu di sini")
+                                fill=C.BG, placeholder="Type your answer here")
         self.entry.pack(fill="x", pady=(14, 0))
         self.result = tk.Label(body, text="", bg=C.CARD, fg=C.MUTED, font=(C.FONT, 10),
                                anchor="nw", justify="left", wraplength=self.W, height=2)
         self.result.pack(fill="x", pady=(10, 0))
         self.btns = tk.Frame(body, bg=C.CARD)
         self.btns.pack(fill="x", pady=(8, 0))
-        self.ok = RoundButton(self.btns, text="Kirim jawaban", command=self._submit,
+        self.ok = RoundButton(self.btns, text="Submit answer", command=self._submit,
                               bg=C.ACCENT, fg="white", activebackground=C.ACCENT_HOVER,
                               activeforeground="white", font=(C.FONT, 11, "bold"),
                               padx=22, pady=7)
         self.ok.pack(side="right")
-        self.later = RoundButton(self.btns, text="Nanti saja", command=self._close,
+        self.later = RoundButton(self.btns, text="Maybe later", command=self._close,
                                  bg=C.BORDER, fg=C.TEXT, activebackground=C.CARD_HOVER,
                                  font=(C.FONT, 11), padx=18, pady=7)
         self.later.pack(side="right", padx=(0, 8))
@@ -270,13 +270,13 @@ class QuizPopup(tk.Toplevel):
         q = self.items[self.i]
         self._answered = False
         n = len(self.items)
-        self.step.config(text=f"Soal {self.i + 1} / {n}" if n > 1 else "")
+        self.step.config(text=f"Question {self.i + 1} / {n}" if n > 1 else "")
         self.q.config(text=q["question"])
         self.var.set("")
         self.entry.entry.config(state="normal")
         self.result.config(text="", fg=C.MUTED)
-        self.ok.config(text="Kirim jawaban")
-        self.later.config(text="Nanti saja")
+        self.ok.config(text="Submit answer")
+        self.later.config(text="Maybe later")
 
     def _submit(self):
         if self._answered:          # tombol jadi "Lanjut" / "Selesai"
@@ -289,25 +289,25 @@ class QuizPopup(tk.Toplevel):
             return
         answer = " ".join(self.var.get().split())
         if not answer:
-            self.result.config(text="Jawabannya belum diisi.", fg=C.ERROR)
+            self.result.config(text="Please type an answer first.", fg=C.ERROR)
             return
         q = self.items[self.i]
         correct = quizzes.check(answer, q.get("answer"))
         if not progress.save_answer(self.sid, q, answer, correct):
-            self.result.config(text="Jawaban gagal disimpan. Coba lagi.", fg=C.ERROR)
+            self.result.config(text="Could not save your answer. Try again.", fg=C.ERROR)
             return
         self._answered = True
         self.entry.entry.config(state="disabled")
         if correct is True:
-            self.result.config(text="Benar! Mantap.", fg=C.ON)
+            self.result.config(text="Correct! Great job.", fg=C.ON)
         elif correct is False:
             key = q["answer"].split(";")[0].strip()
-            self.result.config(text=f"Belum tepat. Jawaban yang benar: {key}", fg=C.ACCENT)
+            self.result.config(text=f"Not quite. The correct answer: {key}", fg=C.ACCENT)
         else:
-            self.result.config(text="Jawaban terkirim. Guru akan memeriksanya.", fg=C.ON)
+            self.result.config(text="Answer sent. Your teacher will check it.", fg=C.ON)
         last = self.i + 1 >= len(self.items)
-        self.ok.config(text="Selesai" if last else "Soal berikutnya")
-        self.later.config(text="Tutup")
+        self.ok.config(text="Done" if last else "Next question")
+        self.later.config(text="Close")
 
     def _close(self):
         try:

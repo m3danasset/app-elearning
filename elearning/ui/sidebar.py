@@ -16,6 +16,7 @@ memanggil sb.nav(), sb.section(), sb.item(), sb.note(), sb.footer().
 import tkinter as tk
 import tkinter.font as tkfont
 
+from elearning.i18n import L
 from elearning import config as C
 from elearning import brand, photos
 from elearning.ui import ui_icons as I
@@ -459,7 +460,8 @@ class _Search(tk.Canvas):
                 self._imgs.append(x)
                 self.create_image(w - 17, h / 2, image=x, tags="deco")
             if self.count is not None:
-                txt = f"{self.count} hasil" if self.count else "0 hasil"
+                txt = (f"{self.count} " + L("hasil", "results")) if self.count \
+                    else L("0 hasil", "0 results")
                 t = self.create_text(w - 32, h / 2, text=txt, anchor="e", font=_font(8),
                                      fill=C.ACCENT_HOVER if self.count else C.ERROR,
                                      tags="deco")
@@ -518,7 +520,7 @@ class _Suggest(tk.Toplevel):
         self._imgs = []
         if not self.items:
             cv.configure(height=40)
-            cv.create_text(14, 20, text="Tidak ada hasil", anchor="w", fill=C.MUTED,
+            cv.create_text(14, 20, text=L("Tidak ada hasil", "No results"), anchor="w", fill=C.MUTED,
                            font=_font(10))
             return
         cv.configure(height=len(self.items) * self.ROW_H + 8)
@@ -931,7 +933,7 @@ class AppSidebar(tk.Frame):
         head = tk.Frame(self, bg=C.SIDEBAR, height=56)
         head.pack(fill="x")
         head.pack_propagate(False)
-        IconButton(head, "panel", self.toggle, tip="Tutup sidebar",
+        IconButton(head, "panel", self.toggle, tip=L("Tutup sidebar", "Close sidebar"),
                    size=(34, 34)).pack(side="right", padx=(0, 10))
         lockup = brand.pack_lockup(head, C.SIDEBAR)
         lockup.pack(side="left", padx=(16, 0))
@@ -960,9 +962,9 @@ class AppSidebar(tk.Frame):
         head = tk.Frame(self, bg=C.SIDEBAR)
         head.pack(fill="x", pady=(10, 0))
         mark = brand.mark(28)
-        IconButton(head, "panel", self.toggle, tip="Buka sidebar", size=(40, 40), image=mark,
+        IconButton(head, "panel", self.toggle, tip=L("Buka sidebar", "Open sidebar"), size=(40, 40), image=mark,
                    hover_icon="panel").pack()
-        IconButton(self, "search", self.focus_search, tip="Cari  (Ctrl+K)").pack(pady=(10, 2))
+        IconButton(self, "search", self.focus_search, tip=L("Cari  (Ctrl+K)", "Search  (Ctrl+K)")).pack(pady=(10, 2))
         self._nav_box = tk.Frame(self, bg=C.SIDEBAR)
         self._nav_box.pack(fill="x")
         bottom = tk.Frame(self, bg=C.SIDEBAR)
@@ -1168,7 +1170,7 @@ class AppSidebar(tk.Frame):
         if self._menu is not None:
             self._menu.close()
             return
-        items = self.menu_items + [("Keluar", "logout", self.on_logout)]
+        items = self.menu_items + [(L("Keluar", "Log out"), "logout", self.on_logout)]
         anchor.open = True
         anchor._draw()
         self._menu = _Menu(self, anchor, items)
@@ -1255,13 +1257,13 @@ class SidebarLayout(tk.Frame):
 
 
 # --- bagian yang dipakai beberapa layar ------------------------------------------------
-PROGRAM_LABEL = {"adult": "Murid dewasa", "kids": "Murid anak", "trial": "Kelas trial"}
+PROGRAM_LABEL = {"adult": "Adult student", "kids": "Kids student", "trial": "Trial class"}
 
 
 def student_subtitle(student):
     if student.get("program") == "trial":
-        return "Kelas trial  ·  calon murid"
-    return f"{PROGRAM_LABEL.get(student.get('program'), 'Murid')}  ·  {student.get('id', '')}"
+        return "Trial class  ·  new student"
+    return f"{PROGRAM_LABEL.get(student.get('program'), 'Student')}  ·  {student.get('id', '')}"
 
 
 _blender_cache = {}
@@ -1287,14 +1289,14 @@ def blender_footer(sb):
 
     if "blender" not in _blender_cache:
         _blender_cache["blender"] = blender_icon.get_photo(22)
-    sb.footer(f"Buka Blender {blender_launcher.VERSION}", open_blender_now,
+    sb.footer(L("Buka Blender", "Open Blender") + f" {blender_launcher.VERSION}", open_blender_now,
               image=_blender_cache["blender"], icon="play")
 
 
 def course_items(sb, courses, allowed, current_id, on_open):
     """Daftar kursus di sidebar (dipakai layar utama murid dan layar kursus)."""
     shown = [c for c in courses if sb.matches(c["title"], c["group"], c["desc"])]
-    sb.section("Kursus", right=str(len(shown)) if sb.query else None)
+    sb.section("Courses", right=str(len(shown)) if sb.query else None)
     for c in shown:
         unlocked = c["id"] in allowed
         sb.item(c["title"], (lambda c=c: on_open(c)) if unlocked and c["id"] != current_id
@@ -1302,4 +1304,4 @@ def course_items(sb, courses, allowed, current_id, on_open):
                 dot=c["color"] if unlocked else C.LOCKED, dim=not unlocked,
                 right_icon=None if unlocked else "lock", active=c["id"] == current_id)
     if not shown:
-        sb.note(f"Tidak ada kursus yang cocok dengan “{sb.query.strip()}”.")
+        sb.note(f"No courses match “{sb.query.strip()}”.")

@@ -81,7 +81,7 @@ class CertificatePage(tk.Frame):
         cw = min(CARD_W, W)
         x0, y = 0, 0
         if self.items is None:
-            cv.create_text(x0, 20, text="Menghitung syarat...", anchor="w", fill=C.MUTED,
+            cv.create_text(x0, 20, text="Checking requirements...", anchor="w", fill=C.MUTED,
                            font=self.f["body"])
             return
         n = len(self.items)
@@ -95,10 +95,10 @@ class CertificatePage(tk.Frame):
         if aw is not None:
             self._imgs.append(aw)
             cv.create_image(px, y + 34, image=aw, anchor="w")
-        cv.create_text(px + 32, y + 34, text=f"Sertifikat {self.course['title']}", anchor="w",
+        cv.create_text(px + 32, y + 34, text=f"{self.course['title']} Certificate", anchor="w",
                        fill=C.TEXT, font=self.f["title"])
         cv.create_text(px, y + 70, anchor="w", fill=C.MUTED, font=self.f["small"],
-                       text="Selesaikan semua syarat di bawah, lalu minta sertifikat ke guru.")
+                       text="Complete every requirement below, then request your certificate.")
         ry = y + 96
         for key, label, now, want in self.items:
             done = now >= want and (want > 0 or key != "videos")
@@ -115,7 +115,7 @@ class CertificatePage(tk.Frame):
             cv.create_text(px + 40, ry + ROW_H / 2 - 9, text=label, anchor="w",
                            fill=C.TEXT if done else C.TEXT, font=self.f["bold"])
             if key == "videos" and want == 0:
-                sub = "Video pelajaran belum tersedia"
+                sub = "Lesson videos are not available yet"
             else:
                 sub = f"{min(now, want) if key != 'badges' else now} / {want}"
             cv.create_text(px + 40, ry + ROW_H / 2 + 10, text=sub, anchor="w",
@@ -141,16 +141,16 @@ class CertificatePage(tk.Frame):
         req = self.req
         if req is not None:
             done = req.get("status") == CERT.DONE
-            text = "Sertifikat sudah diberikan" if done else "Permintaan terkirim"
+            text = "Certificate received" if done else "Request sent"
             fill, fg, icon = C.CARD_HOVER, C.ON if done else C.TEXT, "check"
-            sub = (f"Diberikan {req.get('done_at', '')[:10]}" if done
-                   else f"Dikirim {req.get('at', '')[:16]}  ·  menunggu guru / admin")
+            sub = (f"Given on {req.get('done_at', '')[:10]}" if done
+                   else f"Sent {req.get('at', '')[:16]}  ·  waiting for your teacher")
         elif self.ok:
             text, fill = "Request Certificate", C.ACCENT
-            fg, icon, sub = "#ffffff", "award", "Semua syarat terpenuhi."
+            fg, icon, sub = "#ffffff", "award", "All requirements complete."
         else:
             text, fill, fg, icon = "Request Certificate", C.BG, C.LOCKED, "lock"
-            sub = "Terkunci sampai semua syarat terpenuhi."
+            sub = "Locked until every requirement is complete."
         btn = I.pill(bw, BTN_H, fill, C.CARD, r=10,
                      border=C.BORDER if (req is None and not self.ok) else None)
         tags = ("btn",) if (req is None and self.ok) else ()
@@ -187,12 +187,12 @@ class CertificatePage(tk.Frame):
         self._busy = True
         try:
             self.req = CERT.send_request(self.student, self.course)
-            self.msg, self.msg_err = "Permintaan terkirim ke guru & admin.", False
+            self.msg, self.msg_err = "Request sent to your teacher.", False
         except ValueError as exc:
             self.msg, self.msg_err = str(exc), True
         except OSError as exc:
             C.log(f"Sertifikat gagal disimpan: {exc!r}")
-            self.msg, self.msg_err = "Gagal menyimpan. Coba lagi atau hubungi guru.", True
+            self.msg, self.msg_err = "Could not save. Try again or ask your teacher.", True
         self._busy = False
         self._btn_hover = False
         self._draw()

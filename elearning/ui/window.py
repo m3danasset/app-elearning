@@ -4,6 +4,7 @@ import os
 import sys
 import tkinter as tk
 
+from elearning.i18n import L
 from elearning import config, sessions, splash
 from elearning.trial import is_trial
 from elearning.ui.login_screen import LoginScreen
@@ -131,7 +132,7 @@ class App(tk.Tk):
         if isinstance(self._screen, LoginScreen):
             self._quit()
             return
-        self._confirm("Tutup aplikasi?", "Tutup", self._quit)
+        self._confirm(L("Tutup aplikasi?", "Close the app?"), L("Tutup", "Close"), self._quit)
 
     def _quit(self):
         self.badges.stop()
@@ -165,6 +166,8 @@ class App(tk.Tk):
             pass
 
     def login_student(self, student):
+        from elearning import i18n
+        i18n.set_role("trial" if is_trial(student) else "student")   # layar murid: English
         if not is_trial(student):   # akun trial dipakai bersama, tidak dicatat
             sessions.start(student["id"])
         self.blender_float.start()   # ikon mengambang saat Blender terbuka (semua murid)
@@ -174,16 +177,20 @@ class App(tk.Tk):
         self.badges.start(student)   # badge (trial diabaikan); notifikasi setelah layar siap
 
     def login_teacher(self, teacher):
+        from elearning import i18n
+        i18n.set_role("teacher")
         sessions.start(teacher["id"])   # aktivitas guru dicatat supaya admin bisa memantau
         self.show_teacher(teacher)
         self._after_login()
 
     def login_admin(self, admin):
+        from elearning import i18n
+        i18n.set_role("admin")
         self.show_admin(admin)          # login admin tidak dicatat
         self._after_login()
 
     def logout(self):
-        self._confirm("Keluar dari akun?", "Keluar", self._logout)
+        self._confirm(L("Keluar dari akun?", "Log out?"), L("Keluar", "Log out"), self._logout)
 
     def _logout(self):
         self.badges.stop()
@@ -209,6 +216,8 @@ class App(tk.Tk):
             self.curtain.cover.lift()
 
     def show_login(self):
+        from elearning import i18n
+        i18n.set_role("login")          # layar login tetap Bahasa Indonesia
         self._show(LoginScreen(self, on_success=self.login_student,
                                on_teacher=self.login_teacher,
                                on_admin=self.login_admin))
@@ -219,13 +228,19 @@ class App(tk.Tk):
             on_open_course=lambda course: self.show_course(student, course),
             on_logout=self.logout, view=view))
 
-    def show_badges(self, student):
-        """Halaman Badge murid (dari menu sidebar atau klik notifikasi badge)."""
+    def show_badges(self, student, course_id=None):
+        """Halaman Badges sebuah kursus (menu sidebar kursus / klik notifikasi badge).
+        Badge berlaku per kursus, jadi halamannya ada di layar kursus."""
+        from elearning.courses import COURSES
         scr = self._screen
-        if isinstance(scr, HomeScreen):
+        if isinstance(scr, CourseScreen) and (course_id is None
+                                              or scr.course["id"] == course_id):
             scr._set_view("badges")
             return
-        self.show_home(student, view="badges")
+        course = next((c for c in COURSES if c["id"] == course_id), None)
+        if course is None:
+            return
+        self.show_course(student, course, view="badges")
 
     def show_teacher(self, teacher):
         self._show(TeacherScreen(self, teacher, on_logout=self.logout))
@@ -233,7 +248,7 @@ class App(tk.Tk):
     def show_admin(self, admin):
         self._show(AdminScreen(self, admin, on_logout=self.logout))
 
-    def show_course(self, student, course, lesson=None):
+    def show_course(self, student, course, lesson=None, view=None):
         try:   # "Terakhir dibuka" di search palette (Ctrl+K)
             from elearning import recents
             recents.add(student["id"], f"course:{course['id']}", persist=not is_trial(student))
@@ -244,4 +259,5 @@ class App(tk.Tk):
             on_back=lambda: self.show_home(student),
             on_logout=self.logout,
             on_open_course=lambda c: self.show_course(student, c),
-            on_badges=lambda: self.show_badges(student), lesson=lesson))
+            on_badges=lambda: self.show_badges(student, course["id"]), lesson=lesson,
+            view=view))

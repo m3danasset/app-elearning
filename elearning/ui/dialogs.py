@@ -3,6 +3,7 @@
 import tkinter as tk
 from datetime import date
 
+from elearning.i18n import L
 from elearning import config as C
 from elearning import photos, reports
 from elearning import students as S
@@ -194,7 +195,8 @@ class ConfirmDialog(tk.Toplevel):
                        cursor="hand2", padx=22, pady=7)
         ok.pack(side="right")
         add_hover(ok, self.DANGER, self.DANGER_HOVER)
-        self.cancel = RoundButton(btns, text="Batal", command=self.destroy, bg=C.BORDER,
+        self.cancel = RoundButton(btns, text=L("Batal", "Cancel"), command=self.destroy,
+                                  bg=C.BORDER,
                                 fg=C.TEXT, activebackground=C.CARD_HOVER,
                                 activeforeground=C.TEXT, relief="flat", bd=0,
                                 highlightthickness=0, font=(C.FONT, 11),
@@ -268,7 +270,8 @@ class MiniConfirm(tk.Toplevel):
         x_ok = self.W - 16 - self.BW
         x_no = x_ok - 8 - self.BW
         self._btns = {
-            "no": dict(x=x_no, y=y, text="Batal", fill=C.BORDER, hover=C.CARD_HOVER,
+            "no": dict(x=x_no, y=y, text=L("Batal", "Cancel"), fill=C.BORDER,
+                       hover=C.CARD_HOVER,
                        fg=C.TEXT, bold=False),
             "ok": dict(x=x_ok, y=y, text=confirm_text, fill=self.DANGER,
                        hover=self.DANGER_HOVER, fg="white", bold=True),

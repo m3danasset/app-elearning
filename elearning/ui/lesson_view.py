@@ -164,7 +164,7 @@ class _Reader(threading.Thread):
         cap = cv2.VideoCapture(self.path)
         try:
             if not cap.isOpened():
-                self._fail("Video tidak bisa dibuka (format/codec tidak didukung?)")
+                self._fail("Could not open the video (unsupported format/codec?)")
                 return
             fps = cap.get(cv2.CAP_PROP_FPS)
             if not fps or fps != fps or fps < 1 or fps > 240:
@@ -177,7 +177,7 @@ class _Reader(threading.Thread):
 
             ok, last = cap.read()           # frame pertama = gambar awal (jeda)
             if not ok:
-                self._fail("Video kosong / rusak")
+                self._fail("Video is empty / damaged")
                 return
             pos = 0
             self._publish(last, pos)
@@ -609,7 +609,7 @@ class LessonPlayer(tk.Frame):
         self.up.bind("<Button-1>", lambda e: self._toggle_sub_up())
         try:
             from elearning.ui.sidebar import _Tip
-            _Tip(self.up, "Subtitle naik (timeline Blender tidak tertutup)")
+            _Tip(self.up, "Raise subtitles (keeps the Blender timeline visible)")
         except Exception:
             pass
 
@@ -844,9 +844,9 @@ class LessonPlayer(tk.Frame):
                 C.log(f"mpv gagal dibuat, pakai OpenCV tanpa suara: {exc!r}")
                 self.surface.place_forget()
                 self.engine = None
-                self.notice = "Suara & subtitle tidak aktif (mpv gagal dijalankan, lihat app.log)"
+                self.notice = "Sound & subtitles are off (mpv could not start, see app.log)"
         else:
-            self.notice = "Suara & subtitle belum aktif: " + mpv_support.reason()
+            self.notice = "Sound & subtitles are not active: " + mpv_support.reason()
         if self.engine is None and HAS_VIDEO:
             self.engine = _CvEngine()
         if self.engine is None:
@@ -925,7 +925,7 @@ class LessonPlayer(tk.Frame):
         if not path or e is None:
             self.has_video = False
             self._show_surface(False)
-            self._message(hint or "Video belum tersedia.")
+            self._message(hint or "Video not available yet.")
             return
         self._message("")
         self._path, self._subs = path, subs
@@ -957,13 +957,13 @@ class LessonPlayer(tk.Frame):
         self.has_video = False
         self.playing = False
         if not HAS_VIDEO or not path:
-            self._message("Video tidak bisa diputar (lihat app.log).")
+            self._message("Video cannot be played (see app.log).")
             return
         self.engine = _CvEngine()
         self.vol_box.pack_forget()
         self.cc.pack_forget()
         self.up.pack_forget()
-        self.notice = f"Suara & subtitle tidak aktif: {why} (lihat app.log)"
+        self.notice = f"Sound & subtitles are off: {why} (see app.log)"
         self.engine.load(path, size=(self.screen.winfo_width(), self.screen.winfo_height()))
         self.has_video = True
         self._refresh()
@@ -1040,13 +1040,13 @@ class LessonPlayer(tk.Frame):
         opts = e.sub_options()
         current = next((o["id"] for o in opts if o["selected"]), 0) if e.sub_active() else 0
         var = tk.IntVar(value=current or 0)
-        menu.add_radiobutton(label="Subtitle: Mati", variable=var, value=0,
+        menu.add_radiobutton(label="Subtitles: Off", variable=var, value=0,
                              command=lambda: self._pick_sub(0, "off"))
         for o in opts:
             menu.add_radiobutton(label=o["label"], variable=var, value=o["id"],
                                  command=lambda i=o["id"], l=o["label"]: self._pick_sub(i, l))
         if not opts:
-            menu.add_command(label="(tidak ada subtitle untuk video ini)", state="disabled")
+            menu.add_command(label="(no subtitles for this video)", state="disabled")
         try:
             menu.tk_popup(self.cc.winfo_rootx() - 90, self.cc.winfo_rooty() - 8 - 30 * (len(opts) + 2))
         finally:
@@ -1304,7 +1304,7 @@ class LessonPlayer(tk.Frame):
                     self.has_video = False
                     self.playing = False
                     self._show_surface(False)
-                    self._message("Video tidak bisa diputar.")
+                    self._message("Video cannot be played.")
                 else:
                     self.dur = st.dur
                     if not self._drag:
@@ -1408,7 +1408,7 @@ class LessonsPanel(tk.Frame):
         self.copy_btn.bind("<Enter>", lambda e: self._paint_copy(hover=True))
         self.copy_btn.bind("<Leave>", lambda e: self._paint_copy(hover=False))
         self._paint_copy()
-        self.tag = tk.Label(head, text="CONTOH VIDEO", bg=C.CARD_HOVER, fg=C.MUTED,
+        self.tag = tk.Label(head, text="SAMPLE VIDEO", bg=C.CARD_HOVER, fg=C.MUTED,
                             font=(C.FONT, 8, "bold"), padx=8, pady=3)
         self.notice = tk.Label(head, text="", bg=C.BG, fg=C.MUTED, anchor="e",
                                font=(C.FONT, 9))
@@ -1426,8 +1426,8 @@ class LessonsPanel(tk.Frame):
             self.player._foot = 0
             self.player.footer.pack_forget()
         if show_nav:
-            self.prev_btn = self._nav_button("‹   Sebelumnya", "left", self.previous)
-            self.next_btn = self._nav_button("Selanjutnya   ›", "right", self.next)
+            self.prev_btn = self._nav_button("‹   Previous", "left", self.previous)
+            self.next_btn = self._nav_button("Next   ›", "right", self.next)
         # Di antara tombol: catatan (dewasa) atau emote (SUPERKIDS), hanya murid terdaftar
         self.extra = None
         if show_nav and student_id:
@@ -1500,7 +1500,7 @@ class LessonsPanel(tk.Frame):
             return
         st = self._copy_state
         st["done"] = True
-        self.copy_lbl.config(text="Disalin")
+        self.copy_lbl.config(text="Copied")
         self._paint_copy()
         if st["job"] is not None:
             self.after_cancel(st["job"])
@@ -1533,7 +1533,7 @@ class LessonsPanel(tk.Frame):
 
     def _resumed(self, sec):
         if sec >= 3:
-            self.notice.config(text=f"Lanjut dari {_fmt(sec)}")
+            self.notice.config(text=f"Resuming from {_fmt(sec)}")
             self.after(5000, lambda: self.winfo_exists()
                        and self.notice.config(text=self.player.notice))
 
@@ -1639,7 +1639,7 @@ class LessonsPanel(tk.Frame):
             self.tag.pack_forget()
         hint = ""
         if not it["path"]:
-            hint = (f"Video belum tersedia.\nTaruh file {it['no']}.mp4 di folder:\n"
+            hint = (f"Video not available yet.\nPut {it['no']}.mp4 in the folder:\n"
                     f"{lessons.lesson_folder(self.course)}")
         self._flush_progress()
         self._cancel_quiz()
@@ -1665,7 +1665,7 @@ class LessonsPanel(tk.Frame):
         if self.extra is not None:
             self.extra.set_lesson(key)
         if it["sample"]:   # tunjukkan folder yang dicari, supaya mudah dicek
-            self.notice.config(text="Belum ada video di: " + lessons.lesson_folder(self.course))
+            self.notice.config(text="No videos yet in: " + lessons.lesson_folder(self.course))
         else:
             self.notice.config(text=self.player.notice)
         self._style_nav()

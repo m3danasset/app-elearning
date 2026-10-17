@@ -13,6 +13,7 @@ import sys
 import threading
 import tkinter as tk
 
+from elearning.i18n import L
 from elearning import config as C
 
 LAST_FILE = os.path.join(C.DATA_DIR, "usb_folder.txt")
@@ -57,11 +58,12 @@ def _start_folder():
     return os.path.expanduser("~")
 
 
-def choose_folder(parent, title="Pilih flashdisk / folder tujuan"):
+def choose_folder(parent, title=None):
     try:
         path = parent.tk.call("tk_chooseDirectory", "-parent", parent.winfo_toplevel(),
                               "-initialdir", _start_folder(), "-mustexist", 1,
-                              "-title", title)
+                              "-title", title or L("Pilih flashdisk / folder tujuan",
+                                                   "Choose a flash drive / folder"))
     except tk.TclError as exc:
         C.log(f"Dialog pilih folder gagal: {exc!r}")
         return ""
@@ -88,14 +90,16 @@ def _free(folder, name):
 def save_items(widget, items, on_done, subfolder=""):
     """Pilih folder lalu salin semua item. on_done(teks, berhasil) dipanggil di thread utama."""
     if not items:
-        on_done("Belum ada file untuk disimpan.", False)
+        on_done(L("Belum ada file untuk disimpan.", "No files to save yet."), False)
         return
     folder = choose_folder(widget)
     if not folder:
         return
     from elearning.ui.file_browser import blocked
     if blocked(folder):   # B: = sistem e-learning: murid tidak boleh menyimpan ke sana
-        on_done("Tidak boleh menyimpan ke drive sistem (B: / C:). Pilih flashdisk atau drive Z:.", False)
+        on_done(L("Tidak boleh menyimpan ke drive sistem (B: / C:). Pilih flashdisk atau drive Z:.",
+                  "You cannot save to a system drive (B: / C:). Pick a flash drive or drive Z:."),
+                False)
         return
     if subfolder:
         folder = os.path.join(folder, "".join(ch for ch in subfolder if ch not in '\\/:*?"<>|'))
@@ -106,7 +110,8 @@ def save_items(widget, items, on_done, subfolder=""):
         try:
             os.makedirs(folder, exist_ok=True)
         except OSError as exc:
-            box["res"] = (f"Folder tidak bisa dibuat: {exc}", False)
+            box["res"] = (L("Folder tidak bisa dibuat: ", "Could not create the folder: ") + str(exc),
+                          False)
             return
         for it in items:
             try:
@@ -120,10 +125,13 @@ def save_items(widget, items, on_done, subfolder=""):
                 C.log(f"Simpan ke flashdisk gagal {it.get('path')!r}: {exc!r}")
                 failed += 1
         if failed and not ok:
-            box["res"] = ("Gagal menyimpan. Pastikan flashdisk tercolok dan tidak penuh.", False)
+            box["res"] = (L("Gagal menyimpan. Pastikan flashdisk tercolok dan tidak penuh.",
+                            "Could not save. Make sure the flash drive is plugged in and not full."),
+                          False)
         else:
-            extra = f" ({failed} gagal)" if failed else ""
-            box["res"] = (f"{ok} file disimpan ke {folder}{extra}", True)
+            extra = L(f" ({failed} gagal)", f" ({failed} failed)") if failed else ""
+            box["res"] = (L(f"{ok} file disimpan ke {folder}{extra}",
+                            f"{ok} file(s) saved to {folder}{extra}"), True)
 
     threading.Thread(target=work, daemon=True).start()
 
@@ -138,5 +146,5 @@ def save_items(widget, items, on_done, subfolder=""):
             on_done(*box["res"])
         except tk.TclError:
             pass
-    on_done(f"Menyimpan {len(items)} file…", True)
+    on_done(L(f"Menyimpan {len(items)} file…", f"Saving {len(items)} file(s)…"), True)
     poll()

@@ -21,7 +21,7 @@ from elearning.ui.sidebar import (AppSidebar, PageHeader, SidebarLayout, blender
 
 class CourseScreen(SidebarLayout):
     def __init__(self, master, student, course, on_back, on_logout, on_open_course,
-                 on_badges=None, lesson=None):
+                 on_badges=None, lesson=None, view=None):
         super().__init__(master)
         self.student = student
         self.course = course
@@ -30,7 +30,8 @@ class CourseScreen(SidebarLayout):
         self.on_logout = on_logout
         self.on_open_course = on_open_course
         self.trial = is_trial(student)
-        self.view = "materi"   # "materi", "resource" atau "portfolio"
+        # "materi", "resource", "portfolio", "assignment", "certificate", "badges"
+        self.view = view if (view and not is_trial(student)) else "materi"
         # AI CHARACTER / AI INTERIOR tidak memakai video: halaman Materi dibiarkan kosong
         self.video = has_video(course)
         self.lesson_items = lessons_mod.lessons_for(course) if self.video else []
@@ -53,7 +54,7 @@ class CourseScreen(SidebarLayout):
 
         self.sb = AppSidebar(self, student, student_subtitle(student), on_logout,
                              self._populate,
-                             placeholder="Cari kursus" if self.trial else "Cari pelajaran")
+                             placeholder="Search courses" if self.trial else "Search lessons")
         self.attach(self.sb)
 
         # --- Kanan: judul kursus + area materi -------------------------------
@@ -62,6 +63,9 @@ class CourseScreen(SidebarLayout):
         self.body = tk.Frame(self.content, bg=C.BG)
         self.body.pack(fill="both", expand=True)
         self._render_body()
+        tracker = getattr(self.winfo_toplevel(), "badges", None)
+        if tracker is not None and not self.trial:   # badge kejadian -> kursus ini
+            tracker.course_opened(course["id"])
 
     def search_sources(self):
         """Ctrl+K: search palette (tanpa kolom cari di bawah, supaya pemutar video lega)."""
@@ -70,15 +74,12 @@ class CourseScreen(SidebarLayout):
 
     # --- sidebar -----------------------------------------------------------------
     def _populate(self, sb):
-        sb.nav("Semua kursus", "grid", self.on_back)
-        if not self.trial and self.on_badges is not None:
-            got, total = achievements.summary(self.student)
-            sb.nav("Badge", "award", self.on_badges, right=f"{got}/{total}")
-        sb.nav("Materi", "play", lambda: self._set_view("materi"),
+        sb.nav("All courses", "grid", self.on_back)
+        sb.nav("Lessons", "play", lambda: self._set_view("materi"),
                active=self.view == "materi")
         if not self.trial:   # calon murid: tanpa resource/portfolio & daftar pelajaran
             n = portfolio.count(self.student["id"], self.course["id"])
-            sb.nav("Resource", "folder", lambda: self._set_view("resource"),
+            sb.nav("Resources", "folder", lambda: self._set_view("resource"),
                    active=self.view == "resource")
             sb.nav("Portfolio", "image", lambda: self._set_view("portfolio"),
                    active=self.view == "portfolio", right=str(n) if n else None)
@@ -86,7 +87,10 @@ class CourseScreen(SidebarLayout):
                 na = portfolio.count(self.student["id"], self.course["id"], portfolio.ASSIGNMENT)
                 sb.nav("Assignment", "file", lambda: self._set_view("assignment"),
                        active=self.view == "assignment", right=str(na) if na else None)
-            sb.nav("Sertifikat", "check", lambda: self._set_view("certificate"),
+            got, total = achievements.summary(self.student, self.course["id"])
+            sb.nav("Badges", "award", lambda: self._set_view("badges"),
+                   active=self.view == "badges", right=f"{got}/{total}")
+            sb.nav("Certificate", "check", lambda: self._set_view("certificate"),
                    active=self.view == "certificate")
 
             if not self.video:     # kursus tanpa video: tanpa daftar pelajaran
@@ -97,13 +101,13 @@ class CourseScreen(SidebarLayout):
                 return
             shown = [(i, it) for i, it in enumerate(self.lesson_items)
                      if sb.matches(it["label"], it.get("title"))]
-            sb.section(f"Pelajaran  ·  {self.course['title']}", top=10,
+            sb.section(f"Lessons  ·  {self.course['title']}", top=10,
                        right=str(len(shown)))
             for i, it in shown:
                 sb.item(it["label"], lambda k=i: self._open_lesson(k), marquee=True,
                         active=self.view == "materi" and i == self.lesson_index)
             if not shown:
-                sb.note(f"Tidak ada pelajaran yang cocok dengan “{sb.query.strip()}”.")
+                sb.note(f"No lessons match “{sb.query.strip()}”.")
 
         allowed = set(self.student["courses"])
         course_items(sb, visible_for(self.student), allowed, self.course["id"],
@@ -126,17 +130,25 @@ class CourseScreen(SidebarLayout):
             PortfolioPanel(self.body, self.student, course,
                            on_change=self._uploads_changed).pack(fill="both", expand=True)
             return
+        if self.view == "badges":
+            self.header.set_title(course["title"], "Badges")
+            from elearning.ui.badge_ui import BadgeBoard
+            from elearning.ui.widgets import ScrollFrame
+            scroll = ScrollFrame(self.body, bg=C.BG)
+            scroll.pack(fill="both", expand=True, padx=(28, 12), pady=(4, 12))
+            BadgeBoard(scroll.inner, self.student, course["id"]).pack(fill="x", pady=(0, 12))
+            return
         if self.view == "certificate":
-            self.header.set_title(course["title"], "Sertifikat")
+            self.header.set_title(course["title"], "Certificate")
             from elearning.ui.certificate_view import CertificatePage
             CertificatePage(self.body, self.student, course).pack(fill="both", expand=True)
             return
         if self.view == "resource":
-            self.header.set_title(course["title"], "Resource")
+            self.header.set_title(course["title"], "Resources")
             from elearning.ui.file_browser import ResourcePage
             ResourcePage(self.body, course).pack(fill="both", expand=True)
             return
-        self.header.set_title(course["title"], "Materi")
+        self.header.set_title(course["title"], "Lessons")
         if not self.video:         # AI CHARACTER / AI INTERIOR: halaman kosong
             return
         # Pemutar video untuk semua murid (termasuk trial)

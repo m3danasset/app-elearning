@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import sys
 
+from elearning.i18n import L
 from elearning import config as C
 
 # CATATAN: sengaja tidak memakai tkinter.messagebox / tkinter.filedialog / glob.
@@ -560,11 +561,15 @@ def _pick_file(parent):
 # --- tombol di sidebar ---------------------------------------------------------
 def _ask_location(parent):
     ok = _ask_yes_no(
-        parent, "Blender tidak ditemukan",
-        f"Blender {VERSION} tidak ditemukan di komputer ini.\n\n"
-        f"Pastikan Blender {VERSION} sudah terpasang. Kalau sudah, Anda bisa "
-        f"menunjuk sendiri file {EXE}.\n\n"
-        "Pilih lokasi Blender sekarang?")
+        parent, L("Blender tidak ditemukan", "Blender not found"),
+        L(f"Blender {VERSION} tidak ditemukan di komputer ini.\n\n"
+          f"Pastikan Blender {VERSION} sudah terpasang. Kalau sudah, Anda bisa "
+          f"menunjuk sendiri file {EXE}.\n\n"
+          "Pilih lokasi Blender sekarang?",
+          f"Blender {VERSION} was not found on this computer.\n\n"
+          f"Make sure Blender {VERSION} is installed. If it is, you can point to "
+          f"{EXE} yourself.\n\n"
+          "Choose the Blender location now?"))
     if not ok:
         return None
     path = _pick_file(parent)
@@ -573,9 +578,11 @@ def _ask_location(parent):
     path = os.path.normpath(path)
     if os.path.basename(path).lower() != EXE:
         _show_message(
-            parent, "warning", "File tidak sesuai",
-            f"File yang dipilih bukan {EXE}. Coba lagi dan pilih {EXE} "
-            "di folder pemasangan Blender.")
+            parent, "warning", L("File tidak sesuai", "Wrong file"),
+            L(f"File yang dipilih bukan {EXE}. Coba lagi dan pilih {EXE} "
+              "di folder pemasangan Blender.",
+              f"The chosen file is not {EXE}. Try again and pick {EXE} "
+              "in the Blender install folder."))
         return None
     _save_setting(_KEY, path)
     return path
@@ -598,15 +605,18 @@ def open_with_reference(parent, image_paths):
     Kalau Blender sudah terbuka: minta murid menyimpan & menutupnya dulu. True = dibuka."""
     paths = [p for p in image_paths if os.path.isfile(p)]
     if not paths:
-        _show_message(parent, "error", "Gambar tidak ditemukan",
-                      "Gambar referensi tidak bisa dibuka. Hubungi guru.")
+        _show_message(parent, "error", L("Gambar tidak ditemukan", "Image not found"),
+                      L("Gambar referensi tidak bisa dibuka. Hubungi guru.",
+                        "The reference image could not be opened. Ask your teacher."))
         return False
     if blender_running():
         _show_message(
-            parent, "info", "Tutup Blender dulu",
-            "Blender sedang terbuka.\n\nSimpan pekerjaanmu (Ctrl+S), tutup Blender, lalu "
-            "klik tombol ini lagi. Blender akan dibuka dengan gambar referensi di sebelah "
-            "kiri.")
+            parent, "info", L("Tutup Blender dulu", "Close Blender first"),
+            L("Blender sedang terbuka.\n\nSimpan pekerjaanmu (Ctrl+S), tutup Blender, lalu "
+              "klik tombol ini lagi. Blender akan dibuka dengan gambar referensi di sebelah "
+              "kiri.",
+              "Blender is already open.\n\nSave your work (Ctrl+S), close Blender, then click "
+              "this button again. Blender will open with the reference image on the left."))
         return False
     if not os.path.isfile(REFERENCE_SCRIPT):
         C.log(f"Blender: skrip referensi tidak ada: {REFERENCE_SCRIPT!r}")
@@ -633,9 +643,11 @@ def open_blender(parent, args=()):
         if _load_settings().get(_KEY) == path:
             _save_setting(_KEY, None)   # lokasi tersimpan rusak: lupakan, tanya lagi nanti
         _show_message(
-            parent, "error", "Blender tidak bisa dibuka",
-            f"Blender tidak bisa dijalankan dari:\n{path}\n\n"
-            "Coba klik tombolnya lagi untuk memilih lokasi yang benar.")
+            parent, "error", L("Blender tidak bisa dibuka", "Blender could not be opened"),
+            L(f"Blender tidak bisa dijalankan dari:\n{path}\n\n"
+              "Coba klik tombolnya lagi untuk memilih lokasi yang benar.",
+              f"Blender could not be started from:\n{path}\n\n"
+              "Click the button again to choose the right location."))
         return False
 
     C.log(f"Blender: dibuka dari {path!r}")

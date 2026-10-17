@@ -13,6 +13,7 @@ import tkinter as tk
 import tkinter.font as tkfont
 from datetime import datetime
 
+from elearning.i18n import L, is_en
 from elearning import config as C
 from elearning import photos, portfolio
 from elearning.ui import ui_icons as I
@@ -43,9 +44,12 @@ def title_of(name):
     return (stem[:1].upper() + stem[1:]) if stem else name
 
 
+MONTHS_EN = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+
 def _when(d):
     if isinstance(d, datetime):
-        return f"{d.day} {MONTHS[d.month - 1]} {d.year}"
+        return f"{d.day} {(MONTHS_EN if is_en() else MONTHS)[d.month - 1]} {d.year}"
     return str(d or "")
 
 
@@ -202,7 +206,7 @@ class GalleryBoard(tk.Canvas):
         name = title_of(it["name"])
         f = self.f["title"]
         avail = tw - 4
-        chip = "Guru" if not it.get("own", True) else ""
+        chip = L("Guru", "Teacher") if not it.get("own", True) else ""
         if chip:
             avail -= f.measure(chip) + 16
         if f.measure(name) > avail:
@@ -222,7 +226,7 @@ class GalleryBoard(tk.Canvas):
         if it["kind"] == "video":
             meta += "  ·  Video"
         elif self._ref_ok(it):     # petunjuk tombol ikon di pojok sampul
-            meta += "  ·  arahkan kursor: buka di Blender"
+            meta += L("  ·  arahkan kursor: buka di Blender", "  ·  hover: open in Blender")
         self.create_text(x + 2, ty + 19, text=meta, anchor="nw", font=self.f["meta"],
                          fill=C.MUTED, tags=tag)
 

@@ -51,7 +51,7 @@ def student_sources(screen, student):
     for c in courses:
         ok = c["id"] in allowed
         items.append({"key": f"course:{c['id']}", "kind": "courses", "title": c["title"],
-                      "sub": c.get("desc", "") if ok else "Terkunci",
+                      "sub": c.get("desc", "") if ok else "Locked",
                       "words": c.get("group", ""), "dot": c.get("color"),
                       "action": (lambda c=c: app.show_course(student, c)) if ok else None})
     if not trial:
@@ -63,26 +63,27 @@ def student_sources(screen, student):
                               "title": title, "sub": c["title"], "icon": "play",
                               "action": lambda c=c, t=title: app.show_course(student, c,
                                                                             lesson=t)})
-    actions = [{"title": "Semua kursus", "icon": "grid",
+    actions = [{"title": "All courses", "icon": "grid",
                 "action": lambda: app.show_home(student)}]
-    if not trial:
-        actions.append({"title": "Badge", "icon": "award",
-                        "sub": "Badge yang sudah dan belum didapat",
-                        "action": lambda: app.show_badges(student)})
+    cur = getattr(screen, "course", None)     # badge per kursus: hanya dari layar kursus
+    if not trial and cur is not None:
+        actions.append({"title": f"Badges  ·  {cur['title']}", "icon": "award",
+                        "sub": "Badges earned and still locked in this course",
+                        "action": lambda: app.show_badges(student, cur["id"])})
     from elearning import blender_launcher
     from elearning.ui.sidebar import open_blender
-    actions.append({"title": f"Buka Blender {blender_launcher.VERSION}", "icon": "play",
+    actions.append({"title": f"Open Blender {blender_launcher.VERSION}", "icon": "play",
                     "action": lambda: open_blender(screen.sb)})
-    actions.append({"title": "Keluar", "icon": "logout", "action": app.logout})
+    actions.append({"title": "Log out", "icon": "logout", "action": app.logout})
 
-    tabs = [("all", "Semua"), ("courses", "Kursus")]
+    tabs = [("all", "All"), ("courses", "Courses")]
     if not trial:
-        tabs.append(("lessons", "Pelajaran"))
-    tabs.append(("actions", "Aksi"))
+        tabs.append(("lessons", "Lessons"))
+    tabs.append(("actions", "Actions"))
     return {"user": student["id"], "persist": not trial, "tabs": tabs, "items": items,
             "actions": actions,
-            "placeholder": "Cari kursus atau aksi" if trial
-            else "Cari kursus, pelajaran, atau aksi"}
+            "placeholder": "Search courses or actions" if trial
+            else "Search courses, lessons, or actions"}
 
 
 # --- guru ------------------------------------------------------------------------------

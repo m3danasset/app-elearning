@@ -38,6 +38,7 @@ last_play = 0.0        # time.time() terakhir video pelajaran berjalan (dibaca p
 EMOTES = (("bosan", "Bosan"), ("seru", "Seru"), ("paham", "Paham"), ("bingung", "Bingung"))
 _OLD_EMOTE = {"capek": "bosan", "keren": "seru"}   # pilihan dari versi sebelumnya
 EMOTE_LABEL = dict(EMOTES)
+EMOTE_LABEL_EN = {"bosan": "Bored", "seru": "Fun", "paham": "Got it", "bingung": "Confused"}
 
 _docs = {}       # ID murid -> {"key": (mtime, size), "doc": {...}}  (cache baca)
 _live = {}       # (murid, kursus, judul) -> keadaan saat video diputar

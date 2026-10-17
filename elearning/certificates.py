@@ -6,7 +6,7 @@ setelah SEMUA syarat terpenuhi:
   ditonton, sama dengan badge),
 - min. ASSIGNMENT_MIN assignment terupload di kursus itu,
 - min. PORTFOLIO_MIN portfolio terupload di kursus itu,
-- min. BADGES_MIN badge (total, semua kursus).
+- min. BADGES_MIN badge di kursus itu (badge berlaku per kursus).
 Kursus tanpa video (AI CHARACTER / AI INTERIOR) juga tanpa assignment: dua syarat itu
 dianggap terpenuhi.
 
@@ -67,15 +67,15 @@ def requirements(student, course):
         titles = progress.lesson_titles(course)
         recs = progress.load(sid).get("courses", {}).get(course["id"], {})
         done = sum(1 for t in titles if progress.completed(recs.get(t, {})))
-        items.append(("videos", "Semua video ditonton", done, len(titles)))
+        items.append(("videos", "Watch every video", done, len(titles)))
         n_as = portfolio.count(sid, course["id"], portfolio.ASSIGNMENT)
-        items.append(("assignment", f"Min. {ASSIGNMENT_MIN} assignment terupload", n_as,
+        items.append(("assignment", f"Upload at least {ASSIGNMENT_MIN} assignments", n_as,
                       ASSIGNMENT_MIN))
     n_pf = portfolio.count(sid, course["id"])
-    items.append(("portfolio", f"Min. {PORTFOLIO_MIN} portfolio terupload", n_pf,
+    items.append(("portfolio", f"Upload at least {PORTFOLIO_MIN} portfolio", n_pf,
                   PORTFOLIO_MIN))
-    n_b = len(achievements.earned(sid))
-    items.append(("badges", f"Min. {BADGES_MIN} badge", n_b, BADGES_MIN))
+    n_b = len(achievements.earned(sid, course["id"]))
+    items.append(("badges", f"Min. {BADGES_MIN} badges in this course", n_b, BADGES_MIN))
     ok = all(now >= want for _k, _l, now, want in items) and \
         all(want > 0 for k, _l, _n, want in items if k == "videos")
     return items, ok
@@ -94,12 +94,12 @@ def send_request(student, course):
     sudah pernah diminta. OSError kalau gagal menyimpan."""
     _items, ok = requirements(student, course)
     if not ok:
-        raise ValueError("Syarat sertifikat belum terpenuhi.")
+        raise ValueError("Certificate requirements are not complete yet.")
     with _lock:
         items = _load()
         sid = student["id"].upper()
         if any(r.get("student") == sid and r.get("course") == course["id"] for r in items):
-            raise ValueError("Sertifikat kursus ini sudah diminta.")
+            raise ValueError("You already requested a certificate for this course.")
         rec = {"id": f"{sid}-{course['id']}-{datetime.now():%Y%m%d%H%M%S}",
                "student": sid, "name": student.get("name", sid),
                "program": student.get("program", ""), "course": course["id"],

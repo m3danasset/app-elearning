@@ -334,7 +334,7 @@ class CourseDock(tk.Canvas):
         for n, line in enumerate(self._wrap(f, c["desc"], (x1 - x0) - 2 * pad, max_lines)):
             out.append((self.create_text(x, y + n * line_h, text=line, anchor="nw", font=f,
                                          fill=dcol, tags=tags), dcol, "text"))
-        foot = "Buka kursus  →" if unlocked else "Terkunci  ·  hubungi guru"
+        foot = "Open course  →" if unlocked else "Locked  ·  ask your teacher"
         fcol = C.ACCENT if unlocked else C.LOCKED
         out.append((self.create_text(x, y1 - pad, text=foot, anchor="sw", font=self.f["foot"],
                                      fill=fcol, tags=tags), fcol, "text"))

@@ -9,6 +9,7 @@ import threading
 import tkinter as tk
 from datetime import datetime
 
+from elearning.i18n import L
 from elearning import config as C
 from elearning.ui.controls import RoundButton, RoundPanel
 from elearning import photos, portfolio
@@ -55,7 +56,8 @@ class ThumbGrid(tk.Frame):
         except Exception as exc:
             C.log(f"Gagal membuka {item['path']!r}: {exc!r}")
             if self.on_error:
-                self.on_error("File tidak bisa dibuka. Mungkin sudah dipindah atau dihapus.")
+                self.on_error(L("File tidak bisa dibuka. Mungkin sudah dipindah atau dihapus.",
+                                  "Could not open the file. It may have been moved or deleted."))
 
     def _make_card(self, item):
         panel = RoundPanel(self, padx=_CARD_PAD, pady=_CARD_PAD, radius=12, fit_width=True)
@@ -83,7 +85,7 @@ class ThumbGrid(tk.Frame):
             pic = tk.Label(card, image=photo, bg=C.CARD, bd=0, cursor="hand2")
             pic.image = photo   # simpan referensi supaya gambar tidak hilang
         else:
-            pic = tk.Label(card, text="(tanpa thumbnail)", bg=C.CARD_HOVER, fg=C.MUTED,
+            pic = tk.Label(card, text=L("(tanpa thumbnail)", "(no thumbnail)"), bg=C.CARD_HOVER, fg=C.MUTED,
                            width=22, height=6, font=(C.FONT, 9), cursor="hand2")
         pic.pack()
         pic.bind("<Button-1>", lambda e, it=item: self._open(it))
@@ -102,14 +104,15 @@ class ThumbGrid(tk.Frame):
         if self.on_save is not None and self.on_delete is not None:   # dua aksi: baris sendiri
             acts = tk.Frame(card, bg=C.CARD)
             acts.pack(fill="x", pady=(2, 0))
-        for text, fn, hover in (("Hapus", self.on_delete, C.ERROR), ("Simpan", self.on_save, C.TEXT)):
+        for text, fn, hover in ((L("Hapus", "Delete"), self.on_delete, C.ERROR),
+                                (L("Simpan", "Save"), self.on_save, C.TEXT)):
             if fn is None:
                 continue
             lb = tk.Label(acts, text=text, bg=C.CARD, fg=C.MUTED, cursor="hand2", font=(C.FONT, 8))
             lb.pack(side="right", padx=(10, 0))
             lb.bind("<Enter>", lambda e, w=lb, h=hover: w.config(fg=h))
             lb.bind("<Leave>", lambda e, w=lb: w.config(fg=C.MUTED))
-            if text == "Simpan":
+            if fn is self.on_save:
                 lb.bind("<Button-1>", lambda e, it=item: self.on_save([it]))
             else:
                 lb.bind("<Button-1>", lambda e, it=item: self.on_delete(it))
@@ -124,12 +127,17 @@ class PortfolioPanel(tk.Frame):
     Murid melihat kategori: Semua  ·  Upload saya  ·  Dari guru.
     """
 
-    TEXT = {
-        None: ("Portfolio saya", "+  Upload karya", portfolio.CONTOH_PF),
-        portfolio.ASSIGNMENT: ("Assignment saya", "+  Upload render", portfolio.CONTOH),
-        portfolio.CONTOH: ("Contoh assignment", "+  Upload contoh", None),
-        portfolio.CONTOH_PF: ("Inspirasi portfolio", "+  Upload inspirasi", None),
-    }
+    @staticmethod
+    def _texts():
+        """Dibuat saat dipakai (bukan saat modul dimuat) supaya ikut bahasa yang aktif."""
+        return {
+            None: (L("Portfolio saya", "My portfolio"), L("+  Upload karya", "+  Upload artwork"),
+                   portfolio.CONTOH_PF),
+            portfolio.ASSIGNMENT: (L("Assignment saya", "My assignments"), "+  Upload render",
+                                   portfolio.CONTOH),
+            portfolio.CONTOH: ("Contoh assignment", "+  Upload contoh", None),
+            portfolio.CONTOH_PF: ("Inspirasi portfolio", "+  Upload inspirasi", None),
+        }
 
     def __init__(self, master, student, course, on_change=None, section=None):
         super().__init__(master, bg=C.BG)
@@ -139,7 +147,7 @@ class PortfolioPanel(tk.Frame):
         self.on_change = on_change
         self.section = section
         self.teacher = section in portfolio.TEACHER_SECTIONS
-        title, upload, self.guru_section = self.TEXT[section]
+        title, upload, self.guru_section = self._texts()[section]
         self.category = "all"
         self._busy = False
 
@@ -153,7 +161,7 @@ class PortfolioPanel(tk.Frame):
         self.upload_btn.pack(side="right", anchor="n")
         add_hover(self.upload_btn, C.ACCENT, C.ACCENT_HOVER)
         if not self.teacher:      # murid: simpan file yang sedang tampil ke flashdisk
-            RoundButton(head, text="Simpan ke flashdisk", command=self._save_all,
+            RoundButton(head, text=L("Simpan ke flashdisk", "Save to flash drive"), command=self._save_all,
                         bg=C.CARD, fg=C.TEXT, activebackground=C.CARD_HOVER,
                         font=(C.FONT, 10), padx=14, pady=8).pack(side="right", anchor="n",
                                                                  padx=(0, 8))
@@ -202,16 +210,22 @@ class PortfolioPanel(tk.Frame):
         own, guru = self._items()
         if self.teacher:
             shown = own
-            empty = "Belum ada. Klik \u201c" + self.upload_btn.cget("text").strip("+ ") + \
-                    "\u201d untuk menambahkan."
+            empty = L("Belum ada. Klik \u201c", "Nothing yet. Click \u201c") + \
+                self.upload_btn.cget("text").strip("+ ") + \
+                L("\u201d untuk menambahkan.", "\u201d to add one.")
         else:
             shown = {"all": sorted(own + guru, key=lambda i: i["added"], reverse=True),
                      "own": own, "guru": guru}[self.category]
-            empty = {"all": "Belum ada karya. Klik tombol Upload untuk menambahkan.",
-                     "own": "Kamu belum mengunggah apa pun di sini.",
-                     "guru": "Guru belum menyediakan bahan untuk kursus ini."}[self.category]
-            labels = {"all": f"Semua  {len(own) + len(guru)}", "own": f"Upload saya  {len(own)}",
-                      "guru": f"Dari guru  {len(guru)}"}
+            empty = {"all": L("Belum ada karya. Klik tombol Upload untuk menambahkan.",
+                              "No artwork yet. Click Upload to add some."),
+                     "own": L("Kamu belum mengunggah apa pun di sini.",
+                              "You have not uploaded anything here yet."),
+                     "guru": L("Guru belum menyediakan bahan untuk kursus ini.",
+                               "Your teacher has not added material for this course yet.")
+                     }[self.category]
+            labels = {"all": L("Semua", "All") + f"  {len(own) + len(guru)}",
+                      "own": L("Upload saya", "My uploads") + f"  {len(own)}",
+                      "guru": L("Dari guru", "From teacher") + f"  {len(guru)}"}
             for k, b in self.tabs.items():
                 on = k == self.category
                 b.config(text=labels[k], bg=C.SEG_ON if on else C.BG,
@@ -221,10 +235,13 @@ class PortfolioPanel(tk.Frame):
         all_items = own + guru
         videos = sum(1 for i in all_items if i["kind"] == "video")
         last = max((i["added"] for i in all_items), default=None)
-        parts = [f"{len(all_items)} karya", f"{videos} video"]
+        parts = [f"{len(all_items)} " + L("karya", "artworks"),
+                 f"{videos} " + L("video", "videos")]
         if last is not None:
             days = (datetime.now() - last).days
-            parts.append("terakhir hari ini" if days <= 0 else f"terakhir {days} hari lalu")
+            parts.append(L("terakhir hari ini", "last today") if days <= 0
+                         else L(f"terakhir {days} hari lalu",
+                                f"last {days} day{'s' if days != 1 else ''} ago"))
         self.summary.config(text=f"{self.course['title']}   ·   " + "  ·  ".join(parts))
         self.gallery.set_items(shown, empty)
 
@@ -239,14 +256,16 @@ class PortfolioPanel(tk.Frame):
             portfolio.open_file(item["path"])
         except Exception as exc:
             C.log(f"Gagal membuka {item['path']!r}: {exc!r}")
-            self.status.config(text="File tidak bisa dibuka.", fg=C.ERROR)
+            self.status.config(text=L("File tidak bisa dibuka.", "Could not open the file."),
+                               fg=C.ERROR)
 
     # --- gambar guru -> Blender (Image Editor di kiri 3D viewport, tanpa addon) -----------
     def _to_blender(self, item):
         from elearning import blender_launcher
         app = self.winfo_toplevel()
         if blender_launcher.open_with_reference(app, [item["path"]]):
-            self.status.config(text="Blender dibuka dengan gambar referensi di sebelah kiri.",
+            self.status.config(text=L("Blender dibuka dengan gambar referensi di sebelah kiri.",
+                                       "Blender opened with the reference image on the left."),
                                fg=C.ON)
             ctl = getattr(app, "blender_float", None)
             if ctl is not None:   # sama seperti tombol Buka Blender: aplikasi mengecil
@@ -275,7 +294,8 @@ class PortfolioPanel(tk.Frame):
                  ("Semua file", "*")))
         except Exception as exc:
             C.log(f"Dialog pilih file portfolio gagal: {exc!r}")
-            self.status.config(text="Dialog pilih file tidak bisa dibuka.", fg=C.ERROR)
+            self.status.config(text=L("Dialog pilih file tidak bisa dibuka.",
+                                       "Could not open the file picker."), fg=C.ERROR)
             return []
         if isinstance(result, (tuple, list)):
             return [str(p) for p in result]
@@ -289,9 +309,10 @@ class PortfolioPanel(tk.Frame):
             return
         if not self.teacher:     # murid: file browser gaya aplikasi (Details / thumbnail)
             from elearning.ui.file_browser import open_file_browser
-            what = "render assignment" if self.section == portfolio.ASSIGNMENT else "karya"
+            what = "render assignment" if self.section == portfolio.ASSIGNMENT \
+                else L("karya", "artwork")
             if open_file_browser(self, mode="pick", exts=portfolio.IMAGE_EXT + portfolio.VIDEO_EXT,
-                                 title=f"Pilih {what}", on_pick=self._upload_paths) is not None:
+                                 title=L("Pilih ", "Choose ") + what, on_pick=self._upload_paths) is not None:
                 return
         self._upload_paths(self._pick_files())   # guru / cadangan: dialog bawaan Windows
 
@@ -317,7 +338,8 @@ class PortfolioPanel(tk.Frame):
                     job["errors"].append(f"{_short(os.path.basename(p), 30)}: {exc}")
                 except Exception as exc:   # jangan sampai thread berhenti diam-diam
                     C.log(f"Unggah portfolio gagal {p!r}: {exc!r}")
-                    job["errors"].append(f"{_short(os.path.basename(p), 30)}: gagal diunggah")
+                    job["errors"].append(f"{_short(os.path.basename(p), 30)}: "
+                                         + L("gagal diunggah", "upload failed"))
                 job["done"] += 1
             job["finished"] = True
 
@@ -330,8 +352,10 @@ class PortfolioPanel(tk.Frame):
                 return
             if not job["finished"]:
                 self.status.config(
-                    text=f"Mengunggah {min(job['done'] + 1, job['total'])} "
-                         f"dari {job['total']}… (video besar butuh waktu)", fg=C.MUTED)
+                    text=L(f"Mengunggah {min(job['done'] + 1, job['total'])} "
+                           f"dari {job['total']}… (video besar butuh waktu)",
+                           f"Uploading {min(job['done'] + 1, job['total'])} "
+                           f"of {job['total']}… (large videos take a while)"), fg=C.MUTED)
                 self.after(150, lambda: self._poll(job))
                 return
             self._busy = False
@@ -341,9 +365,9 @@ class PortfolioPanel(tk.Frame):
                 self.on_change()
             parts = []
             if job["ok"]:
-                parts.append(f"{job['ok']} file ditambahkan.")
+                parts.append(L(f"{job['ok']} file ditambahkan.", f"{job['ok']} file(s) added."))
             if job["errors"]:
-                parts.append("Gagal: " + "; ".join(job["errors"][:4])
+                parts.append(L("Gagal: ", "Failed: ") + "; ".join(job["errors"][:4])
                              + (" …" if len(job["errors"]) > 4 else ""))
             self.status.config(text="  ".join(parts), fg=C.ERROR if job["errors"] else C.ON)
         except tk.TclError:
@@ -356,12 +380,13 @@ class PortfolioPanel(tk.Frame):
                 portfolio.remove_item(item["path"])
             except Exception as exc:
                 C.log(f"Gagal menghapus {item['path']!r}: {exc!r}")
-                return "File tidak bisa dihapus."
+                return L("File tidak bisa dihapus.", "Could not delete the file.")
             return None
 
-        ConfirmDialog(self, "Hapus file ini?",
-                      f"{item['name']} akan dihapus dan tidak bisa "
-                      "dikembalikan.", confirm, confirm_text="Hapus").wait_window()
+        ConfirmDialog(self, L("Hapus file ini?", "Delete this file?"),
+                      L(f"{item['name']} akan dihapus dan tidak bisa dikembalikan.",
+                        f"{item['name']} will be deleted and cannot be restored."),
+                      confirm, confirm_text=L("Hapus", "Delete")).wait_window()
         self.refresh()
         if self.on_change:
             self.on_change()
