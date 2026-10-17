@@ -182,7 +182,7 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   (courses.visible_for). Fitur murid baru wajib English.
 
 ## Panel Admin > Setting: Tampilan login (3 mode)
-- elearning/app_settings.py: datapp_settings.json (BUKAN data\settings.json, milik
+- elearning/app_settings.py: data\app_settings.json (BUKAN data\settings.json, milik
   blender_launcher). login_mode: "carousel" (1 baris + video latar, bawaan), "rows3" (3 baris
   kartu di silinder yang sama, 30 portfolio, TANPA video latar), "video" (video latar saja,
   tanpa kartu). Switch lama login_carousel_rows3 dibaca sebagai "rows3". ui/settings_panel.py:
