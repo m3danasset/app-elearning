@@ -135,3 +135,12 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   IC = intermediate = murid dewasa (ID PB...). Jalan otomatis sekali saat admin login
   (penanda data\import_oktober2026.done), bisa diulang dari Ctrl+K admin; nama + kategori
   yang sudah ada dilewati. Kursus awal dibuka: PB BASIC 1, IC INTERMEDIATE 1, SK SUPERKIDS 1.
+
+## Video pembuka pelajaran (murid, bukan trial)
+- assets\video\intro\intro.mp4: 1080p, 3 detik, fade-out (dari video 4K 6,2 dtk; dikecilkan
+  supaya ringan di Vega). update.bat SELALU menyalinnya ke dist\assets\video\intro\.
+- lesson_view.LessonPlayer.load_with_intro: intro diputar otomatis di pemutar utama, lalu
+  video pelajaran langsung diputar (lanjut tonton tetap berlaku). Maks. 3 dtk; macet/gagal
+  > 4 dtk -> langsung pelajaran. Saat intro: tanpa progres, tidak bisa digeser, tombol
+  putar/jeda overlay disembunyikan; klik / spasi = lewati intro. Tiap ganti pelajaran
+  (Selanjutnya / Sebelumnya / sidebar) intro diputar lagi. Trial (student_id None) tanpa intro.

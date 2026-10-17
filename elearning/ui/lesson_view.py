@@ -69,6 +69,10 @@ _PREF = {"volume": 80, "mute": False, "sub": None}   # sub: None/"off" = mati, a
 # Disimpan di data\\subtitle.json, berlaku untuk semua video di PC ini.
 SUB_UP_POS = 80          # posisi subtitle saat naik (% tinggi video; normal = 100)
 _SUB_FILE = os.path.join(C.DATA_DIR, "subtitle.json")
+# Video pembuka M3DAN (3 detik) sebelum setiap video pelajaran murid (bukan trial).
+INTRO_PATH = os.path.join(C.VIDEO_DIR, "intro", "intro.mp4")
+INTRO_MAX = 3.0        # detik; lebih panjang dari ini langsung dipotong
+INTRO_TIMEOUT = 4.0    # intro tidak termuat / macet: langsung ke video pelajaran
 
 
 def _sub_up():
@@ -524,6 +528,8 @@ class LessonPlayer(tk.Frame):
         self.playing = False
         self.on_progress = None   # fn(posisi, durasi, selesai): progres murid
         self._resume = 0.0        # lanjut tonton: detik tujuan setelah video siap
+        self._intro = None        # (path, hint, subs) pelajaran yang menunggu intro selesai
+        self._intro_t0 = 0.0
         self.on_resumed = None    # fn(detik): diberi tahu saat lanjut tonton terjadi
         self.blocked = False      # True saat popup kuis terbuka: tombol putar melayang disembunyikan
         self.pos = 0.0
@@ -862,7 +868,44 @@ class LessonPlayer(tk.Frame):
         """Lanjut tonton: setelah video siap, langsung ke detik ini (masih dijeda)."""
         self._resume = float(sec or 0)
 
+    def load_with_intro(self, path, hint="", subs=()):
+        """Putar video pembuka (3 detik) dulu, lalu otomatis video pelajaran."""
+        if not path or not os.path.isfile(INTRO_PATH):
+            self.load(path, hint, subs)
+            return
+        self.load(INTRO_PATH)
+        if not self.has_video or self.engine is None:
+            self.load(path, hint, subs)
+            return
+        self._intro = (path, hint, subs)
+        self._intro_t0 = time.time()
+        try:
+            self.engine.set_playing(True)
+            self.playing = True
+        except Exception as exc:
+            C.log(f"Intro tidak bisa diputar: {exc!r}")
+            self._finish_intro()
+            return
+        self._refresh()
+
+    def _finish_intro(self):
+        """Intro selesai / dilewati: muat video pelajaran dan langsung putar."""
+        if self._intro is None:
+            return
+        (path, hint, subs), self._intro = self._intro, None
+        resume = self._resume          # lanjut tonton tetap berlaku untuk video pelajaran
+        self.load(path, hint, subs)
+        self._resume = resume
+        if self.has_video and self.engine is not None:
+            try:
+                self.engine.set_playing(True)
+                self.playing = True
+            except Exception as exc:
+                C.log(f"Video pelajaran tidak bisa diputar setelah intro: {exc!r}")
+        self._refresh()
+
     def load(self, path, hint="", subs=()):
+        self._intro = None
         self._resume = 0.0
         self._ensure_engine()
         e = self.engine
@@ -925,6 +968,9 @@ class LessonPlayer(tk.Frame):
 
     # --- kontrol --------------------------------------------------------------
     def toggle(self):
+        if self._intro is not None:       # klik / spasi saat intro: lewati intro
+            self._finish_intro()
+            return
         if not self.has_video or self.engine is None:
             return
         want = not self.playing
@@ -939,6 +985,11 @@ class LessonPlayer(tk.Frame):
             self._refresh()
 
     def _seek_at(self, x, exact):
+        if self._intro is not None:       # intro tidak bisa digeser
+            return
+        self._seek_at_real(x, exact)
+
+    def _seek_at_real(self, x, exact):
         if not self.has_video or self.dur <= 0:
             return
         self._drag = True
@@ -1154,6 +1205,7 @@ class LessonPlayer(tk.Frame):
     def _update_overlay(self):
         try:
             want = (self.has_video and not self._fs_busy and not self.blocked
+                    and self._intro is None          # intro: tanpa tombol putar/jeda
                     and self.winfo_viewable()
                     and self._app_active() and self._pointer_in_stage())
             if want:
@@ -1225,6 +1277,17 @@ class LessonPlayer(tk.Frame):
                         self.screen.itemconfig(self.img_item, image=self.photo)
                     except Exception as exc:
                         C.log(f"Gagal menampilkan frame pelajaran: {exc!r}")
+                if self._intro is not None:   # intro: tanpa progres / lanjut tonton
+                    waited = time.time() - self._intro_t0
+                    if (st.error or st.ended or st.pos >= INTRO_MAX - 0.05
+                            or waited > INTRO_MAX + INTRO_TIMEOUT):
+                        self._finish_intro()
+                    else:
+                        self.dur, self.pos = st.dur, st.pos
+                        self._update_time()
+                        self._draw_seek()
+                    self._job = self.after(30, self._tick)
+                    return
                 if e.has_audio and not e.loaded and time.time() - self._load_t > 6:
                     C.log(f"mpv tidak memuat video dalam 6 detik: {self._path!r}")
                     self._load_t = float("inf")
@@ -1569,7 +1632,10 @@ class LessonsPanel(tk.Frame):
                     f"{lessons.lesson_folder(self.course)}")
         self._flush_progress()
         self._cancel_quiz()
-        self.player.load(it["path"], hint, it.get("subs", ()))
+        if self.student_id:   # murid: video pembuka 3 detik dulu (trial tidak)
+            self.player.load_with_intro(it["path"], hint, it.get("subs", ()))
+        else:
+            self.player.load(it["path"], hint, it.get("subs", ()))
         self.player.on_progress = None
         key = None
         if self.student_id and it["path"] and not it["sample"]:
