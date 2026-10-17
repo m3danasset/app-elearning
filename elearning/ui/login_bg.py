@@ -41,6 +41,9 @@ class LoginBackground(tk.Canvas):
         self._vshown = None
         self._vsize = None
         try:
+            from elearning import app_settings
+            if app_settings.login_mode() == "rows3":   # carousel 3 baris: tanpa video latar
+                raise RuntimeError("mode carousel 3 baris")
             from elearning.ui import video_background as VB
             path = VB.find_video(LOGIN_VIDEO_DIR)
             if path and VB.HAS_VIDEO:

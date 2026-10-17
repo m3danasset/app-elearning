@@ -13,6 +13,8 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
    tab, periode, filter, atau tampilan.
 3. Animasi harus mulus, tidak patah-patah: jadwal frame tetap, gerakan berbasis waktu.
    SEMUA animasi UI maks. 30 fps (pakai config.UI_FPS / UI_FRAME_MS, jangan angka sendiri).
+   Pengecualian: carousel login di PC spek tinggi (config.HIGH_END = driver NVIDIA + >= 12
+   thread) maks. 60 fps dengan 4 thread render (config.CAROUSEL_WORKERS / CAROUSEL_FPS_MAX).
    Ukur jarak antar frame di layar biasa dan 1920x1080 sebelum dikirim.
 4. Tidak ada yang pecah/pixelated (ikon, panah, switch, centang, lingkaran, bentuk apa pun):
    pakai gambar antialias (ui/ui_icons.py), bukan garis Tk.
@@ -179,11 +181,14 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   halaman sertifikat) langsung English. Badge punya name_en/desc_en, kursus desc_en
   (courses.visible_for). Fitur murid baru wajib English.
 
-## Panel Admin > Setting; carousel login 3 baris
-- elearning/app_settings.py: pengaturan admin di data\app_settings.json (BUKAN data\settings.json,
-  itu milik blender_launcher). ui/settings_panel.py: tab Setting (kartu + switch, simpan langsung).
-- login_carousel_rows3 (default OFF): carousel login 3 baris kartu UKURAN SAMA di silinder yang
-  sama (baris atas & bawah = geser vertikal di ruang 3D, rapat, terpotong tepi layar, bergerak
-  berlawanan arah, setengah kartu bergeser), total 30 portfolio (10 per baris). Baris luar
-  di-warp setengah resolusi lalu diperbesar. Berat: 1080p ~20-26 fps, 1440p ~14 fps
-  (1 baris: 30 / 20 fps); keputusan optimasi lanjut masih tertunda.
+## Panel Admin > Setting: Tampilan login (3 mode)
+- elearning/app_settings.py: datapp_settings.json (BUKAN data\settings.json, milik
+  blender_launcher). login_mode: "carousel" (1 baris + video latar, bawaan), "rows3" (3 baris
+  kartu di silinder yang sama, 30 portfolio, TANPA video latar), "video" (video latar saja,
+  tanpa kartu). Switch lama login_carousel_rows3 dibaca sebagai "rows3". ui/settings_panel.py:
+  pilihan radio, simpan langsung, berlaku saat layar login dibuka berikutnya.
+- Kartu carousel melengkung: tiap kartu dibagi irisan vertikal (SLICE_PX) di silinder.
+- fps adaptif (kisi 2x FPS, DIVS) memakai waktu render worker DAN waktu tempel thread utama,
+  dengan jeda (turun >= 0,5 dtk, naik setelah stabil 3 dtk). Ukur PC ini (HIGH_END, 4 thread):
+  carousel 1080p 60 fps, 1440p 30; rows3 1080p 40, 1440p 20; video 1080p 60, 1440p ~58.
+  Batas di layar besar = tempel PhotoImage di thread utama Tk (tidak bisa GPU).

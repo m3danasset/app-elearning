@@ -56,6 +56,24 @@ UI_FRAME_MS = 34
 WORKER_THREADS = 1 if (getattr(os, "process_cpu_count", os.cpu_count)() or 2) <= 4 else 2
 
 
+def _high_end():
+    """PC spek tinggi: driver NVIDIA terpasang (nvapi64.dll) DAN CPU >= 12 thread. Hanya di PC
+    ini carousel login boleh sampai 60 fps dengan 4 thread render (PC lain tetap maks. 30 fps,
+    maks. 2 thread, supaya Blender murid tidak terganggu)."""
+    try:
+        cpus = getattr(os, "process_cpu_count", os.cpu_count)() or 2
+        nv = os.path.isfile(os.path.join(os.environ.get("SystemRoot", r"C:\Windows"),
+                                         "System32", "nvapi64.dll"))
+        return nv and cpus >= 12
+    except Exception:
+        return False
+
+
+HIGH_END = _high_end()
+CAROUSEL_WORKERS = 4 if HIGH_END else WORKER_THREADS
+CAROUSEL_FPS_MAX = 60 if HIGH_END else 30
+
+
 def _low_priority():
     """Proses aplikasi berprioritas 'di bawah normal': Windows mendahulukan Blender dkk.
     Aplikasi tetap lancar saat PC santai; hanya mengalah kalau CPU sedang penuh."""

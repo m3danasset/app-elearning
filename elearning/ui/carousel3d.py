@@ -33,12 +33,14 @@ ASPECT = 0.68            # lebar : tinggi kartu
 BRIGHT = 0.78            # kartu sedikit diredupkan supaya logo & kolom login terbaca
 RADIUS = 0.035           # sudut bulat (proporsi tinggi kartu)
 PAD = 3                  # tepi transparan: sisi miring tetap halus (tidak bergerigi)
-WORKERS = max(1, int(getattr(C, "WORKER_THREADS", 2)))   # dibatasi config (maks. 2)
-FPS = max(10, min(30, int(getattr(C, "LOGIN_CAROUSEL_FPS", 30))))   # maks. 30 fps
+# PC spek tinggi (config.HIGH_END: NVIDIA + >= 12 thread): 4 thread, maks. 60 fps.
+# PC lain: maks. 2 thread (config.WORKER_THREADS), maks. 30 fps.
+WORKERS = max(1, int(getattr(C, "CAROUSEL_WORKERS", getattr(C, "WORKER_THREADS", 2))))
+FPS = 60 if getattr(C, "HIGH_END", False) else     max(10, min(30, int(getattr(C, "LOGIN_CAROUSEL_FPS", 30))))
 # Jadwal frame di kisi 2x FPS (60): frame dibuat tiap DIVS langkah = 30 / 20 / 15 / 10 fps,
 # selalu rata. Layar besar (2560x1440) yang tidak sanggup 30 tetap mulus di 20 fps.
 GRID = 2 * FPS
-DIVS = (2, 3, 4, 6)
+DIVS = (2, 3, 4, 6, 8)    # kisi 120 (spek tinggi): 60/40/30/20/15 fps; kisi 60: 30/20/15/10/7.5
 LEAD = 0.12              # frame disiapkan maks. sekian detik sebelum tampil
 FADE = 0.22              # lebar fade tepi kiri & kanan (proporsi lebar layar)
 PLACEHOLDER = ("#4a5866", "#617d66", "#8d957a", "#83a09a", "#949a7b", "#5d6c7d")
@@ -71,7 +73,7 @@ class Geo:
     bergerak berlawanan arah. Sebagian terpotong tepi layar.
     self.rows = [(cyb, B, half, step, arah, set tekstur, geser vertikal)]"""
 
-    def __init__(self, W, H, cy, ch, extra=(), rows3=False):
+    def __init__(self, W, H, cy, ch, extra=(), rows3=False, cards=True):
         self.W, self.H = int(W), int(H)
         self.cx = W / 2
         self.ch = ch
@@ -87,8 +89,11 @@ class Geo:
             hmax = max(hmax, self.B / z)
         top, bot = cy - hmax - PAD, cy + hmax + PAD
         rows = [(cy, self.B, HALF, STEP, 1, 0, 0.0)]
-        self.rows3 = bool(rows3)
-        if rows3:
+        self.rows3 = bool(rows3) and cards
+        if not cards:          # mode "video": tanpa kartu, pita hanya untuk logo & kolom login
+            rows = []
+            top, bot = H, 0
+        if self.rows3:
             off = 2 * self.B * 1.055                     # tinggi kartu + celah (~5.5 %)
             rows.append((cy, self.B, HALF, STEP, -1, 1, -off))   # baris atas
             rows.append((cy, self.B, HALF, STEP, -1, 2, off))    # baris bawah
@@ -232,11 +237,13 @@ class Carousel3D:
         self.items = []
         self.geo = None
         self.tex = []              # [tekstur baris utama, atas, bawah] (RGBA per kartu)
-        try:                       # Panel Admin > Setting: baris atas & bawah (30 portfolio)
+        try:                       # Panel Admin > Setting > Tampilan login
             from elearning import app_settings
-            self.rows3 = bool(app_settings.get("login_carousel_rows3"))
+            mode = app_settings.login_mode()
         except Exception:
-            self.rows3 = False
+            mode = "carousel"
+        self.rows3 = mode == "rows3"          # 3 baris (30 portfolio), tanpa video latar
+        self.cards = mode != "video"          # "video": video latar saja, tanpa kartu
         self._tex_h = 0
         self._tex_key = (0, 0, 0)
         self._tex_loading = None
@@ -248,6 +255,8 @@ class Carousel3D:
         # 30 -> 15 -> 10 fps tapi TETAP rata (lebih mulus daripada frame terlewat acak).
         self._div = DIVS[0]
         self._cost = 0.0           # rata-rata waktu render satu frame (detik)
+        self._main_cost = 0.0      # rata-rata waktu tempel frame di thread utama (detik)
+        self._adapt_t = 0.0        # waktu tingkat fps terakhir berubah
         self._paused = False
         self._stop = threading.Event()
         self._t0 = time.perf_counter()
@@ -261,7 +270,7 @@ class Carousel3D:
     # --- mulai / berhenti ------------------------------------------------------------
     def start(self):
         _timer_res(True)
-        self.items = SC.collect(limit=MAX_ITEMS * (3 if self.rows3 else 1))
+        self.items = SC.collect(limit=MAX_ITEMS * (3 if self.rows3 else 1)) if self.cards else []
         C.log(f"Carousel 3D login: {len(self.items)} karya")
         for _ in range(WORKERS):
             t = threading.Thread(target=self._work, daemon=True)
@@ -288,7 +297,7 @@ class Carousel3D:
 
     # --- tata letak (thread utama) ---------------------------------------------------------
     def configure(self, W, H, cy, ch, overlays, extra):
-        geo = Geo(W, H, cy, ch, extra, rows3=self.rows3)
+        geo = Geo(W, H, cy, ch, extra, rows3=self.rows3, cards=self.cards)
         same = self.geo is not None and geo.key == self.geo.key
         if same:
             geo = self.geo
@@ -328,6 +337,8 @@ class Carousel3D:
     def _ensure_textures(self, geo):
         """Gambar kartu dibuat ulang hanya kalau ukurannya jauh berbeda. Baris atas & bawah
         (setting rows3): ukuran kartu sama, 10 karya lain per baris."""
+        if not self.cards:     # mode video: tidak ada kartu
+            return
         th = int(geo.ch * 1.2)
         th2 = th if geo.rows3 else 0                      # baris atas & bawah: ukuran sama
         want_sets = 3 if th2 else 1
@@ -415,16 +426,24 @@ class Carousel3D:
                     self._frames[k] = (k, geo, img, vframe)
 
     def _adapt(self, cost):
-        """Atur _div dari rata-rata waktu render (beberapa worker bergantian membuat frame)."""
+        """Atur _div dari rata-rata waktu render (beberapa worker bergantian membuat frame)
+        DAN waktu tempel di thread utama (Tk, satu thread: di layar besar ini batasnya)."""
         with self._lock:
             self._cost = cost if self._cost == 0 else self._cost * 0.9 + cost * 0.1
             budget = WORKERS / GRID            # waktu per langkah kisi untuk semua worker
+            step = 1.0 / GRID                  # satu langkah kisi (detik)
+            main = self._main_cost
             i = DIVS.index(self._div)
-            if self._cost > self._div * budget * 0.85 and i + 1 < len(DIVS):
+            now = time.perf_counter()
+            since = now - self._adapt_t           # jeda: tidak bolak-balik antar tingkat fps
+            too_slow = self._cost > self._div * budget * 0.85 or main > self._div * step * 0.7
+            if too_slow and i + 1 < len(DIVS) and since > 0.5:
+                self._adapt_t = now
                 self._div = DIVS[i + 1]
                 C.log(f"Carousel 3D: render {self._cost * 1000:.0f} ms -> "
                       f"{GRID // self._div} fps rata")
-            elif i > 0 and self._cost < DIVS[i - 1] * budget * 0.75:   # naik lagi (jeda 75-85 %)
+            elif i > 0 and since > 3.0 and self._cost < DIVS[i - 1] * budget * 0.75                     and main < DIVS[i - 1] * step * 0.55:              # naik lagi (stabil 3 dtk)
+                self._adapt_t = now
                 self._div = DIVS[i - 1]
 
     # --- thread utama: tempel frame pada waktunya ----------------------------------------
@@ -461,10 +480,14 @@ class Carousel3D:
         self._after = self.bg.after(delay, self._tick)
 
     def _display(self, _t, geo, img, vframe):
+        t0 = time.perf_counter()
         try:
             self.bg.show_band(img, geo.y0)        # kartu dulu, tepat waktu
             if vframe is not None:
                 self.bg.show_video(vframe, now=False,   # video latar menyusul dalam frame ini
-                                   period_ms=1000.0 * self._div / GRID)
+                                   # disebar min. 45 ms (60 fps: frame cuma 16,7 ms)
+                                   period_ms=max(45.0, 1000.0 * self._div / GRID))
         except Exception as exc:       # canvas sudah ditutup
             C.log(f"Carousel 3D: {exc!r}")
+        spent = time.perf_counter() - t0          # waktu tempel di thread utama
+        self._main_cost = spent if not self._main_cost else self._main_cost * 0.9 + spent * 0.1
