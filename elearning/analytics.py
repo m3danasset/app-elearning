@@ -90,6 +90,35 @@ def _dt(d):
 
 
 # --- utama -------------------------------------------------------------------------
+def occurrences(slots, by_sid, active_ids, a0, a1):
+    """Setiap jadwal yang SUDAH selesai di rentang [a0, a1] (sejak jadwal dibuat), per murid:
+    yield (jadwal, tanggal, id murid, hadir?, mulai, selesai). Dipakai Analytics & Excel.
+    by_sid: {id murid: [(masuk, keluar), ...]} dari riwayat login."""
+    for sl in slots:
+        members = [m for m in sl["students"] if m in active_ids]
+        if not members:
+            continue
+        first = a0.date()
+        if sl.get("since"):
+            try:
+                first = max(first, date.fromisoformat(sl["since"]))
+            except ValueError:
+                pass
+        d = first + timedelta(days=(sl["day"] - first.weekday()) % 7)
+        sm, em = _min(sl["start"]), _min(sl["end"])
+        while d <= a1.date():
+            o0 = _dt(d) + timedelta(minutes=sm)
+            o1 = _dt(d) + timedelta(minutes=em)
+            if o1 > a1:          # jadwal belum selesai: belum dihitung
+                break
+            if o0 >= a0:
+                for m in members:
+                    here = any(_overlap(s0, s1, o0 - timedelta(minutes=EARLY_MIN), o1)
+                               >= PRESENT_MIN * 60 for s0, s1 in by_sid.get(m, ()))
+                    yield sl, d, m, here, o0, o1
+            d += timedelta(days=7)
+
+
 def compute(period="30d", program="all"):
     now = datetime.now()
     today = now.date()
@@ -241,36 +270,16 @@ def compute(period="30d", program="all"):
         """(hadir, harus hadir, per jadwal {id: [h, n]}, per murid {id: [h, n]})"""
         pres = exp = 0
         per_slot, per_sid = {}, {}
-        for sl in slots:
-            members = [m for m in sl["students"] if m in active_ids]
-            if not members:
-                continue
-            first = a0.date()
-            if sl.get("since"):
-                try:
-                    first = max(first, date.fromisoformat(sl["since"]))
-                except ValueError:
-                    pass
-            d = first + timedelta(days=(sl["day"] - first.weekday()) % 7)
-            sm, em = _min(sl["start"]), _min(sl["end"])
-            while d <= a1.date():
-                o0 = _dt(d) + timedelta(minutes=sm)
-                o1 = _dt(d) + timedelta(minutes=em)
-                if o1 > a1:          # jadwal belum selesai: belum dihitung
-                    break
-                for m in members:
-                    here = any(_overlap(s0, s1, o0 - timedelta(minutes=EARLY_MIN), o1)
-                               >= PRESENT_MIN * 60 for s0, s1 in by_sid.get(m, ()))
-                    exp += 1
-                    pres += here
-                    ps = per_slot.setdefault(sl["id"], [0, 0])
-                    pm = per_sid.setdefault(m, [0, 0])
-                    ps[1] += 1
-                    pm[1] += 1
-                    if here:
-                        ps[0] += 1
-                        pm[0] += 1
-                d += timedelta(days=7)
+        for sl, _day, m, here, _o0, _o1 in occurrences(slots, by_sid, active_ids, a0, a1):
+            exp += 1
+            pres += here
+            ps = per_slot.setdefault(sl["id"], [0, 0])
+            pm = per_sid.setdefault(m, [0, 0])
+            ps[1] += 1
+            pm[1] += 1
+            if here:
+                ps[0] += 1
+                pm[0] += 1
         return pres, exp, per_slot, per_sid
 
     att_pres, att_exp, att_slot, att_sid = attendance(p0, p1)

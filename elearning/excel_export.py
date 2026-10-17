@@ -3,7 +3,8 @@
 File .xlsx ditulis langsung (zip + XML) dengan modul bawaan Python, tanpa library tambahan,
 jadi tidak perlu build ulang .exe. Sheet (bisa dipilih di dialog, lihat SHEETS):
   Riwayat Login, Ringkasan, Data Murid, Portfolio, Laporan Guru, Aktivitas Guru,
-  Rekap Harian, Progres Kursus + Progres Video.
+  Rekap Harian, Progres Kursus + Progres Video, Jadwal + Jadwal Sesi, Kehadiran Jadwal,
+  Badge Murid. Data Murid juga berisi tanggal lahir, umur, label PB/IC/SK, jadwal, badge.
 Tanggal & jam disimpan sebagai tanggal Excel asli, jadi bisa diurutkan / disaring / dihitung.
 """
 
@@ -42,10 +43,10 @@ def _le(*pairs):
     return b"".join(int(v).to_bytes(n, "little") for v, n in pairs)
 
 from elearning import config as C
-from elearning import portfolio, progress, reports, sessions
+from elearning import achievements, portfolio, progress, reports, schedule, sessions
 from elearning import teachers as T
 from elearning.courses import COURSES, courses_for
-from elearning.students import STATUS_LABEL, list_students
+from elearning.students import STATUS_EXPIRED, STATUS_LABEL, age_of, list_students
 
 MONTHS = ("Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus",
           "September", "Oktober", "November", "Desember")
@@ -59,7 +60,9 @@ ROLE = {"adult": "Murid dewasa", "kids": "Murid anak", "teacher": "Guru"}
 SHEETS = (("logins", "Riwayat login"), ("summary", "Ringkasan per orang"),
           ("students", "Data murid"), ("portfolio", "Portfolio"),
           ("reports", "Laporan guru"), ("teachers", "Aktivitas guru"),
-          ("daily", "Rekap harian"), ("progress", "Progres, catatan & kuis"))
+          ("daily", "Rekap harian"), ("progress", "Progres, catatan & kuis"),
+          ("schedule", "Jadwal kelas (daftar + sesi)"), ("attendance", "Kehadiran jadwal"),
+          ("badges", "Badge murid"))
 SHEETS_FILE = os.path.join(C.DATA_DIR, "export_sheets.txt")   # pilihan terakhir
 
 FOLDER_FILE = os.path.join(C.DATA_DIR, "export_folder.txt")   # folder terakhir yang dipilih
@@ -199,7 +202,13 @@ def load_sheets():
     keys = [k for k, _l in SHEETS]
     try:
         with open(SHEETS_FILE, encoding="utf-8") as f:
-            got = [k for k in f.read().split() if k in keys]
+            lines = f.read().split("\n")
+        got = [k for k in lines[0].split() if k in keys]
+        # baris 2 = sheet yang sudah dikenal saat disimpan; sheet BARU otomatis ikut dicentang
+        known = set(lines[1].split()) if len(lines) > 1 and lines[1].strip() else \
+            {"logins", "summary", "students", "portfolio", "reports", "teachers", "daily",
+             "progress"}
+        got += [k for k in keys if k not in known]
         return set(got) if got else set(keys)
     except OSError:
         return set(keys)
@@ -209,7 +218,8 @@ def save_sheets(chosen):
     try:
         os.makedirs(C.DATA_DIR, exist_ok=True)
         with open(SHEETS_FILE, "w", encoding="utf-8") as f:
-            f.write(" ".join(k for k, _l in SHEETS if k in chosen))
+            f.write(" ".join(k for k, _l in SHEETS if k in chosen) + "\n"
+                    + " ".join(k for k, _l in SHEETS))
     except OSError as exc:
         C.log(f"Pilihan sheet export tidak bisa diingat: {exc!r}")
 
@@ -433,17 +443,31 @@ def _course_titles():
 
 
 def _uploads(students):
-    """Semua portfolio murid: [(murid, waktu, jenis, id kursus, nama file, ukuran)]."""
+    """Portfolio + assignment murid: [(murid, waktu, jenis, id kursus, nama file, ukuran,
+    bagian)]; bagian = "Portfolio" / "Assignment"."""
     out = []
     for s in students:
         for c in courses_for(s["program"]):
             try:
-                for it in portfolio.list_items(s["id"], c["id"]):
-                    out.append((s, it["added"], it["kind"], c["id"], it["name"], it["size"]))
+                for sec, label in ((None, "Portfolio"), (portfolio.ASSIGNMENT, "Assignment")):
+                    for it in portfolio.list_items(s["id"], c["id"], sec):
+                        out.append((s, it["added"], it["kind"], c["id"], it["name"],
+                                    it["size"], label))
             except Exception as exc:
                 C.log(f"Export: portfolio {s['id']}/{c['id']} gagal dibaca: {exc!r}")
     out.sort(key=lambda u: u[1])
     return out
+
+
+def _label(s):
+    """Label seperti sheet jadwal: SK (anak), IC (intermediate dibuka), PB (dewasa)."""
+    if s["program"] == "kids":
+        return "SK"
+    return "IC" if any(c.startswith("intermediate") for c in s["courses"]) else "PB"
+
+
+def _slot_text(sl):
+    return f"{schedule.DAYS[sl['day']]} {sl['start']}-{sl['end']}"
 
 
 def _progress_rows(students):
@@ -550,6 +574,8 @@ def export(path, label, start, end, who="all", sheets=None):
     if "summary" in chosen:
         up_by = {}
         for u in up_period:
+            if u[6] != "Portfolio":
+                continue
             up_by[u[0]["id"]] = up_by.get(u[0]["id"], 0) + 1
         rep_about, rep_by = {}, {}
         for r in reps:
@@ -583,8 +609,20 @@ def export(path, label, start, end, who="all", sheets=None):
         for u in uploads:
             up_all[u[0]["id"]] = up_all.get(u[0]["id"], 0) + 1
         prog = progress.all_progress()
+        slots_all = schedule.list_slots()
         st_rows = []
         for i, s in enumerate(students):
+            birth = s.get("birth") or ""
+            try:
+                bdt = datetime.strptime(birth, "%Y-%m-%d") if birth else None
+            except ValueError:
+                bdt = None
+            mine = [_slot_text(sl) for sl in slots_all if s["id"] in sl["students"]]
+            try:
+                n_badge = len(achievements.earned(s["id"]))
+            except Exception:
+                n_badge = 0
+            n_asg = sum(1 for u in uploads if u[0]["id"] == s["id"] and u[6] == "Assignment")
             o = ov.get(s["id"])
             last = o["last_seen"] if o else None
             idle = (now - last).days if last else None
@@ -596,24 +634,28 @@ def export(path, label, start, end, who="all", sheets=None):
                             o["count"] if o else 0,
                             round(o["total"] / 3600.0, 1) if o else 0.0,
                             last, idle if idle is not None else "Belum pernah",
-                            up_all.get(s["id"], 0), done])
+                            up_all.get(s["id"], 0) - n_asg, n_asg, done,
+                            _label(s), bdt, age_of(birth) if birth else None, n_badge,
+                            "; ".join(mine) or "-"])
         out.append(("Data Murid", _sheet(
             "Data Murid (sepanjang masa)", f"{sub}   ·   {len(students)} murid",
             ["No", "ID", "Nama", "Kategori", "Status akun", "Jumlah kursus", "Kursus dibuka",
              "Total login", "Total jam", "Login terakhir", "Hari tidak login",
-             "Total upload", "Video selesai"],
-            [6, 10, 26, 15, 13, 14, 50, 12, 11, 18, 16, 13, 14], st_rows,
-            [0, 0, 0, 0, 0, 0, 8, 0, 5, 4, 0, 0, 0])))
+             "Upload portfolio", "Upload assignment", "Video selesai", "Label",
+             "Tanggal lahir", "Umur", "Badge", "Jadwal"],
+            [6, 10, 26, 15, 13, 14, 50, 12, 11, 18, 16, 16, 18, 14, 8, 14, 8, 8, 40], st_rows,
+            [0, 0, 0, 0, 0, 0, 8, 0, 5, 4, 0, 0, 0, 0, 0, 2, 0, 0, 8])))
 
     if "portfolio" in chosen:
         pf_rows = [[i + 1, u[1], u[0]["id"], u[0]["name"], ROLE[u[0]["program"]],
-                    titles.get(u[3], u[3]), "Gambar" if u[2] == "image" else "Video",
+                    titles.get(u[3], u[3]), u[6], "Gambar" if u[2] == "image" else "Video",
                     u[4], round(u[5] / 1048576.0, 1)] for i, u in enumerate(up_period)]
         out.append(("Portfolio", _sheet(
-            "Upload Portfolio", f"{sub}   ·   {len(pf_rows)} file",
-            ["No", "Waktu upload", "ID", "Nama", "Kategori", "Kursus", "Jenis", "Nama file",
-             "Ukuran (MB)"],
-            [6, 18, 10, 26, 15, 18, 10, 40, 13], pf_rows, [0, 4, 0, 0, 0, 0, 0, 0, 5])))
+            "Upload Portfolio & Assignment", f"{sub}   ·   {len(pf_rows)} file",
+            ["No", "Waktu upload", "ID", "Nama", "Kategori", "Kursus", "Bagian", "Jenis",
+             "Nama file", "Ukuran (MB)"],
+            [6, 18, 10, 26, 15, 18, 13, 10, 40, 13], pf_rows,
+            [0, 4, 0, 0, 0, 0, 0, 0, 0, 5])))
 
     if "reports" in chosen:
         rp_rows = []
@@ -685,6 +727,8 @@ def export(path, label, start, end, who="all", sheets=None):
                 g["stu"].add(x["id"])
                 g["sec"] += x["seconds"]
         for u in up_period:
+            if u[6] != "Portfolio":
+                continue
             g = days.get(u[1].date())
             if g is not None:
                 g["up"] += 1
@@ -723,6 +767,119 @@ def export(path, label, start, end, who="all", sheets=None):
             ["Kursus", "Video", "Pertanyaan", "Kunci", "ID", "Nama", "Jawaban murid",
              "Hasil", "Dijawab"],
             [16, 30, 50, 20, 10, 26, 30, 16, 18], qrows, [0, 0, 8, 0, 0, 0, 8, 0, 4])))
+
+    if chosen & {"schedule", "attendance"}:
+        slots = schedule.list_slots()
+        stu_by = {s["id"]: s for s in all_students}
+        want = [sl for sl in slots if who == "teachers"
+                or any(m in sid_set for m in sl["students"]) or not sl["students"]]
+
+    if "schedule" in chosen:
+        colors = {k: n for k, n, _h in schedule.COLORS}
+        sc_rows = []
+        for i, sl in enumerate(want):
+            names = [f"{_label(stu_by[m])} {stu_by[m]['name']} ({m})" for m in sl["students"]
+                     if m in stu_by and (who == "teachers" or m in sid_set)]
+            sc_rows.append([i + 1, schedule.DAYS[sl["day"]], sl["start"], sl["end"],
+                            tnames.get(sl["teacher"], sl["teacher"] or "-"), sl["note"] or "-",
+                            colors.get(sl.get("color", ""), "Otomatis"), len(names),
+                            "; ".join(names) or "-"])
+        out.append(("Jadwal", _sheet(
+            "Jadwal Kelas (berulang tiap minggu)", f"{sub}   ·   {len(sc_rows)} jadwal",
+            ["No", "Hari", "Mulai", "Selesai", "Guru", "Catatan", "Warna", "Jumlah murid",
+             "Murid"],
+            [6, 10, 9, 9, 22, 22, 11, 14, 90], sc_rows, [0, 0, 0, 0, 0, 0, 0, 0, 8])))
+        # Jadwal Sesi: seperti tampilan Sesi / sheet jadwal (kolom = jam, baris = slot)
+        h0, h1 = getattr(C, "SCHEDULE_HOURS", (8, 21))
+        hours = list(range(h0, h1))
+        ss_rows = []
+        for day in range(7):
+            cells = {}
+            items = []
+            for sl in want:
+                if sl["day"] != day:
+                    continue
+                a = max(h0, schedule.to_min(sl["start"]) // 60)
+                b = min(h1, -(-schedule.to_min(sl["end"]) // 60))
+                for m in sl["students"]:
+                    if m in stu_by and (who == "teachers" or m in sid_set):
+                        items.append((a, b, m))
+            items.sort(key=lambda t: (t[0], -(t[1] - t[0]), stu_by[t[2]]["name"].lower()))
+            rows_n = 0
+            for a, b, m in items:
+                r = 0
+                while any((r, h) in cells for h in range(a, b)):
+                    r += 1
+                for h in range(a, b):
+                    cells[(r, h)] = f"{_label(stu_by[m])} {stu_by[m]['name']}"
+                rows_n = max(rows_n, r + 1)
+            for r in range(rows_n):
+                ss_rows.append([schedule.DAYS[day] if r == 0 else "", r + 1]
+                               + [cells.get((r, h), "") for h in hours])
+        out.append(("Jadwal Sesi", _sheet(
+            "Jadwal Sesi (kolom = jam, baris = slot murid)", f"{sub}",
+            ["Hari", "Slot"] + [f"{h:02d}.00-{h + 1:02d}.00" for h in hours],
+            [10, 6] + [17] * len(hours), ss_rows, [0, 0] + [0] * len(hours))))
+
+    if "attendance" in chosen:
+        from elearning import analytics as AN
+        a1 = min(end, now) if end is not None else now
+        if start is not None:
+            a0 = start
+        else:
+            sinces = [sl["since"] for sl in want if sl.get("since")]
+            a0 = datetime.strptime(min(sinces), "%Y-%m-%d") if sinces else a1 - timedelta(days=30)
+        by_sid = {}
+        for x in rows:
+            if x["kind"] != "teacher":
+                by_sid.setdefault(x["id"], []).append((x["start"], x["end"]))
+        if not rows and sid_set:      # data login hanya guru: baca sesi murid sendiri
+            for x in collect(start, end, "students")[0]:
+                by_sid.setdefault(x["id"], []).append((x["start"], x["end"]))
+        active = {s["id"] for s in students if s["status"] != STATUS_EXPIRED}
+        at_rows = []
+        for sl, d, m, here, o0, _o1 in sorted(
+                AN.occurrences(want, by_sid, active, a0, a1),
+                key=lambda t: (t[4], stu_by[t[2]]["name"].lower())):
+            at_rows.append([len(at_rows) + 1, datetime(d.year, d.month, d.day),
+                            schedule.DAYS[sl["day"]], f"{sl['start']}-{sl['end']}", m,
+                            stu_by[m]["name"], _label(stu_by[m]),
+                            tnames.get(sl["teacher"], sl["teacher"] or "-"),
+                            "Hadir" if here else "Tidak hadir"])
+        hadir = sum(1 for r in at_rows if r[-1] == "Hadir")
+        pct = f"{round(hadir / len(at_rows) * 100)}%" if at_rows else "-"
+        out.append(("Kehadiran Jadwal", _sheet(
+            "Kehadiran Sesuai Jadwal",
+            f"{sub}   ·   {hadir}/{len(at_rows)} hadir ({pct})   ·   hadir = login min. "
+            f"{AN.PRESENT_MIN} menit di jam jadwal",
+            ["No", "Tanggal", "Hari", "Jam", "ID", "Nama", "Label", "Guru", "Kehadiran"],
+            [6, 13, 10, 13, 10, 26, 8, 22, 14], at_rows, [0, 2, 0, 0, 0, 0, 0, 0, 0])))
+
+    if "badges" in chosen:
+        bg_rows = []
+        for s in students:
+            try:
+                got = achievements.earned(s["id"])
+            except Exception as exc:
+                C.log(f"Export: badge {s['id']} gagal dibaca: {exc!r}")
+                got = {}
+            for bid, t in sorted(got.items(), key=lambda kv: kv[1]):
+                b = achievements.BY_ID.get(bid)
+                if b is None:
+                    continue
+                try:
+                    when = datetime.strptime(t, achievements.FMT)
+                except Exception:
+                    when = None
+                if when is not None and not _in(when, start, end):
+                    continue
+                cat = dict((k, n) for k, n, _c in achievements.CATEGORIES).get(b["cat"], "")
+                bg_rows.append([len(bg_rows) + 1, when, s["id"], s["name"], _label(s),
+                                b["name"], cat, b["desc"]])
+        out.append(("Badge Murid", _sheet(
+            "Badge Murid", f"{sub}   ·   {len(bg_rows)} badge didapat",
+            ["No", "Didapat", "ID", "Nama", "Label", "Badge", "Kategori", "Cara mendapat"],
+            [6, 18, 10, 26, 8, 24, 13, 50], bg_rows, [0, 4, 0, 0, 0, 0, 0, 8])))
 
     if not out:
         raise ValueError("tidak ada sheet yang dipilih")

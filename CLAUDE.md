@@ -144,3 +144,11 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   > 4 dtk -> langsung pelajaran. Saat intro: tanpa progres, tidak bisa digeser, tombol
   putar/jeda overlay disembunyikan; klik / spasi = lewati intro. Tiap ganti pelajaran
   (Selanjutnya / Sebelumnya / sidebar) intro diputar lagi. Trial (student_id None) tanpa intro.
+
+## Export Excel admin (fitur baru ikut)
+- excel_export.SHEETS + Jadwal (daftar: hari, jam, guru, catatan, warna, murid) & Jadwal Sesi
+  (seperti tampilan Sesi), Kehadiran Jadwal (per murid per jadwal yang sudah selesai; aturan
+  sama dengan Analytics lewat analytics.occurrences), Badge Murid. Data Murid + label PB/IC/SK,
+  tanggal lahir, umur, badge, upload assignment, jadwal. Portfolio + kolom Bagian
+  (Portfolio / Assignment). Sheet baru otomatis tercentang di dialog (baris 2 export_sheets.txt).
+
