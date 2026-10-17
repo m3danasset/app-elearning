@@ -36,7 +36,17 @@ PAD = 3                  # tepi transparan: sisi miring tetap halus (tidak berge
 # PC spek tinggi (config.HIGH_END: NVIDIA + >= 12 thread): 4 thread, maks. 60 fps.
 # PC lain: maks. 2 thread (config.WORKER_THREADS), maks. 30 fps.
 WORKERS = max(1, int(getattr(C, "CAROUSEL_WORKERS", getattr(C, "WORKER_THREADS", 2))))
-FPS = 60 if getattr(C, "HIGH_END", False) else     max(10, min(30, int(getattr(C, "LOGIN_CAROUSEL_FPS", 30))))
+def _fps60():
+    try:
+        from elearning.app_settings import feature
+        return bool(getattr(C, "HIGH_END", False)) and feature("fps60")   # Dev: bisa dimatikan
+    except Exception:
+        return False
+
+
+_HI = _fps60()
+WORKERS = WORKERS if _HI else max(1, int(getattr(C, "WORKER_THREADS", 2)))
+FPS = 60 if _HI else max(10, min(30, int(getattr(C, "LOGIN_CAROUSEL_FPS", 30))))
 # Jadwal frame di kisi 2x FPS (60): frame dibuat tiap DIVS langkah = 30 / 20 / 15 / 10 fps,
 # selalu rata. Layar besar (2560x1440) yang tidak sanggup 30 tetap mulus di 20 fps.
 GRID = 2 * FPS

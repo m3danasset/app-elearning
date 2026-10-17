@@ -776,7 +776,9 @@ def _install_shortcut(top):
         sb = _current["sb"]
         if sb is not None and sb.winfo_exists():
             screen = sb.master
-            if getattr(screen, "search_sources", None) is not None:   # search palette
+            from elearning.app_settings import feature
+            if getattr(screen, "search_sources", None) is not None \
+                    and feature("palette"):                         # search palette
                 from elearning.ui.search_palette import open_palette
                 if open_palette(screen) is not None:
                     return "break"
@@ -806,7 +808,9 @@ class AppSidebar(tk.Frame):
 
     def __init__(self, master, user, subtitle, on_logout, populate, placeholder="Cari",
                  on_search=None, menu_items=(), suggest=None, on_enter=None, palette=False):
-        self.palette = palette    # True: kolom cari sidebar membuka search palette (murid)
+        from elearning.app_settings import feature
+        # True: kolom cari sidebar membuka search palette (murid); Dev bisa mematikan palette
+        self.palette = palette and feature("palette")
         super().__init__(master, bg=C.SIDEBAR, width=EXPANDED_W)
         self.pack_propagate(False)
         self.user, self.subtitle = user, subtitle
@@ -842,7 +846,7 @@ class AppSidebar(tk.Frame):
         return any(q in str(t).lower() for t in texts if t)
 
     def focus_search(self):
-        if self.palette:
+        if self.palette:     # (palette dimatikan di Dev -> self.palette False sejak awal)
             from elearning.ui.search_palette import open_palette
             open_palette(self.master)
             return
@@ -1249,6 +1253,9 @@ class SidebarLayout(tk.Frame):
 
     def enable_search(self, placeholder):
         """Kolom cari di tengah bawah (klik = buka search palette)."""
+        from elearning.app_settings import feature
+        if not feature("palette"):       # Dev: search palette dimatikan -> tanpa kolom bawah
+            return
         from elearning.ui.search_palette import SearchBar, open_palette
         lane = tk.Frame(self.right, bg=C.BG, height=self.SEARCH_BAR_H)
         lane.pack_propagate(False)

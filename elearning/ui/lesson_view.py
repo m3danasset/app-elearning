@@ -872,7 +872,8 @@ class LessonPlayer(tk.Frame):
 
     def load_with_intro(self, path, hint="", subs=()):
         """Putar video pembuka (3 detik) dulu, lalu otomatis video pelajaran."""
-        if not path or not os.path.isfile(INTRO_PATH):
+        from elearning.app_settings import feature
+        if not path or not os.path.isfile(INTRO_PATH) or not feature("intro"):   # Dev: off
             self.load(path, hint, subs)
             return
         self.load(INTRO_PATH)

@@ -28,6 +28,8 @@ class App(tk.Tk):
             except Exception:
                 pass
 
+        from elearning import app_settings
+        app_settings.apply_theme()   # warna aksen pilihan (jendela Dev)
         splash.close()  # splash ditutup tepat sebelum jendela utama dibuat
         super().__init__()
         self.title(config.APP_NAME)
@@ -52,6 +54,8 @@ class App(tk.Tk):
         self._student = None
         self.protocol("WM_DELETE_WINDOW", self._close)   # tutup jendela = murid keluar
         self.after(60_000, self._beat)
+        from elearning.ui.dev_panel import install_shortcut
+        install_shortcut(self)   # Ctrl kanan + Shift kanan + Backspace = jendela Dev
         self.show_login()
 
     def _set_icon(self):
@@ -172,11 +176,14 @@ class App(tk.Tk):
         i18n.set_role("trial" if is_trial(student) else "student")   # layar murid: English
         if not is_trial(student):   # akun trial dipakai bersama, tidak dicatat
             sessions.start(student["id"])
-        self.blender_float.start()   # ikon mengambang saat Blender terbuka (semua murid)
+        from elearning.app_settings import feature
+        if feature("floating"):           # Dev: mode mengambang bisa dimatikan
+            self.blender_float.start()   # ikon mengambang saat Blender terbuka (semua murid)
         self._student = student
         self.show_home(student)
         self._after_login()
-        self.badges.start(student)   # badge (trial diabaikan); notifikasi setelah layar siap
+        if feature("badges"):             # Dev: badge bisa dimatikan
+            self.badges.start(student)   # badge (trial diabaikan); notifikasi setelah layar siap
 
     def login_teacher(self, teacher):
         from elearning import i18n
@@ -190,6 +197,21 @@ class App(tk.Tk):
         i18n.set_role("admin")
         self.show_admin(admin)          # login admin tidak dicatat
         self._after_login()
+
+    def dev_login(self, kind, account):
+        """Jendela Dev: masuk sebagai akun mana pun tanpa PIN (keluar dari akun sekarang dulu,
+        tanpa konfirmasi)."""
+        if account is None:
+            return
+        config.log(f"Dev login: {kind} {account.get('id', '')}")
+        if self._screen is not None and not isinstance(self._screen, LoginScreen):
+            self._logout()
+        if kind == "admin":
+            self.login_admin(account)
+        elif kind == "teacher":
+            self.login_teacher(account)
+        else:
+            self.login_student(account)
 
     def logout(self):
         self._confirm(L("Keluar dari akun?", "Log out?"), L("Keluar", "Log out"), self._logout)

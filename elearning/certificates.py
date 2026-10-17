@@ -74,8 +74,10 @@ def requirements(student, course):
     n_pf = portfolio.count(sid, course["id"])
     items.append(("portfolio", f"Upload at least {PORTFOLIO_MIN} portfolio", n_pf,
                   PORTFOLIO_MIN))
-    n_b = len(achievements.earned(sid, course["id"]))
-    items.append(("badges", f"Min. {BADGES_MIN} badges in this course", n_b, BADGES_MIN))
+    from elearning.app_settings import feature
+    if feature("badges"):        # badge dimatikan (Dev): syarat badge tidak dipakai
+        n_b = len(achievements.earned(sid, course["id"]))
+        items.append(("badges", f"Min. {BADGES_MIN} badges in this course", n_b, BADGES_MIN))
     ok = all(now >= want for _k, _l, now, want in items) and \
         all(want > 0 for k, _l, _n, want in items if k == "videos")
     return items, ok

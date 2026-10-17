@@ -15,8 +15,28 @@ from elearning import config as C
 #   "rows3"    = carousel 3 baris (30 portfolio), TANPA video latar
 #   "video"    = video latar saja, tanpa carousel
 LOGIN_MODES = ("carousel", "rows3", "video")
+# Fitur yang bisa dimatikan dari jendela Dev (label ringkas). Bawaan: semua ON.
+FEATURES = (
+    ("intro", "Video pembuka"),
+    ("badges", "Badge"),
+    ("certificate", "Sertifikat"),
+    ("floating", "Mode mengambang"),
+    ("mini_player", "Mini player"),
+    ("palette", "Search Ctrl+K"),
+    ("fps60", "60 fps (PC kuat)"),
+)
+# Warna aksen UI (tombol utama, sorotan). Berlaku penuh setelah aplikasi dibuka ulang.
+ACCENTS = {
+    "orange": ("Oranye", "#ea7600", "#ff8a1a"),
+    "blue": ("Biru", "#2f7de1", "#4b95f0"),
+    "green": ("Hijau", "#2e9e6e", "#3fb68b"),
+    "purple": ("Ungu", "#8a5cf6", "#a07cff"),
+    "pink": ("Merah muda", "#e0457b", "#f0628f"),
+    "red": ("Merah", "#d93a3a", "#ef5353"),
+}
 DEFAULTS = {
     "login_mode": "carousel",
+    "accent": "orange",
 }
 
 _lock = threading.Lock()
@@ -64,3 +84,28 @@ def set(key, value):     # noqa: A001 - nama sengaja sederhana (app_settings.set
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         os.replace(tmp, _path())
+
+
+def feature(name):
+    """True kalau fitur ON (bawaan ON). Aman dipanggil dari mana saja."""
+    try:
+        return bool(_load().get("features", {}).get(name, True))
+    except Exception:
+        return True
+
+
+def set_feature(name, on):
+    data = _load()
+    feats = dict(data.get("features") or {})
+    feats[name] = bool(on)
+    set("features", feats)
+
+
+def apply_theme():
+    """Pasang warna aksen pilihan ke config (dipanggil sekali saat aplikasi mulai)."""
+    try:
+        key = get("accent")
+        _name, acc, hover = ACCENTS.get(key, ACCENTS["orange"])
+        C.ACCENT, C.ACCENT_HOVER = acc, hover
+    except Exception as exc:
+        C.log(f"Warna aksen tidak bisa dipasang: {exc!r}")

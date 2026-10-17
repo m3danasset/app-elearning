@@ -181,12 +181,20 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   halaman sertifikat) langsung English. Badge punya name_en/desc_en, kursus desc_en
   (courses.visible_for). Fitur murid baru wajib English.
 
-## Panel Admin > Setting: Tampilan login (3 mode)
+## Jendela Dev (Ctrl kanan + Shift kanan + Backspace, semua layar)
+- ui/dev_panel.py: jendela sederhana (widget Tk biasa), selalu di atas. Tab Login (cari akun,
+  masuk tanpa PIN; App.dev_login keluar dulu tanpa konfirmasi) dan Settings: tampilan login,
+  warna aksen (app_settings.ACCENTS, berlaku setelah app dibuka ulang: apply_theme di App),
+  fitur on/off (app_settings.FEATURES: intro, badges, certificate, floating, mini_player,
+  palette, fps60; cek dengan app_settings.feature). Fitur baru yang bisa dimatikan: tambahkan
+  ke FEATURES + cek feature() di kodenya. Tab Setting di Panel Admin sudah dihapus.
+
+## Tampilan login (3 mode, diatur di jendela Dev)
 - elearning/app_settings.py: data\app_settings.json (BUKAN data\settings.json, milik
   blender_launcher). login_mode: "carousel" (1 baris + video latar, bawaan), "rows3" (3 baris
   kartu di silinder yang sama, 30 portfolio, TANPA video latar), "video" (video latar saja,
   tanpa kartu). Switch lama login_carousel_rows3 dibaca sebagai "rows3". ui/settings_panel.py:
-  pilihan radio, simpan langsung, berlaku saat layar login dibuka berikutnya.
+  (dihapus; pindah ke jendela Dev).
 - Kartu carousel melengkung: tiap kartu dibagi irisan vertikal (SLICE_PX) di silinder.
 - fps adaptif (kisi 2x FPS, DIVS) memakai waktu render worker DAN waktu tempel thread utama,
   dengan jeda (turun >= 0,5 dtk, naik setelah stabil 3 dtk). Ukur PC ini (HIGH_END, 4 thread):

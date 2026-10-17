@@ -291,16 +291,10 @@ class LoginScreen(tk.Frame):
         self._mods.discard(e.keysym)
 
     def _dev_bypass(self):
-        """Shortcut dev: Ctrl KANAN + Shift KANAN + Backspace = popup pilih akun (admin, guru,
-        murid, trial), lalu langsung masuk tanpa PIN. Ctrl / Shift kiri tidak boleh ikut."""
-        if not {"Control_R", "Shift_R"} <= self._mods or self._mods & {"Control_L", "Shift_L"}:
-            return False
-        self._mods.clear()
-        if getattr(self, "_picker", None) is not None and self._picker.winfo_exists():
-            return True
-        from elearning.ui.dev_login import DevLoginPicker
-        self._picker = DevLoginPicker(self, self._dev_login)
-        return True
+        """Ctrl KANAN + Shift KANAN + Backspace: jendela Dev dibuka oleh shortcut global
+        (ui/dev_panel.install_shortcut); di sini Backspace-nya hanya tidak menghapus huruf."""
+        from elearning.ui.dev_panel import dev_combo
+        return dev_combo()
 
     def _dev_login(self, kind, account):
         if not self.winfo_exists() or account is None:

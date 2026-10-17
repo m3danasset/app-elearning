@@ -94,11 +94,14 @@ class CourseScreen(SidebarLayout):
                 na = portfolio.count(self.student["id"], self.course["id"], portfolio.ASSIGNMENT)
                 sb.nav("Assignment", "file", lambda: self._set_view("assignment"),
                        active=self.view == "assignment", right=str(na) if na else None)
-            got, total = achievements.summary(self.student, self.course["id"])
-            sb.nav("Badges", "award", lambda: self._set_view("badges"),
-                   active=self.view == "badges", right=f"{got}/{total}")
-            sb.nav("Certificate", "check", lambda: self._set_view("certificate"),
-                   active=self.view == "certificate")
+            from elearning.app_settings import feature
+            if feature("badges"):           # Dev: fitur bisa dimatikan
+                got, total = achievements.summary(self.student, self.course["id"])
+                sb.nav("Badges", "award", lambda: self._set_view("badges"),
+                       active=self.view == "badges", right=f"{got}/{total}")
+            if feature("certificate"):
+                sb.nav("Certificate", "check", lambda: self._set_view("certificate"),
+                       active=self.view == "certificate")
 
             if not self.video:     # kursus tanpa video: tanpa daftar pelajaran
                 course_items(sb, visible_for(self.student),

@@ -494,6 +494,9 @@ class BlenderFloat:
     def _open_mini(self, info, x, y):
         """Buat mini player di sebelah ikon (kalau ada pelajaran yang sedang dibuka)."""
         self._destroy_mini()
+        from elearning.app_settings import feature
+        if not feature("mini_player"):      # Dev: mini player dimatikan
+            return
         st = self._lesson_state()
         if st is None:
             return
