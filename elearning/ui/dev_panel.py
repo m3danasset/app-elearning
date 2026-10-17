@@ -17,12 +17,12 @@ FONT = (C.FONT, 9)
 BOLD = (C.FONT, 9, "bold")
 MONO = ("Consolas", 9)            # huruf lebar tetap: kolom Jenis | ID | Nama rata
 MONO_B = ("Consolas", 9, "bold")
-FILTERS = ("Semua", "Murid", "Dewasa", "SUPERKIDS", "Guru", "Admin", "Trial")
+FILTERS = ("Semua", "Admin", "Guru", "Trial", "Dewasa", "SUPERKIDS", "Murid")
 FILTER_KIND = {"Semua": None, "Murid": ("adult", "kids"), "Dewasa": ("adult",),
                "SUPERKIDS": ("kids",), "Guru": ("teacher",), "Admin": ("admin",),
                "Trial": ("trial",)}
-SORTS = ("Nama", "ID", "Jenis")
-KIND_ORDER = ("admin", "teacher", "adult", "kids", "trial")
+SORTS = ("Nama", "ID")             # urutan DI DALAM tiap jenis
+KIND_ORDER = ("admin", "teacher", "trial", "adult", "kids")   # selalu paling depan: admin dulu
 LOGIN_LABELS = (("carousel", "Carousel + video"), ("rows3", "Carousel 3 baris"),
                 ("video", "Video saja"))
 
@@ -340,8 +340,10 @@ class DevPanel(tk.Toplevel):
                  if (want is None or it[0] in want)
                  and (not q or q in it[2].lower() or q in it[1].lower()
                       or q in self._kind[it[0]][0].lower())]
-        key = {"Nama": lambda it: it[2].lower(), "ID": lambda it: it[1],
-               "Jenis": lambda it: (KIND_ORDER.index(it[0]), it[2].lower())}[self.f_sort.get()]
+        # jenis selalu jadi urutan utama (admin, guru, trial, dewasa, SUPERKIDS), lalu Nama / ID
+        by_id = self.f_sort.get() == "ID"
+        key = lambda it: (KIND_ORDER.index(it[0]) if it[0] in KIND_ORDER else len(KIND_ORDER),
+                          it[1] if by_id else it[2].lower(), it[1])
         self.shown = sorted(shown, key=key)
         self.lb.delete(0, "end")
         for kind, uid, name, _acc in self.shown:
