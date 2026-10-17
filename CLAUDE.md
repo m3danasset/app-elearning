@@ -135,6 +135,10 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   IC = intermediate = murid dewasa (ID PB...). Jalan otomatis sekali saat admin login
   (penanda data\import_oktober2026.done), bisa diulang dari Ctrl+K admin; nama + kategori
   yang sudah ada dilewati. Kursus awal dibuka: PB BASIC 1, IC INTERMEDIATE 1, SK SUPERKIDS 1.
+- Jadwal Sabtu & Minggu dari sheet yang sama: student_import.SHEET_SCHEDULE -> 39 jadwal
+  (satu per hari + jam + guru), otomatis sekali saat admin login (data\import_jadwal_oktober2026.done),
+  ulang lewat Ctrl+K (hanya jadwal bercatatan "Sheet Okt 2026" yang diganti). Guru dicocokkan
+  ke akun guru menurut nama; kalau tidak ada, nama guru masuk catatan jadwal.
 
 ## Video pembuka pelajaran (murid, bukan trial)
 - assets\video\intro\intro.mp4: 1080p, 3 detik, fade-out (dari video 4K 6,2 dtk; dikecilkan

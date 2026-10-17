@@ -161,6 +161,9 @@ def admin_sources(screen):
         {"title": "Export Excel", "icon": "download", "action": screen._export},
         {"title": "Impor murid sheet Oktober 2026", "icon": "users",
          "sub": "PB, IC, SK (yang sudah ada dilewati)", "action": screen.import_students},
+        {"title": "Impor jadwal sheet Oktober 2026", "icon": "clock",
+         "sub": "Sabtu & Minggu (jadwal hasil impor lama diganti)",
+         "action": screen.import_schedule},
         {"title": "Muat ulang", "icon": "refresh", "action": screen._reload},
         {"title": "Keluar", "icon": "logout", "action": app.logout},
     ]

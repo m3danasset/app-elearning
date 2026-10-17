@@ -319,6 +319,28 @@ class AdminScreen(SidebarLayout):
             return
         if result is not None:
             self._import_done(result)
+        try:
+            sres = student_import.run_schedule_once()
+        except Exception as exc:
+            C.log(f"Impor jadwal gagal: {exc!r}")
+            return
+        if sres is not None:
+            self._schedule_done(sres)
+
+    def import_schedule(self):
+        """Ctrl+K: impor ulang jadwal sheet (jadwal hasil impor lama diganti)."""
+        from elearning import student_import
+        self._schedule_done(student_import.import_schedule())
+
+    def _schedule_done(self, result):
+        from elearning import student_import
+        self.refresh()
+        try:
+            self.tk.call("tk_messageBox", "-parent", str(self.winfo_toplevel()),
+                         "-title", "Impor jadwal", "-message", student_import.schedule_text(result),
+                         "-type", "ok", "-icon", "info")
+        except Exception as exc:
+            C.log(f"Pesan impor jadwal gagal: {exc!r}")
 
     def import_students(self):
         """Ctrl+K: impor ulang (aman: murid yang sudah ada tidak ditambah lagi)."""
