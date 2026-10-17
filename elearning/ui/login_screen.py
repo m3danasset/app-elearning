@@ -223,9 +223,10 @@ class LoginScreen(tk.Frame):
         """Bayangan lembut (kapsul gelap ter-blur, sedikit turun) di bawah teks pesan, ID, dan
         PIN, supaya terbaca di atas carousel / video. Dibuat ulang hanya kalau ukurannya berubah."""
         for name, item in (("msg", self._t_msg), ("value", self._t_value), ("pin", self._t_pin)):
-            self._shadow_for(self._sh[name], item)
+            self._shadow_for(self._sh[name], item,
+                             SHADOW_MSG if name == "msg" else SHADOW_FIELD)
 
-    def _shadow_for(self, sh, text_item):
+    def _shadow_for(self, sh, text_item, alpha):
         cv = self.bgv
         bbox = cv.bbox(text_item) if cv.itemcget(text_item, "text") else None
         if not bbox:
@@ -236,7 +237,7 @@ class LoginScreen(tk.Frame):
         w, h = x1 - x0, y1 - y0
         if (w, h) != sh["key"]:
             sh["key"] = (w, h)
-            sh["img"] = _text_shadow(w, h)
+            sh["img"] = _text_shadow(w, h, alpha)
         cv.itemconfigure(sh["item"], image=sh["img"] or "")
         cv.coords(sh["item"], (x0 + x1) / 2, (y0 + y1) / 2 + max(2, h // 10))
 
@@ -466,7 +467,10 @@ class LoginScreen(tk.Frame):
 MSG_ERROR = "#ff2e2e"      # pesan salah ID / PIN: merah menyala (lebih jenuh dari C.ERROR)
 
 
-def _text_shadow(w, h):
+SHADOW_MSG, SHADOW_FIELD = 130, 91   # kepekatan bayangan: pesan / teks ID & PIN (30% lebih tipis)
+
+
+def _text_shadow(w, h, alpha=SHADOW_MSG):
     """PhotoImage RGBA: kapsul gelap ter-blur seukuran teks (blur lewat perkecil-perbesar,
     tanpa ImageFilter / ImageDraw)."""
     try:
@@ -476,7 +480,7 @@ def _text_shadow(w, h):
         pad = blur * 2
         W, H = w + 2 * pad, h + 2 * pad
         a = Image.new("L", (W, H), 0)
-        a.paste(130, (pad - 4, pad + 2, pad + w + 4, pad + h - 2))   # ~30% lebih tipis dari 185
+        a.paste(alpha, (pad - 4, pad + 2, pad + w + 4, pad + h - 2))
         small = a.resize((max(1, W // blur), max(1, H // blur)), Image.BILINEAR)
         a = small.resize((W, H), Image.BICUBIC)
         out = Image.new("RGBA", (W, H), (0, 0, 0, 0))
