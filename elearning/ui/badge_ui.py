@@ -273,7 +273,15 @@ class BadgeToast(tk.Canvas):
     # posisi: kiri-bawah, di atas Buka Blender + profil di dasar sidebar
     def _target(self):
         h = self.app.winfo_height()
-        return 10, max(10, h - 128 - self.H)
+        y = h - 128 - self.H
+        # daftar Courses menempel di bawah sidebar: notifikasi tampil di atasnya
+        dock = getattr(getattr(getattr(self.app, "_screen", None), "sb", None), "_dock_box", None)
+        try:
+            if dock is not None and dock.winfo_exists() and dock.winfo_children():
+                y = dock.winfo_rooty() - self.app.winfo_rooty() - self.H - 8
+        except tk.TclError:
+            pass
+        return 10, max(10, y)
 
     def show(self):
         x1, y = self._target()

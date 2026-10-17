@@ -948,6 +948,9 @@ class AppSidebar(tk.Frame):
         # Bawah: profil, lalu item tambahan (Blender) tepat di atasnya
         bottom = tk.Frame(self, bg=C.SIDEBAR)
         bottom.pack(side="bottom", fill="x", padx=8, pady=(0, 8))
+        # Daftar yang "menempel" di bawah (dock=True, mis. Courses murid): di atas Blender
+        self._dock_box = tk.Frame(bottom, bg=C.SIDEBAR)
+        self._dock_box.pack(fill="x")
         tk.Frame(bottom, bg=C.SIDEBAR_LINE, height=1).pack(fill="x", padx=4, pady=(0, 6))
         self._footer_box = tk.Frame(bottom, bg=C.SIDEBAR)
         self._footer_box.pack(fill="x")
@@ -971,6 +974,7 @@ class AppSidebar(tk.Frame):
         bottom.pack(side="bottom", fill="x", pady=(0, 10))
         self._footer_box = tk.Frame(bottom, bg=C.SIDEBAR)
         self._footer_box.pack(fill="x")
+        self._dock_box = None
         self._profile = _Profile(bottom, self, compact=True)
         self._profile.pack(pady=(6, 0))
         self._list = None
@@ -995,7 +999,7 @@ class AppSidebar(tk.Frame):
                 sp["ref"].widget = widget
             self._built = [(k, sp, w) for (k, _s, w), sp in zip(old, specs)]
             return
-        for box in (self._nav_box, self._footer_box, self._list):
+        for box in (self._nav_box, self._footer_box, self._list, self._dock_box):
             if box is not None:
                 for w in box.winfo_children():
                     w.destroy()
@@ -1082,21 +1086,21 @@ class AppSidebar(tk.Frame):
         return self._spec("nav", text=text, icon=icon, command=command, active=active,
                           primary=primary, right=right)
 
-    def section(self, text, on_click=None, folded=None, right=None, top=14):
+    def section(self, text, on_click=None, folded=None, right=None, top=14, dock=False):
         if self.collapsed:
             return _Ref()
         return self._spec("section", text=text, on_click=on_click, folded=folded,
-                          right=right, top=top)
+                          right=right, top=top, dock=dock)
 
     def item(self, text, command=None, **kw):
         if self.collapsed:
             return _Ref()
         return self._spec("item", text=text, command=command, **kw)
 
-    def note(self, text):
+    def note(self, text, dock=False):
         if self.collapsed:
             return _Ref()
-        return self._spec("note", text=text)
+        return self._spec("note", text=text, dock=dock)
 
     def footer(self, text, command, image=None, icon=None):
         """Item di dasar sidebar, tepat di atas profil (mis. Buka Blender)."""
@@ -1116,8 +1120,11 @@ class AppSidebar(tk.Frame):
         r.pack(fill="x", pady=0)
         return r
 
-    def _build_section(self, text, on_click=None, folded=None, right=None, top=14):
-        row = tk.Frame(self._list, bg=C.SIDEBAR)
+    def _box(self, dock):
+        return self._dock_box if (dock and self._dock_box is not None) else self._list
+
+    def _build_section(self, text, on_click=None, folded=None, right=None, top=14, dock=False):
+        row = tk.Frame(self._box(dock), bg=C.SIDEBAR)
         row.pack(fill="x", pady=(top, 3))
         lbl = tk.Label(row, text=text, bg=C.SIDEBAR, fg=C.MUTED, font=_font(9), anchor="w",
                        padx=10)
@@ -1145,13 +1152,13 @@ class AppSidebar(tk.Frame):
                 w.bind("<Leave>", lambda e: lbl.config(fg=C.MUTED))
         return row
 
-    def _build_item(self, text, command=None, **kw):
-        r = Row(self._list, text, command, **kw)
+    def _build_item(self, text, command=None, dock=False, **kw):
+        r = Row(self._box(dock), text, command, **kw)
         r.pack(fill="x")
         return r
 
-    def _build_note(self, text):
-        lbl = tk.Label(self._list, text=text, bg=C.SIDEBAR, fg=C.MUTED, font=_font(9),
+    def _build_note(self, text, dock=False):
+        lbl = tk.Label(self._box(dock), text=text, bg=C.SIDEBAR, fg=C.MUTED, font=_font(9),
                        anchor="w", justify="left", wraplength=EXPANDED_W - 50, padx=10)
         lbl.pack(fill="x", pady=(4, 4))
         return lbl
@@ -1296,12 +1303,14 @@ def blender_footer(sb):
 def course_items(sb, courses, allowed, current_id, on_open):
     """Daftar kursus di sidebar (dipakai layar utama murid dan layar kursus)."""
     shown = [c for c in courses if sb.matches(c["title"], c["group"], c["desc"])]
-    sb.section("Courses", right=str(len(shown)) if sb.query else None)
+    # menempel di bawah sidebar, tepat di atas "Open Blender" (dock=True)
+    sb.section("Courses", right=str(len(shown)) if sb.query else None, top=4, dock=True)
     for c in shown:
         unlocked = c["id"] in allowed
         sb.item(c["title"], (lambda c=c: on_open(c)) if unlocked and c["id"] != current_id
                 else None,
                 dot=c["color"] if unlocked else C.LOCKED, dim=not unlocked,
-                right_icon=None if unlocked else "lock", active=c["id"] == current_id)
+                right_icon=None if unlocked else "lock", active=c["id"] == current_id,
+                dock=True)
     if not shown:
-        sb.note(f"No courses match “{sb.query.strip()}”.")
+        sb.note(f"No courses match “{sb.query.strip()}”.", dock=True)
