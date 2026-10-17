@@ -124,45 +124,63 @@ def render(geo, texsets, phase, band, overlays):
     return band
 
 
+SLICE_PX = 64      # lebar maks. satu irisan kartu (px): tepi kartu melengkung halus
+
+
 def _render_row(geo, tex, phase, band, cyb, B, half, step, off=0.0):
     """Satu baris kartu di silinder (radius = geo.A, lebar sudut kartu = half). off = geser
-    vertikal di ruang 3D (baris atas / bawah): y layar = cyb + (off -+ B) / z."""
+    vertikal di ruang 3D (baris atas / bawah): y layar = cyb + (off -+ B) / z.
+
+    Kartu ikut MELENGKUNG di permukaan silinder: tiap kartu dibagi irisan vertikal tipis
+    (maks. SLICE_PX), tiap irisan diproyeksikan dari sudutnya sendiri -> tepi atas/bawah kartu
+    dan celah antar baris membentuk busur halus (dulu satu trapesium bertepi lurus). Semua
+    irisan mengambil sampel dari tekstur utuh, jadi sambungan antar irisan tidak bercelah."""
     n = len(tex)
-    if n:
-        W, bh, cx, A = geo.W, geo.bh, geo.cx, geo.A
-        span = int(math.radians(88) / step) + 2      # kartu terlihat sampai ~88 derajat
-        base = math.floor(phase * STEP / step)
-        ph = phase * STEP / step
-        for g in range(base - span, base + span + 1):
-            th = (g - ph) * step
-            p1, p2 = th - half, th + half
-            z1, z2 = math.cos(p1) + K, math.cos(p2) + K
-            if z1 < 0.25 or z2 < 0.25:
+    if not n:
+        return
+    W, bh, cx, A = geo.W, geo.bh, geo.cx, geo.A
+    Image = photos.Image
+    span = int(math.radians(88) / step) + 2          # kartu terlihat sampai ~88 derajat
+    base = math.floor(phase * STEP / step)
+    ph = phase * STEP / step
+    for g in range(base - span, base + span + 1):
+        th = (g - ph) * step
+        p1, p2 = th - half, th + half
+        z1, z2 = math.cos(p1) + K, math.cos(p2) + K
+        if z1 < 0.25 or z2 < 0.25:
+            continue
+        x1, x2 = cx + A * math.sin(p1) / z1, cx + A * math.sin(p2) / z2
+        if x2 - x1 < 3 or x2 < -2 or x1 > W + 2:
+            continue
+        # cepat: seluruh kartu di luar layar secara vertikal (baris atas / bawah)
+        zmin, zmax = min(z1, z2, math.cos(th) + K), max(z1, z2, math.cos(th) + K)
+        top_hi = cyb + min((off - B) / zmin, (off - B) / zmax)
+        bot_lo = cyb + max((off + B) / zmin, (off + B) / zmax)
+        if bot_lo < 0 or top_hi > bh:
+            continue
+        src = tex[g % n]
+        sw, sh = src.size
+        k = max(2, min(12, int(math.ceil((x2 - x1) / SLICE_PX))))
+        pts = []
+        for i in range(k + 1):                       # titik tepi tiap irisan di silinder
+            a = p1 + (p2 - p1) * i / k
+            z = math.cos(a) + K
+            pts.append((cx + A * math.sin(a) / z, cyb + (off - B) / z, cyb + (off + B) / z,
+                        PAD + (sw - 2 * PAD) * i / k))
+        for i in range(k):
+            xa, ta, ba, ua = pts[i]
+            xb, tb, bb, ub = pts[i + 1]
+            ox = int(math.floor(xa)) - (2 if i == 0 else 0)
+            ex = int(math.floor(xb)) + (3 if i == k - 1 else 0)
+            ox, ex = max(0, ox), min(W, ex)
+            oy = max(0, int(min(ta, tb)) - 2)
+            ey = min(bh, int(max(ba, bb)) + 3)
+            if ex <= ox or ey <= oy:
                 continue
-            x1, x2 = cx + A * math.sin(p1) / z1, cx + A * math.sin(p2) / z2
-            if x2 - x1 < 3 or x2 < -2 or x1 > W + 2:
-                continue
-            t1, b1 = cyb + (off - B) / z1, cyb + (off + B) / z1     # atas / bawah tepi kiri
-            t2, b2 = cyb + (off - B) / z2, cyb + (off + B) / z2     # atas / bawah tepi kanan
-            ox, ex = max(0, int(x1) - 2), min(W, int(x2) + 3)
-            oy = max(0, int(min(t1, t2)) - 2)
-            ey = min(bh, int(max(b1, b2)) + 3)
-            if ex <= ox or ey <= oy:      # di luar layar (baris atas / bawah): lewati
-                continue
-            src = tex[g % n]
-            sw, sh = src.size
-            dst = [(x1 - ox, t1 - oy), (x2 - ox, t2 - oy),
-                   (x2 - ox, b2 - oy), (x1 - ox, b1 - oy)]
-            s = [(PAD, PAD), (sw - PAD, PAD), (sw - PAD, sh - PAD), (PAD, sh - PAD)]
-            if off:     # baris atas / bawah: warp setengah resolusi lalu diperbesar (~40 % lebih
-                ow, oh = ex - ox, ey - oy           # ringan; kartu redup & terpotong tepi layar)
-                hw, hh = max(2, ow // 2), max(2, oh // 2)
-                d2 = [(x * hw / ow, y * hh / oh) for x, y in dst]
-                img = src.transform((hw, hh), photos.Image.PERSPECTIVE, _solve(s, d2),
-                                    photos.Image.BILINEAR).resize((ow, oh), photos.Image.BILINEAR)
-            else:
-                img = src.transform((ex - ox, ey - oy), photos.Image.PERSPECTIVE, _solve(s, dst),
-                                    photos.Image.BILINEAR)
+            dst = [(xa - ox, ta - oy), (xb - ox, tb - oy), (xb - ox, bb - oy), (xa - ox, ba - oy)]
+            s = [(ua, PAD), (ub, PAD), (ub, sh - PAD), (ua, sh - PAD)]
+            img = src.transform((ex - ox, ey - oy), Image.PERSPECTIVE, _solve(s, dst),
+                                Image.BILINEAR)
             band.paste(img, (ox, oy), img)
 
 
