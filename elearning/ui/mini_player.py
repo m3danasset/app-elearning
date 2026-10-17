@@ -121,6 +121,8 @@ class MiniPlayer(tk.Toplevel):
         self.back_btn = self._ctl(28)
         self.fs_btn = self._ctl(28, side="right", padx=(0, 6))
         self.mute_btn = self._ctl(28, side="right", padx=(0, 0))
+        # subtitle naik (sama dengan tombol di pemutar utama; pilihannya dipakai bersama)
+        self.up_btn = self._ctl(28, side="right", padx=(0, 0))
         self.time_lbl = tk.Label(self.bar, text="00:00 / 00:00", bg=C.CARD, fg=C.MUTED,
                                  font=(C.FONT, 8), width=11)
         self.time_lbl.pack(side="right", padx=(2, 2))
@@ -131,6 +133,14 @@ class MiniPlayer(tk.Toplevel):
         self.ov = PlayOverlay(self, on_click=self._click_toggle, size=OV)
         self.back_btn.bind("<Button-1>", lambda e: self.rewind())
         self.mute_btn.bind("<Button-1>", lambda e: self._toggle_mute())
+        self.up_btn.bind("<Button-1>", lambda e: self._toggle_sub_up())
+        try:
+            from elearning.i18n import L
+            from elearning.ui.sidebar import _Tip
+            _Tip(self.up_btn, L("Subtitle naik (timeline Blender tidak tertutup)",
+                                "Raise subtitles (keeps the Blender timeline visible)"))
+        except Exception:
+            pass
         self.fs_btn.bind("<Button-1>", lambda e: self._fullscreen())
         self.seekbar.bind("<Configure>", lambda e: self._draw_seek())
         self.seekbar.bind("<Button-1>", lambda e: self._seek_at(e.x, exact=False))
@@ -462,6 +472,7 @@ class MiniPlayer(tk.Toplevel):
         self._draw_play()
         self._draw_back()
         self._draw_mute()
+        self._draw_up()
         self._draw_fs()
         self._update_time()
         self._draw_seek()
@@ -548,6 +559,43 @@ class MiniPlayer(tk.Toplevel):
         else:
             for p in pts:
                 c.create_line(*p[0], *p[1], *p[2], fill=col, width=2)
+
+    def _sub_up_ok(self):
+        return self.has_video and self.engine is not None and             getattr(self.engine, "has_audio", False)
+
+    def _toggle_sub_up(self):
+        """Subtitle naik / normal. Disimpan seperti di pemutar utama, dan pemutar utama di
+        aplikasi ikut diubah supaya sama saat murid kembali ke aplikasi."""
+        if not self._sub_up_ok():
+            return
+        on = not LV._sub_up()
+        LV._save_sub_up(on)
+        self.engine.set_sub_up(on)
+        main = getattr(self.master, "_lesson_player", None)
+        try:
+            if main is not None and main.winfo_exists() and main.engine is not None                     and getattr(main.engine, "has_audio", False):
+                main.engine.set_sub_up(on)
+                main._draw_up()
+        except Exception as exc:
+            C.log(f"Mini player: subtitle pemutar utama tidak ikut berubah: {exc!r}")
+        self._draw_up()
+
+    def _draw_up(self):
+        """Garis timeline + panah naik (versi 28 px dari tombol pemutar utama)."""
+        c = self.up_btn
+        c.delete("all")
+        enabled = self._sub_up_ok()
+        on = LV._sub_up()
+        col = self.color if (on and enabled) else (C.TEXT if enabled else C.LOCKED)
+        layers = [(aa_icons.polylines([[(7.5, 19.5), (20.5, 19.5)]], 1.0), col),
+                  (aa_icons.polylines([[(14, 15.5), (14, 7.5)], [(10.5, 11), (14, 7.5),
+                                                                   (17.5, 11)]], 1.0), col)]
+        ph = aa_icons.photo(("mini-subup", col), lambda: aa_icons.render(layers, 28, 28))
+        if ph is not None:
+            c.create_image(14, 14, image=ph)
+        else:
+            c.create_line(8, 20, 20, 20, fill=col, width=1)
+            c.create_line(14, 16, 14, 8, fill=col, width=1)
 
     def _draw_mute(self):
         c = self.mute_btn
