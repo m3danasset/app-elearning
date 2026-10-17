@@ -77,9 +77,15 @@ class CourseScreen(SidebarLayout):
         sb.nav("All courses", "grid", self.on_back)
         sb.nav("Lessons", "play", lambda: self._set_view("materi"),
                active=self.view == "materi")
-        # Resources: trial juga (semua kelas trial memakai SATU folder bersama, resources/trial)
-        sb.nav("Resources", "folder", lambda: self._set_view("resource"),
-               active=self.view == "resource")
+        # Resources. Trial: SATU halaman untuk semua kelas (ANIMATION & MODELING) = halaman
+        # Resources di halaman utama trial.
+        if self.trial:
+            app = self.winfo_toplevel()
+            sb.nav("Resources", "folder",
+                   lambda: app.show_home(self.student, view="resource"))
+        else:
+            sb.nav("Resources", "folder", lambda: self._set_view("resource"),
+                   active=self.view == "resource")
         if not self.trial:   # calon murid: tanpa portfolio, badge, sertifikat & daftar pelajaran
             n = portfolio.count(self.student["id"], self.course["id"])
             sb.nav("Portfolio", "image", lambda: self._set_view("portfolio"),

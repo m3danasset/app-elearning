@@ -19,7 +19,8 @@ class HomeScreen(SidebarLayout):
         self.trial = is_trial(student)
         self.courses = visible_for(student)   # dewasa / anak / trial, minus yang disembunyikan
         self.allowed = set(student["courses"])
-        self.view = "courses"     # badge per kursus: halaman Badges ada di layar kursus
+        # "courses", atau "resource" (trial: satu halaman Resources untuk semua kelas trial)
+        self.view = "resource" if (self.trial and view == "resource") else "courses"
         self.dock = None
 
         self.sb = AppSidebar(self, student, student_subtitle(student), on_logout,
