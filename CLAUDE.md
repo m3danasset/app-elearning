@@ -199,7 +199,11 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 - Settings > nilai isian (bisa digulir, per grup, kolom Cari di atas menyaring grup/baris
   tanpa membuat ulang widget): elearning/dev_values.py VALUES = 70 nilai (login, carousel,
   beranda, video, mini player, badge, sertifikat, jadwal, analytics, search, file/upload,
-  batas teks, admin). LIMITS = batas aman (min, maks) per nilai; fps maks. 30. Disimpan di
+  batas teks, admin) + grup "Tampilan UI" (16): config.UI_RADIUS_SCALE = pengali SEMUA sudut
+  bulat lewat ui_icons._r di pill / pill_crop / round_mask (lingkaran & kapsul tetap bulat),
+  radius per komponen, bayangan logo / pesan / teks ID (login_screen LOGO_SHADOW*, SHADOW_*),
+  garis tepi kolom ID, warna pesan salah, gelap tombol sampul gallery. Bentuk baru: pakai
+  I.pill / I.round_mask supaya ikut pengali. LIMITS = batas aman (min, maks); fps maks. 30. Disimpan di
   app_settings "values" (hanya yang beda dari bawaan), dipasang ke atribut modul lewat
   dev_values.apply_all() (App mulai + Apply). Format salah -> Apply batal + pesan. "Reset semua
   nilai ke bawaan". Nilai baru: tambah baris di VALUES; modulnya harus membaca atribut itu

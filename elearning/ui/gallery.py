@@ -25,6 +25,8 @@ TEXT_H = 46
 RADIUS = 12
 LIFT = 3
 BTN = 30           # tombol bulat di pojok sampul
+BTN_ALPHA = 200    # gelap tombol bulat di sampul (0-255)
+PLAY_ALPHA = 150   # gelap lingkaran tanda video (0-255)
 MONTHS = ("Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des")
 
 _covers = {}       # path -> gambar sampul besar (PIL), diingat selama aplikasi terbuka
@@ -166,14 +168,14 @@ class GalleryBoard(tk.Canvas):
         if it["kind"] == "video":       # tanda putar di tengah
             d = 44
             x, y = (tw - d) // 2, (th - d) // 2
-            body.paste((0, 0, 0), (x, y), I.round_mask(d, d, d / 2).point(lambda v: v * 150 // 255))
+            body.paste((0, 0, 0), (x, y), I.round_mask(d, d, d / 2).point(lambda v: v * PLAY_ALPHA // 255))
             tri = I._render_icon("play_fill", "#ffffff", "#000000", 24).convert("L")
             body.paste((255, 255, 255), (x + 11, y + 10), tri)
         if hover:                       # tombol bulat di pojok kanan atas
             for k, (name, _fn) in enumerate(self._buttons(it)):
                 bx = tw - 10 - BTN - k * (BTN + 8)
                 body.paste((20, 20, 20), (bx, 10),
-                           I.round_mask(BTN, BTN, BTN / 2).point(lambda v: v * 200 // 255))
+                           I.round_mask(BTN, BTN, BTN / 2).point(lambda v: v * BTN_ALPHA // 255))
                 ic = I._render_icon(name, "#ffffff", "#000000", 18).convert("L")
                 body.paste((255, 255, 255), (bx + 6, 16), ic)
         img.paste(body, (0, 0), I.round_mask(tw, th, RADIUS))

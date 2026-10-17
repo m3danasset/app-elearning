@@ -186,7 +186,7 @@ class LoginScreen(tk.Frame):
             Image = photos.Image
             r = h // 2 - 2 if h < 60 else 18
             img = Image.new("RGBA", (w, h), (236, 234, 226, 0))
-            img.putalpha(I.round_mask(w, h, r).point(lambda v: v * 70 // 255))   # garis tepi
+            img.putalpha(I.round_mask(w, h, r).point(lambda v: v * FIELD_BORDER // 255))   # garis tepi
             body = Image.new("RGBA", (w - 2, h - 2), I._rgb(C.LOGIN_BG) + (0,))
             body.putalpha(I.round_mask(w - 2, h - 2, r - 1)
                           .point(lambda v: v * FIELD_FILL // 255))
@@ -462,6 +462,10 @@ MSG_ERROR = "#ff2e2e"      # pesan salah ID / PIN: merah menyala (lebih jenuh da
 
 
 SHADOW_MSG, SHADOW_FIELD = 130, 91   # kepekatan bayangan: pesan / teks ID & PIN (30% lebih tipis)
+LOGO_SHADOW = 115          # kepekatan bayangan logo (0-255, ~45% gelap)
+LOGO_SHADOW_BLUR = 0.09    # lebar blur bayangan logo (proporsi tinggi logo)
+LOGO_SHADOW_DY = 0.035     # bayangan logo turun sekian (proporsi tinggi logo)
+FIELD_BORDER = 70          # kepekatan garis tepi kolom ID / PIN (0-255)
 
 
 def _text_shadow(w, h, alpha=SHADOW_MSG):
@@ -489,14 +493,14 @@ def _soft_shadow(img):
     """Bayangan lembut di bawah logo (blur lewat perkecil-perbesar, tanpa ImageFilter)."""
     from PIL import Image
     w, h = img.size
-    blur = max(6, int(h * 0.09))           # jari-jari blur
-    dy = max(3, int(h * 0.035))            # bayangan sedikit turun
+    blur = max(2, int(h * LOGO_SHADOW_BLUR))   # jari-jari blur
+    dy = int(h * LOGO_SHADOW_DY)               # bayangan sedikit turun
     pad = blur * 2
     W, H = w + 2 * pad, h + 2 * pad + dy
     a = Image.new("L", (W, H), 0)
     a.paste(img.getchannel("A"), (pad, pad + dy))
     small = a.resize((max(1, W // blur), max(1, H // blur)), Image.BILINEAR)
-    a = small.resize((W, H), Image.BICUBIC).point(lambda v: v * 115 // 255)   # ~45% gelap
+    a = small.resize((W, H), Image.BICUBIC).point(lambda v: v * LOGO_SHADOW // 255)
     out = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     out.putalpha(a)
     out.alpha_composite(img, (pad, pad))

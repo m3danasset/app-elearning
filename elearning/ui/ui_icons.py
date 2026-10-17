@@ -336,11 +336,22 @@ def _render_pill(w, h, r, fill, bg, border=None):
     return img
 
 
+def _r(w, h, r):
+    """Jari-jari sudut x config.UI_RADIUS_SCALE (Dev). Lingkaran / kapsul (r >= setengah sisi
+    pendek) tetap bulat penuh supaya tombol bulat tidak jadi kotak."""
+    full = min(w, h) / 2.0
+    if r >= full - 0.5:
+        return r
+    k = getattr(C, "UI_RADIUS_SCALE", 1.0)
+    return r if k == 1.0 else round(max(0.0, min(full, r * k)), 1)
+
+
 def round_mask(w, h, r):
     """Masker 'L' persegi panjang bersudut bulat (255 = di dalam), tepi halus.
     Dipakai untuk membulatkan sudut foto slideshow, splash, dll."""
     from PIL import Image
     w, h = max(2, int(w)), max(2, int(h))
+    r = _r(w, h, r)
     key = ("mask", w, h, r)
     m = _img_cache.get(key)
     if m is not None:
@@ -404,6 +415,7 @@ def icon(name, color=C.TEXT, bg=C.SIDEBAR, size=18, disc=None):
 def pill(w, h, fill, bg, r=8, border=None):
     """PhotoImage persegi panjang bersudut bulat (latar baris yang dipilih / kolom cari)."""
     w, h = max(2, int(w)), max(2, int(h))
+    r = _r(w, h, r)
     return _photo(("pill", w, h, fill, bg, r, border),
                   lambda: _render_pill(w, h, r, fill, bg, border))
 
@@ -415,6 +427,7 @@ def pill_crop(w, h, fill, bg, x0, x1, r=8, border=None):
     if x1 - x0 < 1:
         return None
     pill(w, h, fill, bg, r, border)   # pastikan gambar dasarnya sudah ada
+    r = _r(w, h, r)                    # kunci sama dengan yang dipakai pill()
     base = _img_cache.get(("pill", w, h, fill, bg, r, border))
     if base is None:
         return None

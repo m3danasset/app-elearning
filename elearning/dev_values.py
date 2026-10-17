@@ -16,6 +16,39 @@ from elearning import app_settings
 from elearning import config as C
 
 VALUES = (
+    # --- Tampilan: sudut, bayangan, transparansi ---
+    ("ui_radius_scale", "Tampilan UI", "Sudut bulat semua (x)", "float",
+     [("elearning.config", "UI_RADIUS_SCALE")]),
+    ("radius_course_card", "Tampilan UI", "Sudut kartu kursus (px)", "int",
+     [("elearning.ui.course_dock", "RADIUS")]),
+    ("radius_gallery", "Tampilan UI", "Sudut kartu portfolio (px)", "int",
+     [("elearning.ui.gallery", "RADIUS")]),
+    ("radius_showcase", "Tampilan UI", "Sudut slideshow (px)", "int",
+     [("elearning.ui.showcase", "RADIUS")]),
+    ("radius_coverflow", "Tampilan UI", "Sudut coverflow (px)", "int",
+     [("elearning.ui.coverflow", "RADIUS")]),
+    ("radius_palette", "Tampilan UI", "Sudut search palette (px)", "int",
+     [("elearning.ui.search_palette", "RADIUS")]),
+    ("radius_carousel", "Tampilan UI", "Sudut kartu carousel (x tinggi)", "float",
+     [("elearning.ui.carousel3d", "RADIUS")]),
+    ("shadow_logo", "Tampilan UI", "Bayangan logo (0-255)", "int",
+     [("elearning.ui.login_screen", "LOGO_SHADOW")]),
+    ("shadow_logo_blur", "Tampilan UI", "Blur bayangan logo (x tinggi)", "float",
+     [("elearning.ui.login_screen", "LOGO_SHADOW_BLUR")]),
+    ("shadow_logo_dy", "Tampilan UI", "Bayangan logo turun (x tinggi)", "float",
+     [("elearning.ui.login_screen", "LOGO_SHADOW_DY")]),
+    ("shadow_msg", "Tampilan UI", "Bayangan pesan salah (0-255)", "int",
+     [("elearning.ui.login_screen", "SHADOW_MSG")]),
+    ("shadow_field", "Tampilan UI", "Bayangan teks ID/PIN (0-255)", "int",
+     [("elearning.ui.login_screen", "SHADOW_FIELD")]),
+    ("login_field_border", "Tampilan UI", "Garis tepi kolom ID (0-255)", "int",
+     [("elearning.ui.login_screen", "FIELD_BORDER")]),
+    ("login_msg_color", "Tampilan UI", "Warna pesan salah (#rrggbb)", "color",
+     [("elearning.ui.login_screen", "MSG_ERROR")]),
+    ("gallery_btn_alpha", "Tampilan UI", "Tombol bulat sampul (0-255)", "int",
+     [("elearning.ui.gallery", "BTN_ALPHA")]),
+    ("gallery_play_alpha", "Tampilan UI", "Tanda video sampul (0-255)", "int",
+     [("elearning.ui.gallery", "PLAY_ALPHA")]),
     # --- Login ---
     ("login_max_len", "Login", "Maks. karakter ID/PIN", "int",
      [("elearning.ui.login_screen", "MAX_LEN")]),
@@ -168,6 +201,11 @@ VALUES = (
 )
 # batas aman (min, maks) per nilai; di luar batas -> Apply ditolak
 LIMITS = {
+    "ui_radius_scale": (0, 3), "radius_course_card": (2, 60), "radius_gallery": (0, 60),
+    "radius_showcase": (0, 80), "radius_coverflow": (0, 60), "radius_palette": (0, 40),
+    "radius_carousel": (0, 0.2), "shadow_logo": (0, 255), "shadow_logo_blur": (0.01, 0.3),
+    "shadow_logo_dy": (0, 0.2), "shadow_msg": (0, 255), "shadow_field": (0, 255),
+    "login_field_border": (0, 255), "gallery_btn_alpha": (0, 255), "gallery_play_alpha": (0, 255),
     "login_max_len": (4, 30), "login_logo_alpha": (0.05, 1), "login_field_fill": (0, 255),
     "login_blink_ms": (200, 3000), "login_video_opacity": (0, 1), "login_video_fps": (1, 30),
     "carousel_bright": (0.1, 1), "carousel_items": (3, 30), "carousel_aspect": (0.3, 1.6),
@@ -257,6 +295,13 @@ def _parse(key, text):
             if v <= 0:
                 raise ValueError
             return 1.0 / v
+        if kind == "color":
+            c = t.lower()
+            if not c.startswith("#"):
+                c = "#" + c
+            if len(c) != 7 or any(ch not in "0123456789abcdef" for ch in c[1:]):
+                raise ValueError
+            return c
         if kind == "str":
             if not t:
                 raise ValueError
@@ -276,7 +321,7 @@ def _parse(key, text):
     except (ValueError, TypeError):
         pass
     hint = {"int": "angka bulat", "float": "angka (mis. 0.5)", "secs": "angka > 0",
-            "str": "tidak boleh kosong", "list": "pisah koma", "hours": "mis. 8-18",
+            "str": "tidak boleh kosong", "color": "mis. #ff2e2e", "list": "pisah koma", "hours": "mis. 8-18",
             "ints": "3 angka pisah koma, min. 200"}.get(kind, "")
     raise ValueError(f"{label}: format salah ({hint}).")
 

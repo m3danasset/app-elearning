@@ -49,6 +49,7 @@ SECRET_CODE = "m3dan"                 # "Kode Rahasia": ketik kata ini di kolom 
 SPECIAL_DAYS = ("01-01", "08-17")     # "Hari Spesial": bulan-tanggal (MM-DD) saat belajar
 # Semua animasi UI (geser, fade, loading bar): maks. 30 fps. 34 ms (bukan 33) supaya tidak lewat 30.
 UI_FPS = 30
+UI_RADIUS_SCALE = 1.0   # pengali semua sudut membulat (Dev): 0 = siku, 2 = dua kali lebih bulat
 UI_FRAME_MS = 34
 # Thread kerja untuk render animasi (carousel, dll.): sedikit saja, supaya murid yang membuka
 # file Blender berat tidak terganggu. CPU 4 thread (mis. Ryzen 3) = 1, selebihnya maks. 2.
