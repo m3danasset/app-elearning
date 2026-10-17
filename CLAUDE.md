@@ -256,3 +256,10 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   (ApproveDialog: nama, kategori -- saran SUPERKIDS kalau umur <= 12 --, ID otomatis,
   switch kursus yang dibuka; add_student + set_course_access + signups.approve). Ditolak:
   Buka lagi / Hapus. Export Excel: sheet "Pendaftar".
+- Analytics (Lengkap & Ringkas) bagian "Pendaftar dari trial" gaya dashboard: kartu angka
+  (konversi + progress bar, pendaftar baru + sparkline, menunggu, rata-rata umur), grafik
+  area 2 seri (pendaftar vs jadi murid; per minggu kalau periode > 14 hari), donut "Tahu dari
+  mana" (analytics.SOURCES: kata kunci isian bebas), tabel kelompok umur + dinamika, batang
+  minat kelas (INTERESTS), tabel menunggu persetujuan. analytics.signup_stats (di thread).
+- ui/chart_art.py: area melengkung (Hermite monoton, gradasi) & donut, numpy float32, anti-
+  alias, TANPA ImageDraw; cache PhotoImage di AnalyticsBoard._art (area 700x230 ~12 ms sekali).

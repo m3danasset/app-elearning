@@ -23,6 +23,7 @@ from elearning.ui.controls import RoundButton, RoundSelect
 from elearning.ui.sidebar import HIGHLIGHT
 
 BLUE = "#7cc8ff"          # warna kedua grafik (sama dengan loading bar splash)
+PURPLE, GOLD = "#b39af0", "#e3c26f"
 GRID = "#2f2e2b"
 GREEN, RED = C.ON, C.ERROR
 GAP = 12
@@ -61,6 +62,7 @@ class AnalyticsBoard(tk.Canvas):
         self._tips = []          # (x0, y0, x1, y1, [baris teks], y_atas) area berketerangan
         self._width = 0
         self._tip_img = None
+        self._art = {}           # gambar grafik halus (area / donut) per ukuran & data
         self.query = ""          # kata dari kolom cari admin: nama yang cocok disorot
         self.f = {
             "title": tkfont.Font(family=C.FONT, size=11, weight="bold"),
@@ -169,6 +171,281 @@ class AnalyticsBoard(tk.Canvas):
                 nx = self.bbox(t)[2] + 6
             self._text(nx, ny, note, "label", C.MUTED, width=max(10, cx + cw - nx))
         return y + th, span
+
+    # --- grafik halus (chart_art: numpy, anti-alias) ---------------------------------------
+    def _art_img(self, key, make):
+        ph = self._art.get(key)
+        if ph is None:
+            try:
+                from elearning import photos
+                img = make()
+                ph = photos.to_photoimage(img) if img is not None else None
+            except Exception as exc:
+                C.log(f"Analytics: grafik gagal digambar: {exc!r}")
+                ph = None
+            if len(self._art) > 40:
+                self._art.clear()
+            self._art[key] = ph
+        return ph
+
+    def _progress(self, x, y, w, frac, color, h=8):
+        w = int(w)
+        self._img(I.pill(w, h, C.SIDEBAR_ACTIVE, C.CARD, r=h / 2), x, y)
+        fw = int(w * max(0.0, min(1.0, frac)))
+        if fw >= h:
+            self._img(I.pill(fw, h, color, C.SIDEBAR_ACTIVE, r=h / 2), x, y)
+
+    def _delta(self, x, y, delta, note, right, unit="%"):
+        """Panah naik / turun + keterangan abu-abu (gaya kartu angka)."""
+        if delta is not None:
+            up = delta >= 0
+            flat = abs(delta) < 0.5
+            t = self._text(x, y, f"{'' if flat else ('▲ ' if up else '▼ ')}"
+                                 f"{_num(abs(delta), 0)}{unit}", "dbold",
+                           C.MUTED if flat else GREEN if up else RED)
+            x = self.bbox(t)[2] + 6
+        if note:
+            self._text(x, y, note, "label", C.MUTED, width=max(10, right - x))
+
+    def _area_chart(self, x, y, w, h, labels, series, unit=""):
+        """Grafik area melengkung (gradasi) + sumbu + keterangan saat kursor di atasnya."""
+        from elearning.ui import chart_art as CA
+        vals = [v for _n, values, _c in series for v in values]
+        if not vals or max(vals) <= 0:
+            self._text(x + w / 2, y + h / 2, "Belum ada data pada periode ini.", "name",
+                       C.MUTED, anchor="center")
+            return
+        top = max(4, math.ceil(max(vals) * 1.15 / 4) * 4)
+        L, B = 34, 22
+        x0, x1, y0, y1 = x + L, x + w, y + 6, y + h - B
+        pw, ph = int(x1 - x0), int(y1 - y0)
+        grid = [ph - 0.5 - (ph - 6) * k / 4 for k in range(5)]
+        key = ("area", pw, ph, top, C.ACCENT,
+               tuple((tuple(v), c) for _n, v, c in series))
+        img = self._art_img(key, lambda: CA.area(pw, ph, [(v, c) for _n, v, c in series],
+                                                 C.CARD, top, grid=grid, grid_color=GRID))
+        self._img(img, x0, y0)
+        for k in range(5):
+            self._text(x0 - 8, y0 + grid[k], str(int(top * k / 4)), "small", C.MUTED,
+                       anchor="e")
+        n = len(labels)
+        xs = CA.points_x(pw, n, 0)
+        slot = pw / max(1, n)
+        step = max(1, math.ceil((self.f["small"].measure(max(labels, key=len)) + 8) / slot))
+        for i in range(n):
+            cx = x0 + xs[i]
+            if i % step == 0:
+                self._text(cx, y1 + 6, labels[i], "small", C.MUTED, anchor="n")
+            high = max(v[i] for _n, v, _c in series)
+            ty = y0 + (ph - 0.5) - (ph - 6) * high / top
+            self._tips.append((cx - slot / 2, y0, cx + slot / 2, y1,
+                               [labels[i]] + [f"{nm}: {v[i]}{unit}" for nm, v, _c in series],
+                               ty))
+
+    def _donut(self, x, y, w, h, parts, total, noun="pendaftar"):
+        from elearning.ui import chart_art as CA
+        palette = (C.ACCENT, BLUE, GREEN, PURPLE, GOLD, C.MUTED)
+        size = int(max(80, min(h - 8, w * 0.48, 176)))
+        thick = max(12, int(size * 0.15))
+        cols = [(v, palette[i % len(palette)]) for i, (_l, v) in enumerate(parts)]
+        key = ("donut", size, thick, C.ACCENT, tuple(cols))
+        img = self._art_img(key, lambda: CA.donut(size, cols, C.CARD, thick,
+                                                  C.SIDEBAR_ACTIVE))
+        dy = y + (h - size) / 2
+        self._img(img, x, dy)
+        self._text(x + size / 2, dy + size / 2 - 8, str(total), "big", anchor="center")
+        self._text(x + size / 2, dy + size / 2 + 16, noun, "small", C.MUTED, anchor="center")
+        lx = x + size + 22
+        if not parts:
+            self._text(lx, y + h / 2, "Belum ada data.", "name", C.MUTED, anchor="w")
+            return
+        row = 26
+        ly = y + (h - len(parts) * row) / 2
+        for i, (label, v) in enumerate(parts):
+            yy = ly + i * row + row / 2
+            self._img(I.dot(palette[i % len(palette)], C.CARD), lx, yy, anchor="w")
+            pct = f"{round(v / total * 100)}%" if total else "0%"
+            pw = self.f["val"].measure(pct)
+            self._text(x + w, yy, pct, "val", anchor="e")
+            self._text(lx + 16, yy, label, "label", C.TEXT, anchor="w",
+                       width=max(20, x + w - pw - 12 - lx - 16))
+            self._tips.append((lx, yy - row / 2, x + w, yy + row / 2,
+                               [label, f"{v} {noun}"], yy - 8))
+
+    def _table(self, x, y, w, cols, rows, empty):
+        """cols: [(judul, posisi 0..1, anchor)], rows: [[(teks, warna, font)...]]."""
+        for title, fx, anchor in cols:
+            self._text(x + w * fx, y, title, "small", C.MUTED, anchor=anchor)
+        y += 22
+        self.create_line(x, y - 4, x + w, y - 4, fill=GRID)
+        if not rows:
+            self._text(x, y + 6, empty, "name", C.MUTED)
+            return y + 30
+        for r in rows:
+            for (title, fx, anchor), (text, color, font) in zip(cols, r):
+                lim = None
+                if anchor == "nw":
+                    nxt = [c[1] for c in cols if c[1] > fx]
+                    lim = w * ((min(nxt) if nxt else 1.0) - fx) - 10
+                self._text(x + w * fx, y + 6, text, font, color, anchor=anchor, width=lim)
+            y += 30
+            self.create_line(x, y - 1, x + w, y - 1, fill=GRID)
+        return y
+
+    # --- bagian Pendaftar dari trial ----------------------------------------------------------
+    def _signup_tiles(self, su, x, y, w, span, compact=False):
+        prev = "vs sebelumnya"
+        gap = 8 if compact else GAP
+        tw = (w - 3 * gap) / 4
+        th = 100 if compact else 124
+        big = "mid" if compact else "big"
+        off = (40, 48, 60) if compact else (52, 58, 74)
+        for i in range(4):
+            tx = x + i * (tw + gap)
+            cx, cy, cw = self._card(tx, y, tw, th, compact=compact)
+            right = cx + cw
+            if i == 0:
+                conv = su.get("conv")
+                self._text(cx, cy, "Konversi jadi murid", "label", C.MUTED)
+                self._text(cx, cy + 16, "–" if conv is None else f"{_num(conv, 0)}%", big)
+                self._progress(cx, cy + off[1], cw, (conv or 0) / 100.0, C.ACCENT)
+                self._delta(cx, cy + off[2], su.get("conv_delta"),
+                            f"{su['approved']} dari {su['total']} pendaftar", right, " poin")
+            elif i == 1:
+                self._text(cx, cy, "Pendaftar baru", "label", C.MUTED)
+                self._text(cx, cy + 16, str(su["total"]), big)
+                vals = su["series"]["new"]
+                sw, sh = int(cw * 0.55), int(off[1] - 6)
+                if any(vals) and sw > 40:
+                    from elearning.ui import chart_art as CA
+                    top = max(1, max(vals)) * 1.1
+                    img = self._art_img(("spark", sw, sh, tuple(vals)), lambda: CA.area(
+                        sw, sh, [(vals, BLUE)], C.CARD, top, line_w=1.6, top_margin=3))
+                    self._img(img, right - sw, cy + 4)
+                self._delta(cx, cy + off[2], su.get("total_delta"),
+                            prev if su.get("total_delta") is not None else span, right)
+            elif i == 2:
+                self._text(cx, cy, "Menunggu persetujuan", "label", C.MUTED)
+                self._text(cx, cy + 16, str(su["pending"]), big,
+                           C.ACCENT if su["pending"] else C.TEXT)
+                od = su.get("oldest_days")
+                self._text(cx, cy + off[2], "semua sudah diproses" if not su["pending"] else
+                           ("masuk hari ini" if not od else f"tertua menunggu {od} hari"),
+                           "label", C.MUTED, width=cw)
+                if not compact:
+                    self._text(cx, cy + off[1] - 4, f"{su['rejected']} ditolak  ·  "
+                                                    f"{su['approved']} jadi murid",
+                               "small", C.MUTED, width=cw)
+            else:
+                age, kids = su.get("avg_age"), su.get("kids_pct")
+                self._text(cx, cy, "Rata-rata umur", "label", C.MUTED)
+                self._text(cx, cy + 16, "–" if age is None else f"{_num(age, 0)} th", big)
+                self._progress(cx, cy + off[1], cw, (kids or 0) / 100.0, BLUE)
+                self._text(cx, cy + off[2], "–" if kids is None else
+                           f"anak \u2264 12 th: {_num(kids, 0)}%", "label", C.MUTED, width=cw)
+        return y + th
+
+    def _signup_full(self, d, y, W):
+        su = d.get("signups")
+        if not su:
+            return y
+        s0, s1 = d["range"]
+        span = f"{A._day_label(s0)} – {A._day_label(s1)} {s1.year}"
+        self._text(0, y + 6, "Pendaftar dari trial", "mid")
+        self._text(W, y + 12, "survey calon murid setelah trial  ·  semua program  ·  "
+                              f"{d['period_label']}", "sub", C.MUTED, anchor="ne")
+        y += 44
+        y = self._signup_tiles(su, 0, y, W, span) + GAP
+        left = (W - GAP) * 0.62
+        right = W - GAP - left
+        h = 300
+        cx, cy, cw = self._card(0, y, left, h,
+                                f"Pendaftar & jadi murid per {su['series']['unit']}")
+        lx = left - 18
+        for name, color in (("Jadi murid", C.ACCENT), ("Pendaftar", BLUE)):
+            t = self._text(lx, y + 18, name, "label", C.MUTED, anchor="ne")
+            lx = self.bbox(t)[0] - 14
+            self._img(I.dot(color, C.CARD), lx, y + 25, anchor="w")
+            lx -= 14
+        sr = su["series"]
+        self._area_chart(cx, cy, cw, h - (cy - y) - 16, sr["labels"],
+                         [("Pendaftar", sr["new"], BLUE), ("Jadi murid", sr["approved"],
+                                                          C.ACCENT)], " orang")
+        cx, cy, cw = self._card(left + GAP, y, right, h, "Tahu dari mana",
+                                f"{su['total']} pendaftar")
+        self._donut(cx, cy, cw, h - (cy - y) - 16, su["sources"], su["total"])
+        y += h + GAP
+        half = (W - GAP) / 2
+        h = 48 + 16 + 22 + len(su["ages"]) * 30 + 8
+        cx, cy, cw = self._card(0, y, half, h, "Kelompok umur",
+                                "konversi = jadi murid / pendaftar")
+        rows = []
+        for r in su["ages"]:
+            dl = r["delta"]
+            dtext, dcol = ("–", C.MUTED) if dl is None else ("0%", C.MUTED)                 if abs(dl) < 0.5 else (
+                (f"▲ {_num(abs(dl), 0)}%", GREEN) if dl >= 0 else (f"▼ {_num(abs(dl), 0)}%", RED))
+            rows.append([(r["label"], C.TEXT, "name"), (str(r["n"]), C.TEXT, "name"),
+                         (str(r["approved"]), C.TEXT, "name"),
+                         ("–" if r["conv"] is None else f"{_num(r['conv'], 0)}%", C.TEXT, "val"),
+                         (dtext, dcol, "dbold")])
+        self._table(cx, cy, cw, [("Umur", 0, "nw"), ("Pendaftar", 0.30, "nw"),
+                                 ("Jadi murid", 0.52, "nw"), ("Konversi", 0.74, "nw"),
+                                 ("Dinamika", 1.0, "ne")], rows, "Belum ada pendaftar.")
+        cx, cy, cw = self._card(half + GAP, y, half, h, "Minat kelas", d["period_label"])
+        palette = (C.ACCENT, BLUE, GREEN, PURPLE, GOLD, C.MUTED)
+        tot = sum(v for _l, v in su["interests"]) or 1
+        top = max([v for _l, v in su["interests"]] + [1])
+        bars = [{"title": lbl, "count": v, "frac": v / top, "color": palette[i % 6],
+                 "text": f"{round(v / tot * 100)}%"} for i, (lbl, v) in enumerate(su["interests"])]
+        self._hbars(cx, cy + 4, cw, bars, "Belum ada pendaftar.", lw=150, vw=44)
+        y += h + GAP
+        rec = su["recent"]
+        h = 48 + 16 + 22 + max(1, len(rec)) * 30 + 30
+        cx, cy, cw = self._card(0, y, W, h, "Menunggu persetujuan",
+                                f"{su['pending']} pendaftar  ·  setujui di menu Pendaftar")
+        rows = [[(r["name"], C.TEXT, "name"), (f"{r['age']} th" if r["age"] else "-", C.TEXT,
+                                               "name"),
+                 (r["interest"] or "-", C.TEXT, "name"), (r["phone"] or "-", C.MUTED, "name"),
+                 (r["at"][:16], C.MUTED, "name")] for r in rec]
+        end = self._table(cx, cy, cw, [("Nama", 0, "nw"), ("Umur", 0.34, "nw"),
+                                       ("Minat", 0.44, "nw"), ("Telepon", 0.66, "nw"),
+                                       ("Masuk", 1.0, "ne")], rows,
+                          "Tidak ada pendaftar yang menunggu.")
+        od = su.get("oldest_days")
+        if su["pending"]:
+            t = self._text(cx, end + 8, "Tertua menunggu: ", "label", C.MUTED)
+            self._text(self.bbox(t)[2], end + 8, "hari ini" if not od else f"{od} hari",
+                       "dbold", C.ACCENT)
+        return y + h
+
+    def _signup_compact(self, d, y, W):
+        su = d.get("signups")
+        if not su:
+            return y
+        g = 8
+        third = (W - 2 * g) / 3
+        h = 214
+        cx, cy, cw = self._card(0, y, third, h, "Pendaftar trial", d["period_label"],
+                                compact=True)
+        conv = su.get("conv")
+        self._text(cx, cy, "Konversi jadi murid", "label", C.MUTED)
+        self._text(cx, cy + 16, "–" if conv is None else f"{_num(conv, 0)}%", "mid")
+        self._progress(cx, cy + 46, cw, (conv or 0) / 100.0, C.ACCENT)
+        self._text(cx, cy + 62, f"{su['approved']} dari {su['total']} pendaftar", "label",
+                   C.MUTED, width=cw)
+        self._text(cx, cy + 92, "Menunggu persetujuan", "label", C.MUTED)
+        self._text(cx, cy + 108, str(su["pending"]), "mid",
+                   C.ACCENT if su["pending"] else C.TEXT)
+        cx, cy, cw = self._card(third + g, y, third, h,
+                                f"Pendaftar per {su['series']['unit']}",
+                                compact=True)
+        sr = su["series"]
+        self._area_chart(cx, cy, cw, h - (cy - y) - 12, sr["labels"],
+                         [("Pendaftar", sr["new"], BLUE), ("Jadi murid", sr["approved"],
+                                                          C.ACCENT)], " orang")
+        cx, cy, cw = self._card(2 * (third + g), y, third, h, "Tahu dari mana", compact=True)
+        self._donut(cx, cy, cw, h - (cy - y) - 12, su["sources"][:4], su["total"])
+        return y + h
 
     # --- grafik --------------------------------------------------------------------------
     def _bars(self, x, y, w, h, labels, series, unit, integer=False):
@@ -365,7 +642,9 @@ class AnalyticsBoard(tk.Canvas):
         cx, cy, cw = self._card(half + GAP, y, half, h, f"{A.TOP_N} murid paling rajin",
                                 d["period_label"])
         self._people(cx, cy, cw, top, "Belum ada murid yang belajar.", 10, False, "tp")
-        return y + h + 4
+        y += h + GAP + 8
+        y = self._signup_full(d, y, W)     # Pendaftar dari trial (survey)
+        return y + 4
 
     # --- susunan Ringkas (3 kolom, muat satu layar) ------------------------------------------
     def _compact(self, d, W):
@@ -405,7 +684,9 @@ class AnalyticsBoard(tk.Canvas):
         self._hbars(cx, cy, cw, sched, "Belum ada jadwal yang berjalan.", lw=150, vw=110)
         cx, cy, cw = self._card(half + g, y, half, h, "Badge terbanyak", compact=True)
         self._hbars(cx, cy, cw, badges, "Belum ada badge.", lw=170, vw=70)
-        return y + h + 4
+        y += h + g
+        y = self._signup_compact(d, y, W)  # Pendaftar dari trial (survey)
+        return y + 4
 
     @staticmethod
     def _pf_series(pf):

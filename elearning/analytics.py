@@ -89,6 +89,139 @@ def _dt(d):
     return datetime(d.year, d.month, d.day)
 
 
+# --- pendaftar dari trial (survey) -----------------------------------------------
+AGE_GROUPS = (("\u2264 8 th", 0, 8), ("9-12 th", 9, 12), ("13-17 th", 13, 17),
+              ("18-24 th", 18, 24), ("25+ th", 25, 200))
+# kata kunci isian bebas "Tahu dari mana" -> nama sumber (urutan = prioritas)
+SOURCES = (("Instagram", ("instagram", "insta", "ig")), ("TikTok", ("tiktok", "tik tok")),
+           ("YouTube", ("youtube", "yt")), ("WhatsApp", ("whatsapp", "wa ", "wa")),
+           ("Facebook", ("facebook", "fb")), ("Google / web", ("google", "web", "internet",
+                                                             "search", "website")),
+           ("Teman / keluarga", ("teman", "friend", "keluarga", "family", "saudara",
+                                 "parent", "mom", "dad", "ibu", "ayah", "kakak", "relative")),
+           ("Sekolah", ("sekolah", "school", "guru", "teacher", "kampus", "campus")),
+           ("Brosur / spanduk", ("brosur", "flyer", "spanduk", "banner", "poster")))
+INTERESTS = (("Animation", ("anim",)), ("Modeling", ("model",)), ("AI", ("ai ", "ai", "a.i")),
+             ("Game", ("game",)), ("Interior", ("interior", "arsitek", "architect")),
+             ("Character", ("character", "karakter")))
+
+
+def _match(text, table, empty):
+    t = " " + " ".join(str(text).lower().split()) + " "
+    if not t.strip():
+        return empty
+    for label, keys in table:
+        for k in keys:
+            k = k.strip()
+            if f" {k} " in t or (len(k) > 3 and k in t):
+                return label
+    return None
+
+
+def _top(counter, n, other="Lainnya"):
+    rows = sorted(counter.items(), key=lambda kv: (-kv[1], kv[0]))
+    if len(rows) > n:
+        rest = sum(v for _k, v in rows[n - 1:])
+        rows = rows[:n - 1] + [(other, rest)]
+    return rows
+
+
+def _weeks(start_day, end_day):
+    """Per minggu (mulai Senin) - grafik pendaftar: jumlah per hari biasanya kecil, jadi
+    dikelompokkan supaya kurvanya terbaca (bukan deretan puncak tipis)."""
+    out = []
+    d = start_day - timedelta(days=start_day.weekday())
+    while d <= end_day:
+        out.append((d, d + timedelta(days=7), _day_label(d)))
+        d += timedelta(days=7)
+    return out
+
+
+def signup_stats(p0, p1, q0, q1, buckets, compare=True):
+    """Statistik pendaftar trial pada periode p0..p1 (q0..q1 = periode sebelumnya)."""
+    unit = "hari"
+    if (p1.date() - p0.date()).days > 14:
+        buckets, unit = _weeks(p0.date(), p1.date()), "minggu"
+    from elearning import signups as SU
+    try:
+        rows = SU.list_all()
+    except Exception as exc:
+        C.log(f"Analytics: pendaftar gagal dibaca: {exc!r}")
+        rows = []
+
+    def at(r, key="at"):
+        try:
+            return datetime.strptime(r.get(key, ""), SU.FMT)
+        except Exception:
+            return None
+
+    cur = [r for r in rows if at(r) is not None and p0 <= at(r) <= p1]
+    prev = [r for r in rows if at(r) is not None and q0 <= at(r) < q1] if compare else []
+    appr = [r for r in cur if r.get("status") == SU.APPROVED]
+    prev_appr = [r for r in prev if r.get("status") == SU.APPROVED]
+
+    def delta(c, pv):
+        return None if not compare or pv <= 0 else (c - pv) / pv * 100.0
+
+    conv = len(appr) / len(cur) * 100.0 if cur else None
+    prev_conv = len(prev_appr) / len(prev) * 100.0 if prev else None
+    new = [0] * len(buckets)
+    done = [0] * len(buckets)
+    for r in rows:
+        a, d = at(r), at(r, "done_at") if r.get("status") == SU.APPROVED else None
+        for i, (b0, b1, _l) in enumerate(buckets):
+            if a is not None and _dt(b0) <= a < _dt(b1):
+                new[i] += 1
+            if d is not None and _dt(b0) <= d < _dt(b1):
+                done[i] += 1
+    pending = [r for r in rows if r.get("status") == SU.PENDING]
+    oldest = min((at(r) for r in pending if at(r) is not None), default=None)
+    ages = [int(r["age"]) for r in cur if str(r.get("age", "")).isdigit()]
+
+    def ages_of(rs):
+        out = {}
+        for r in rs:
+            if str(r.get("age", "")).isdigit():
+                a = int(r["age"])
+                for label, lo, hi in AGE_GROUPS:
+                    if lo <= a <= hi:
+                        out[label] = out.get(label, 0) + 1
+        return out
+    by_age, by_age_appr, by_age_prev = ages_of(cur), ages_of(appr), ages_of(prev)
+    age_rows = []
+    for label, _lo, _hi in AGE_GROUPS:
+        n, a = by_age.get(label, 0), by_age_appr.get(label, 0)
+        age_rows.append({"label": label, "n": n, "approved": a,
+                         "conv": a / n * 100.0 if n else None,
+                         "delta": delta(n, by_age_prev.get(label, 0))})
+    src, intr = {}, {}
+    for r in cur:
+        k = _match(r.get("source", ""), SOURCES, "Tidak diisi") or "Lainnya"
+        src[k] = src.get(k, 0) + 1
+        raw = " ".join(str(r.get("interest", "")).split())
+        k = _match(raw, INTERESTS, "Tidak diisi") or (raw[:24].title() if raw else "Tidak diisi")
+        intr[k] = intr.get(k, 0) + 1
+    return {
+        "total": len(cur), "total_delta": delta(len(cur), len(prev)),
+        "approved": len(appr), "approved_delta": delta(len(appr), len(prev_appr)),
+        "rejected": sum(1 for r in cur if r.get("status") == SU.REJECTED),
+        "conv": conv,
+        "conv_delta": (conv - prev_conv) if (compare and conv is not None
+                                             and prev_conv is not None) else None,
+        "pending": len(pending),
+        "oldest_days": (datetime.now() - oldest).days if oldest else None,
+        "avg_age": sum(ages) / len(ages) if ages else None,
+        "kids_pct": sum(1 for a in ages if a <= 12) / len(ages) * 100.0 if ages else None,
+        "series": {"labels": [b[2] for b in buckets], "new": new, "approved": done,
+                   "unit": unit},
+        "sources": _top(src, 5), "interests": _top(intr, 5),
+        "ages": age_rows,
+        "recent": [{"name": r.get("name", ""), "age": r.get("age", ""),
+                    "interest": r.get("interest", ""), "phone": r.get("phone", ""),
+                    "at": r.get("at", "")} for r in pending[:6]],
+    }
+
+
 # --- utama -------------------------------------------------------------------------
 def occurrences(slots, by_sid, active_ids, a0, a1):
     """Setiap jadwal yang SUDAH selesai di rentang [a0, a1] (sejak jadwal dibuat), per murid:
@@ -150,6 +283,15 @@ def compute(period="30d", program="all"):
     if n_days is None:
         firsts = [st for i, st, _e in sess if i in student_ids]
         firsts += [u[1] for u in uploads]
+        try:          # pendaftar trial ikut menentukan awal rentang "Semua"
+            from elearning import signups as SU
+            for r in SU.list_all():
+                try:
+                    firsts.append(datetime.strptime(r.get("at", ""), SU.FMT))
+                except Exception:
+                    pass
+        except Exception:
+            pass
         start_day = min(firsts).date() if firsts else today - timedelta(days=29)
         start_day = min(start_day, today - timedelta(days=6))
     else:
@@ -401,4 +543,5 @@ def compute(period="30d", program="all"):
         "attention": attention,
         "top": top,
         "teachers": teacher_rows,
+        "signups": signup_stats(p0, p1, q0, q1, buckets, compare=n_days is not None),
     }
