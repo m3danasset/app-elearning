@@ -81,6 +81,7 @@ class ScheduleBoard(tk.Canvas):
                   "hour": tkfont.Font(font=(C.FONT, 8)),
                   "time": tkfont.Font(font=(C.FONT, 8, "bold")),
                   "body": tkfont.Font(font=(C.FONT, 9)),
+                  "bodyb": tkfont.Font(font=(C.FONT, 9, "bold")),   # murid hadir (Sesi)
                   "plus": tkfont.Font(font=(C.FONT, 9)),
                   "tool": tkfont.Font(font=(C.FONT, 10)),
                   "tool_b": tkfont.Font(font=(C.FONT, 10, "bold")),
@@ -490,12 +491,13 @@ class ScheduleBoard(tk.Canvas):
                 item = self.create_image(bx, by, image=p, anchor="nw")
                 self._remember((sl["id"], r, h), item, w, hh, base, bg, match, border, 6)
             name = self.students[sid]["name"]
-            self.create_text(bx + 7, by + hh / 2, anchor="w", font=self.f["body"],
+            f = self.f["bodyb" if (sid, sl["id"]) in present else "body"]   # hadir: tebal
+            self.create_text(bx + 7, by + hh / 2, anchor="w", font=f,
                              fill="#ffffff" if match else C.MUTED,
-                             text=_fit(self.f["body"], f"{label} {name}", w - 12))
+                             text=_fit(f, f"{label} {name}", w - 12))
             self.boxes.append((bx, by, bx + w, by + hh, sl))
         self._draw_cell_hover()
-        legend = "SK = SUPERKIDS   ·   PB = basic   ·   IC = intermediate   ·   warna menyala = hadir   ·   " \
+        legend = "SK = SUPERKIDS   ·   PB = basic   ·   IC = intermediate   ·   warna menyala + tebal = hadir   ·   " \
                  "klik nama = ubah jadwal, klik kotak kosong = tambah"
         self.create_text(x0, bottom + 18, text=legend, anchor="w", font=self.f["hour"],
                          fill=C.LOCKED)
