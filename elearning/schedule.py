@@ -14,6 +14,11 @@ import threading
 from elearning import config as C
 
 SCHEDULE_FILE = os.path.join(C.DATA_DIR, "schedule.json")
+# Warna jadwal (dipilih admin). "" = otomatis menurut kategori murid.
+COLORS = (("", "Otomatis", None), ("biru", "Biru", "#3f6f8f"), ("hijau", "Hijau", "#3f7f62"),
+          ("oranye", "Oranye", "#a8632a"), ("merah", "Merah", "#a24a4a"),
+          ("ungu", "Ungu", "#6b5f8f"), ("abu", "Abu-abu", "#5b5a56"))
+COLOR_HEX = {k: h for k, _n, h in COLORS if h}
 DAYS = ("Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu")
 _lock = threading.Lock()
 _cache = {"key": None, "data": None}
@@ -40,7 +45,8 @@ def _valid(slot):
             "end": to_hhmm(b), "teacher": str(slot.get("teacher") or ""),
             "students": [str(s) for s in slot.get("students") or []],
             "note": str(slot.get("note") or "")[:120],
-            "since": str(slot.get("since") or "")[:10]}   # tanggal jadwal dibuat (analytics)
+            "since": str(slot.get("since") or "")[:10],
+            "color": slot.get("color") if slot.get("color") in COLOR_HEX else ""}   # tanggal jadwal dibuat (analytics)
 
 
 def _load():

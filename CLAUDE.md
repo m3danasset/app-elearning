@@ -106,6 +106,10 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   baris = slot murid 1-20 (MAX_ROWS), sel "SK/PB/IC Nama" (IC = kursus intermediate dibuka).
   Murid yang sama di jam berurutan tetap satu baris; kepala kolom "terisi/20" (+lebih).
   Klik nama = ubah jadwal, klik sel kosong = tambah di jam itu. Guru tetap tampilan Hari.
+- Warna jadwal: schedule.COLORS (Otomatis + 6 template: biru, hijau, oranye, merah, ungu,
+  abu-abu), field "color" di schedule.json. Admin memilih di ScheduleDialog (lingkaran warna);
+  Otomatis = warna kategori murid. Semua tampilan (Sesi, Hari, Minggu, guru) memakai warna itu;
+  guru hanya melihat.
 
 ## Analytics admin (tab paling atas, dibuka pertama)
 - Kartu angka: murid aktif (+ tanpa jadwal), jam belajar, kehadiran jadwal (%), portfolio,

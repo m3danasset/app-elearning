@@ -302,7 +302,7 @@ class ScheduleBoard(tk.Canvas):
         w, h = int(x1 - x0), int(y1 - y0)
         if w < 6 or h < 6:
             return
-        base = PROGRAM_COLOR[self._program(s)]
+        base = SCH.COLOR_HEX.get(s.get("color")) or PROGRAM_COLOR[self._program(s)]
         hover = self.hover == ("slot", s["id"]) and self.on_edit is not None
         match = self._matches(s)
         fill = _mix(base, "#ffffff", 0.12) if hover else base
@@ -433,6 +433,7 @@ class ScheduleBoard(tk.Canvas):
             bx, by = x0 + i * cw + 3, top + r * SLOT_H + 3
             w, hh = int(cw - 6), SLOT_H - 6
             label, base = self._label(sid)
+            base = SCH.COLOR_HEX.get(sl.get("color")) or base      # warna pilihan admin
             hover = self.hover == ("slot", sl["id"]) and self.on_edit is not None
             match = self._matches(sl)
             bg = _mix(C.BG, C.CARD, 0.5) if (is_today and h == now.hour) else C.BG
@@ -598,6 +599,17 @@ class ScheduleDialog(tk.Toplevel):
         RoundEntry(col, self.note_var, width_chars=40, font=(C.FONT, 11), height=36,
                    fill=C.BG, radius=9).pack(fill="x", pady=(6, 0))
 
+        col = tk.Frame(body, bg=C.CARD)
+        col.pack(fill="x", pady=(12, 0))
+        tk.Label(col, text="Warna", bg=C.CARD, fg=C.MUTED, font=(C.FONT, 10),
+                 anchor="w").pack(fill="x")
+        self.color = slot.get("color", "") if slot else ""
+        self.swatch = tk.Canvas(col, height=34, bg=C.CARD, highlightthickness=0, bd=0,
+                                width=len(SCH.COLORS) * 40, cursor="hand2")
+        self.swatch.pack(anchor="w", pady=(6, 0))
+        self.swatch.bind("<Button-1>", self._pick_color)
+        self._draw_swatch()
+
         head = tk.Frame(body, bg=C.CARD)
         head.pack(fill="x", pady=(14, 0))
         tk.Label(head, text="Murid", bg=C.CARD, fg=C.MUTED, font=(C.FONT, 10),
@@ -653,6 +665,42 @@ class ScheduleDialog(tk.Toplevel):
         except tk.TclError:
             pass
 
+    def _draw_swatch(self):
+        """Lingkaran warna template (antialias). "Otomatis" = setengah biru / merah muda."""
+        cv = self.swatch
+        cv.delete("all")
+        cv._imgs = []
+        for i, (key, name, hexc) in enumerate(SCH.COLORS):
+            x = i * 40 + 17
+            if key == self.color:          # cincin pilihan
+                p = I.dot(C.TEXT, C.CARD, 32, 15.5)
+                inner = I.dot(C.CARD, C.TEXT, 28, 13.5)
+                for ph in (p, inner):
+                    if ph is not None:
+                        cv._imgs.append(ph)
+                        cv.create_image(x, 17, image=ph)
+            if hexc:
+                ph = I.dot(hexc, C.CARD if key != self.color else C.CARD, 24, 11)
+                if ph is not None:
+                    cv._imgs.append(ph)
+                    cv.create_image(x, 17, image=ph)
+            else:   # otomatis: dua warna kategori berdampingan
+                for dx, c in ((-5, PROGRAM_COLOR["adult"]), (5, PROGRAM_COLOR["kids"])):
+                    ph = I.dot(c, C.CARD, 14, 6.5)
+                    if ph is not None:
+                        cv._imgs.append(ph)
+                        cv.create_image(x + dx, 17, image=ph)
+        label = next(n for k, n, _h in SCH.COLORS if k == self.color)
+        cv.configure(width=len(SCH.COLORS) * 40 + 90)
+        cv.create_text(len(SCH.COLORS) * 40 + 4, 17, text=label, anchor="w",
+                       font=(C.FONT, 10), fill=C.MUTED)
+
+    def _pick_color(self, e):
+        i = int(e.x // 40)
+        if 0 <= i < len(SCH.COLORS):
+            self.color = SCH.COLORS[i][0]
+            self._draw_swatch()
+
     def _center(self, parent):
         self.update_idletasks()
         w, h = self.winfo_reqwidth(), self.winfo_reqheight()
@@ -678,7 +726,7 @@ class ScheduleDialog(tk.Toplevel):
                 "day": SCH.DAYS.index(self.day_var.get()),
                 "start": self.start_var.get(), "end": self.end_var.get(),
                 "teacher": self._teacher_ids.get(self.teacher_var.get(), ""),
-                "note": self.note_var.get().strip(),
+                "note": self.note_var.get().strip(), "color": self.color,
                 "students": [s["id"] for s, c in self.checks if c.value]}
         try:
             SCH.save_slot(slot)
