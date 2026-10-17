@@ -86,8 +86,10 @@ class CourseDock(tk.Canvas):
 
     FRAME_MS = C.UI_FRAME_MS   # maks. 30 fps
 
-    def __init__(self, master, courses, allowed, on_open, title, hello):
+    def __init__(self, master, courses, allowed, on_open, title, hello, foot=None):
         super().__init__(master, bg=C.BG, highlightthickness=0, bd=0)
+        # teks bawah kartu (terbuka, terkunci); resource trial memakai "Open in Blender" dst.
+        self.foot = foot or ("Open course  →", "Locked  ·  ask your teacher")
         self.courses = list(courses)
         self.allowed = set(allowed)
         self.on_open = on_open
@@ -334,7 +336,7 @@ class CourseDock(tk.Canvas):
         for n, line in enumerate(self._wrap(f, c["desc"], (x1 - x0) - 2 * pad, max_lines)):
             out.append((self.create_text(x, y + n * line_h, text=line, anchor="nw", font=f,
                                          fill=dcol, tags=tags), dcol, "text"))
-        foot = "Open course  →" if unlocked else "Locked  ·  ask your teacher"
+        foot = c.get("foot") or (self.foot[0] if unlocked else self.foot[1])
         fcol = C.ACCENT if unlocked else C.LOCKED
         out.append((self.create_text(x, y1 - pad, text=foot, anchor="sw", font=self.f["foot"],
                                      fill=fcol, tags=tags), fcol, "text"))
