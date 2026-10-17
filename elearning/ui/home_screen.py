@@ -38,6 +38,9 @@ class HomeScreen(SidebarLayout):
         # Badge berlaku per kursus: menu Badges ada di sidebar layar kursus, bukan di sini
         sb.nav("All courses", "grid", lambda: self._set_view("courses"),
                active=self.view == "courses")
+        if self.trial:   # trial: SATU menu Resources untuk semua kelas (folder resources	rial)
+            sb.nav("Resources", "folder", lambda: self._set_view("resource"),
+                   active=self.view == "resource")
         course_items(sb, self.courses, self.allowed, None, self.on_open_course)
         blender_footer(sb)
 
@@ -58,6 +61,13 @@ class HomeScreen(SidebarLayout):
         for w in self.content.winfo_children():
             w.destroy()
         self.dock = None
+        if self.view == "resource":
+            from elearning.ui.file_browser import ResourcePage
+            from elearning.ui.sidebar import PageHeader
+            PageHeader(self.content, "Resources", "Trial class").pack(fill="x")
+            ResourcePage(self.content, {"id": "trial", "title": "Trial", "program": "trial"}
+                         ).pack(fill="both", expand=True)
+            return
         hello = ("Welcome! Pick a class to try learning."
                  if self.trial else
                  f"Hi, {self.student['name']}! Continue learning from your open courses.")
