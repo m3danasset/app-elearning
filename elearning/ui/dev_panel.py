@@ -341,13 +341,22 @@ class DevPanel(tk.Toplevel):
                                     relief="flat", bg=FIELD, fg=FG, activebackground="#3a3a3a",
                                     activeforeground=FG, command=self._reset_values)
         self.body = outer
-        self.apply_btn = tk.Button(bottom, text="Apply", font=BOLD, relief="flat",
+        btns = tk.Frame(bottom, bg=BG)
+        btns.pack(fill="x", pady=(6, 0))
+        # Apply Now = sementara (sampai app ditutup); Apply As Default = disimpan ke file
+        self.apply_btn = tk.Button(btns, text="Apply Now", font=BOLD, relief="flat",
                                    bg=C.ACCENT, fg="white", activebackground=C.ACCENT_HOVER,
                                    activeforeground="white", state="disabled",
-                                   command=self._apply)
-        self.apply_btn.pack(fill="x", ipady=3, pady=(6, 0))
+                                   command=lambda: self._apply(False))
+        self.apply_btn.pack(side="left", fill="x", expand=True, ipady=3)
+        self.default_btn = tk.Button(btns, text="Apply As Default", font=BOLD, relief="flat",
+                                     bg=FIELD, fg=FG, activebackground="#3a3a3a",
+                                     activeforeground=FG, state="disabled",
+                                     command=lambda: self._apply(True))
+        self.default_btn.pack(side="left", fill="x", expand=True, ipady=3, padx=(6, 0))
         self._filter()
         self._q.trace_add("write", lambda *a: self._filter())
+        self._changed()                   # status tombol (ada setting sementara?)
         q.focus_set()
 
     def _mark(self, key, value):
@@ -364,11 +373,20 @@ class DevPanel(tk.Toplevel):
 
     def _changed(self):
         n = len(self._pending) + len(self._pending_feat) + len(self._val_changes())
+        temp = bool(S.session())          # ada yang diterapkan sementara (Apply Now)
         self.apply_btn.config(state="normal" if n else "disabled")
-        self._note(f"{n} perubahan belum diterapkan" if n else "")
+        self.default_btn.config(state="normal" if n or temp else "disabled")
+        if n:
+            self._note(f"{n} perubahan belum diterapkan")
+        elif temp:
+            self._note("Sementara: kembali saat app ditutup (Apply As Default = simpan).")
+        else:
+            self._note("")
 
-    def _apply(self):
-        """Simpan semua perubahan lalu terapkan langsung ke aplikasi (tanpa buka ulang)."""
+    def _apply(self, as_default):
+        """Terapkan semua perubahan langsung ke aplikasi (tanpa buka ulang).
+        as_default False (Apply Now): hanya sementara, hilang saat app ditutup.
+        as_default True (Apply As Default): juga semua yang tadi sementara, disimpan ke file."""
         from elearning import dev_values as DV
         vals = self._val_changes()
         for key, text in vals.items():          # periksa dulu: salah satu salah = batal semua
@@ -377,19 +395,29 @@ class DevPanel(tk.Toplevel):
             except ValueError as exc:
                 self._note(str(exc))
                 return
+        # perubahan baru masuk lapisan sementara dulu (dua tombol sama-sama langsung berlaku)
+        if vals:
+            S.set_session("values", {k: t.strip() for k, t in vals.items()})
+        for key, value in self._pending.items():
+            S.set_session(key, value)
+        if self._pending_feat:
+            S.set_session("features", dict(self._pending_feat))
         try:
-            if vals:
-                saved = dict(S.get("values") or {})
-                for key, text in vals.items():
-                    if text.strip() == DV.default_text(key):
-                        saved.pop(key, None)        # sama dengan bawaan: tidak perlu disimpan
-                    else:
-                        saved[key] = text.strip()
-                S.set("values", saved)
-            for key, value in self._pending.items():
-                S.set(key, value)
-            for key, on in self._pending_feat.items():
-                S.set_feature(key, on)
+            if as_default:
+                temp = S.session()
+                if "values" in temp:
+                    saved = dict(S.saved("values") or {})
+                    for key, text in temp.pop("values").items():
+                        if text == DV.default_text(key):
+                            saved.pop(key, None)    # sama dengan bawaan: tidak perlu disimpan
+                        else:
+                            saved[key] = text
+                    S.set("values", saved)
+                for key, on in temp.pop("features", {}).items():
+                    S.set_feature(key, on)
+                for key, value in temp.items():
+                    S.set(key, value)
+                S.clear_session()
         except OSError as exc:
             C.log(f"Dev: setting gagal disimpan: {exc!r}")
             self._note("Gagal menyimpan (folder data?).")
@@ -403,12 +431,14 @@ class DevPanel(tk.Toplevel):
             return
         self.show("settings")              # warna tombol ikut aksen baru
         self.lift()
-        self._note("Diterapkan.")
+        self._note("Disimpan sebagai bawaan." if as_default
+                   else "Diterapkan sementara (kembali saat app ditutup).")
 
     def _reset_values(self):
         """Hapus semua nilai isian dev: kembali ke nilai bawaan kode, langsung diterapkan."""
         try:
             S.set("values", {})
+            S.clear_session("values")
             self.app.apply_dev_settings()
         except Exception as exc:
             C.log(f"Dev: reset nilai gagal: {exc!r}")

@@ -192,7 +192,10 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   "Edit murid" (StudentEditor): nama, ID, kategori, status, tgl lahir, kursus buka/tampil.
   Ganti ID = students.change_id: pindahkan foto, progres, badge, portfolio & assignment,
   riwayat login (+ arsip), jadwal, kuis, sertifikat, recents; ditolak kalau ID sudah dipakai.
-  Ganti kategori = students.set_program (kursus disesuaikan). Settings: tombol Apply.
+  Ganti kategori = students.set_program (kursus disesuaikan). Settings: 2 tombol.
+  Apply Now = langsung berlaku tapi SEMENTARA (app_settings._session di memori, hilang saat
+  app ditutup); Apply As Default = langsung berlaku + disimpan ke file (termasuk yang tadi
+  sementara). app_settings.get/feature membaca file + lapisan sementara; saved() = file saja.
 - Settings > nilai isian (bisa digulir, per grup, kolom Cari di atas menyaring grup/baris
   tanpa membuat ulang widget): elearning/dev_values.py VALUES = 70 nilai (login, carousel,
   beranda, video, mini player, badge, sertifikat, jadwal, analytics, search, file/upload,

@@ -40,6 +40,10 @@ DEFAULTS = {
 }
 
 _lock = threading.Lock()
+# lapisan sementara (Dev > Apply Now): hanya di memori, hilang saat aplikasi ditutup.
+# Bentuknya sama dengan file: kunci biasa + "features" / "values" (dict, digabung per isi).
+_session = {}
+_MERGED = ("features", "values")
 
 
 def _path():
@@ -56,8 +60,43 @@ def _load():
         return {}
 
 
-def get(key):
+def _effective():
+    """Isi file + lapisan sementara (Apply Now) di atasnya."""
     data = _load()
+    for k, v in _session.items():
+        if k in _MERGED:
+            data[k] = {**(data.get(k) or {}), **v}
+        else:
+            data[k] = v
+    return data
+
+
+def saved(key):
+    """Nilai yang TERSIMPAN di file (tanpa lapisan sementara)."""
+    return _load().get(key, DEFAULTS.get(key))
+
+
+def set_session(key, value):
+    """Apply Now: pasang sementara (tidak ditulis ke file)."""
+    if key in _MERGED:
+        _session[key] = {**_session.get(key, {}), **value}
+    else:
+        _session[key] = value
+
+
+def session():
+    return {k: (dict(v) if isinstance(v, dict) else v) for k, v in _session.items()}
+
+
+def clear_session(key=None):
+    if key is None:
+        _session.clear()
+    else:
+        _session.pop(key, None)
+
+
+def get(key):
+    data = _effective()
     if key == "login_mode" and key not in data and data.get("login_carousel_rows3"):
         return "rows3"                       # pengaturan versi sebelumnya (switch 3 baris)
     value = data.get(key, DEFAULTS.get(key))
@@ -89,13 +128,13 @@ def set(key, value):     # noqa: A001 - nama sengaja sederhana (app_settings.set
 def feature(name):
     """True kalau fitur ON (bawaan ON). Aman dipanggil dari mana saja."""
     try:
-        return bool(_load().get("features", {}).get(name, True))
+        return bool(_effective().get("features", {}).get(name, True))
     except Exception:
         return True
 
 
 def set_feature(name, on):
-    data = _load()
+    data = _load()                   # simpan ke file: mulai dari isi file, bukan sementara
     feats = dict(data.get("features") or {})
     feats[name] = bool(on)
     set("features", feats)
