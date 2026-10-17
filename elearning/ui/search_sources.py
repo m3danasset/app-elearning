@@ -152,6 +152,8 @@ def admin_sources(screen):
          "action": lambda: screen._set_tab("reports")},
         {"title": "Analytics", "icon": "activity",
          "action": lambda: screen._set_tab("analytics")},
+        {"title": "Jadwal", "icon": "clock", "sub": "Kalender hari & jam murid masuk",
+         "action": lambda: screen._set_tab("schedule")},
         {"title": "Tambah murid", "icon": "plus", "action": screen._add_student},
         {"title": "Tambah guru", "icon": "plus", "action": screen._add_teacher_from_nav},
         {"title": "Export Excel", "icon": "download", "action": screen._export},

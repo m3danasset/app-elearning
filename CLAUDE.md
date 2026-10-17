@@ -89,3 +89,13 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 - Kalau Blender sudah terbuka: pesan "Simpan & tutup Blender dulu" (tanpa addon tidak bisa
   mengirim gambar ke Blender yang sedang jalan). Belum diuji di Blender asli (4.2).
 
+
+## Jadwal kelas (Panel Admin, tab Jadwal)
+- elearning/schedule.py: data\schedule.json, jadwal mingguan berulang {day 0=Senin, start,
+  end, teacher, students, note}. Murid dihapus -> otomatis keluar dari semua jadwal.
+- ui/schedule_view.py: ScheduleBoard = kalender mingguan di SATU canvas (Senin-Minggu x jam
+  config.SCHEDULE_HOURS, default 08-21), kolom hari ini + garis jam sekarang oranye, blok
+  bersudut bulat (biru = dewasa, merah muda = anak, ungu = campuran), jadwal bertabrakan
+  berdampingan. Klik kotak kosong = tambah di hari/jam itu, klik blok = ubah/hapus
+  (ScheduleDialog: hari, mulai, selesai tiap 30 menit, guru, catatan, centang murid + cari).
+  Kolom cari sidebar menyorot jadwal yang cocok (nama/ID murid, guru, catatan).

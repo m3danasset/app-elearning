@@ -279,6 +279,11 @@ def delete_student(student_id):
         C.log(f"Foto {sid} tidak bisa dihapus: {exc!r}")
     sessions.delete_student(sid)
     portfolio.delete_student(sid)
+    try:   # keluarkan dari semua jadwal kelas
+        from elearning import schedule
+        schedule.remove_student(sid)
+    except Exception as exc:
+        C.log(f"Jadwal {sid} tidak bisa diperbarui: {exc!r}")
     try:
         from elearning import progress, quizzes
         progress.delete_student(sid)

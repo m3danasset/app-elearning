@@ -34,7 +34,7 @@ KEYWORDS = {"expired": ("status", "expired"), "active": ("status", "active"),
             "dewasa": ("program", "adult")}
 
 TAB_TITLE = {"students": "Murid", "teachers": "Guru", "reports": "Laporan Guru",
-             "analytics": "Analytics"}
+             "analytics": "Analytics", "schedule": "Jadwal"}
 
 
 class AdminScreen(SidebarLayout):
@@ -117,6 +117,7 @@ class AdminScreen(SidebarLayout):
                                         on_delete=self._delete_teacher)
         self.reports_board = ReportsBoard(self.scroll.inner)
         self.analytics = None
+        self.schedule_board = None
         self._shown = None
 
         # Tombol di kepala halaman dibuat sekali; teks/fungsinya saja yang diganti per menu
@@ -131,7 +132,8 @@ class AdminScreen(SidebarLayout):
     # --- sidebar -------------------------------------------------------------------
     def _populate(self, sb):
         for key, icon in (("students", "users"), ("teachers", "teacher"),
-                          ("reports", "report"), ("analytics", "activity")):
+                          ("reports", "report"), ("analytics", "activity"),
+                          ("schedule", "clock")):
             sb.nav(TAB_TITLE[key], icon, lambda k=key: self._set_tab(k),
                    active=self.tab == key)
 
@@ -314,10 +316,13 @@ class AdminScreen(SidebarLayout):
     def _layout_tab(self):
         """Judul, tombol kepala, baris ringkasan / filter, dan isi yang tampil per menu."""
         self.header.set_title(TAB_TITLE[self.tab], "Panel Admin")
-        if self.tab in ("students", "teachers"):
+        if self.tab in ("students", "teachers", "schedule"):
             teachers = self.tab == "teachers"
-            self.add_btn.set(text="Tambah guru" if teachers else "Tambah murid",
-                             command=self._add_teacher if teachers else self._add_student)
+            if self.tab == "schedule":
+                self.add_btn.set(text="Tambah jadwal", command=lambda: self._edit_slot(None))
+            else:
+                self.add_btn.set(text="Tambah guru" if teachers else "Tambah murid",
+                                 command=self._add_teacher if teachers else self._add_student)
             if not self.add_btn.winfo_manager():
                 self.add_btn.pack(side="right", padx=(8, 0), after=self.export_btn)
         else:
@@ -345,11 +350,17 @@ class AdminScreen(SidebarLayout):
         else:
             self.pbar.pack_forget()
         # isi: satu widget per menu, ditukar (tidak dibuat ulang)
+        if self.tab == "schedule" and self.schedule_board is None:
+            from elearning.ui.schedule_view import ScheduleBoard
+            self.schedule_board = ScheduleBoard(
+                self.scroll.inner, on_add=lambda d, h: self._edit_slot(None, d, h),
+                on_edit=self._edit_slot)
         if self.tab == "analytics" and self.analytics is None:
             self.analytics = AnalyticsPanel(self.scroll.inner, self._an_state,
                                             on_open=self._open_person)
         want = {"students": self.people_board, "teachers": self.people_board,
-                "reports": self.reports_board, "analytics": self.analytics}[self.tab]
+                "reports": self.reports_board, "analytics": self.analytics,
+                "schedule": self.schedule_board}[self.tab]
         if self._shown is not want:
             if self._shown is not None:
                 self._shown.pack_forget()
@@ -456,9 +467,44 @@ class AdminScreen(SidebarLayout):
             return
         if self.tab == "reports":
             self._refresh_reports()
+        elif self.tab == "schedule":
+            self._refresh_schedule()
         else:
             self._refresh_people()
         self._after = self.after(REFRESH_MS, self.refresh)
+
+    # --- jadwal ----------------------------------------------------------------------
+    def _schedule_data(self):
+        studs = list_students()
+        return ({s["id"]: s for s in studs}, studs,
+                {t["id"]: t["name"] for t in T.list_teachers()})
+
+    def _refresh_schedule(self):
+        from elearning import schedule as SCH
+        by_id, _studs, teachers = self._schedule_data()
+        slots = SCH.list_slots()
+        placed = {sid for s in slots for sid in s["students"] if sid in by_id}
+        free = sum(1 for sid, s in by_id.items()
+                   if sid not in placed and s["status"] != STATUS_EXPIRED)
+        self.summary.config(
+            fg=C.MUTED,
+            text=f"{len(slots)} jadwal per minggu  \u00b7  {len(placed)} murid terjadwal  "
+                 f"\u00b7  {free} murid aktif belum punya jadwal  \u00b7  "
+                 "klik kotak kosong untuk menambah, klik jadwal untuk mengubah")
+        self.schedule_board.set_data(slots, by_id, teachers, self.sb.query)   # teks utuh
+        self.sb.set_count(None)
+
+    def _edit_slot(self, slot, day=None, hour=None):
+        from elearning.ui.schedule_view import ScheduleDialog
+        _by_id, studs, teachers = self._schedule_data()
+        studs = [s for s in studs if s["status"] != STATUS_EXPIRED
+                 or (slot and s["id"] in slot["students"])]
+        if day is None:
+            from datetime import date
+            day, hour = date.today().weekday(), 9
+        dlg = ScheduleDialog(self, studs, teachers, self.refresh, slot=slot, day=day,
+                             hour=hour or 9)
+        dlg.wait_window()
 
     def _refresh_people(self):
         people, stats = self._people()
