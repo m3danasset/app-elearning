@@ -42,6 +42,8 @@ VIDEO_DIM = 0.45  # 1.0 = terang asli, makin kecil makin gelap (biar kartu login
 LOGIN_VIDEO_OPACITY = 0.22  # video latar layar login (assets\\video\\login): 0 = tak terlihat, 1 = penuh
 # Carousel 3D layar login: frame per detik (maks. 30; turunkan ke 24 kalau PC terasa berat)
 LOGIN_CAROUSEL_FPS = 30
+# Jam yang tampil di jadwal (kalender, Sesi, export Excel): mulai 08.00, kolom terakhir 17.00-18.00
+SCHEDULE_HOURS = (8, 18)
 # Badge rahasia (easter egg). Ganti berkala supaya tetap jadi rahasia (murid saling bercerita).
 SECRET_CODE = "m3dan"                 # "Kode Rahasia": ketik kata ini di kolom cari
 SPECIAL_DAYS = ("01-01", "08-17")     # "Hari Spesial": bulan-tanggal (MM-DD) saat belajar

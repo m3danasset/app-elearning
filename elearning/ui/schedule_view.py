@@ -586,7 +586,8 @@ class ScheduleBoard(tk.Canvas):
 
 # --- dialog --------------------------------------------------------------------------------
 def _times():
-    return [SCH.to_hhmm(m) for m in range(6 * 60, 23 * 60 + 1, STEP)]
+    # sama dengan jam yang tampil (config.SCHEDULE_HOURS), supaya jadwal tidak tersembunyi
+    return [SCH.to_hhmm(m) for m in range(HOURS[0] * 60, HOURS[1] * 60 + 1, STEP)]
 
 
 class ScheduleDialog(tk.Toplevel):
