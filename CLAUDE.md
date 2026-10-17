@@ -45,3 +45,14 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 - ui/login_bg.py: canvas video latar (opacity rendah) + pita carousel.
 - config.py: LOGIN_CAROUSEL_FPS = 30 (maks. 30).
 - Belum diuji langsung di PC studio (Ryzen 5 2400G): kelancaran carousel & ukuran logo asli.
+
+## Search palette (Ctrl+K), semua peran
+- ui/search_palette.py: SearchBar (kolom cari di tengah bawah area isi, jalur sendiri
+  setinggi 68 px lewat SidebarLayout.enable_search) + SearchPalette (jendela cari gaya
+  claude.ai: tab tipe, "Terakhir dibuka", hasil per tipe, "Aksi", petunjuk Esc/panah/Enter).
+  Windows: latar redup (-alpha) + sudut panel tembus (-transparentcolor), muncul 120 ms.
+  Ditutup otomatis saat jendela pindah / windowed <-> fullscreen (ResizeCurtain + _watch).
+- ui/search_sources.py: isi per peran (murid/trial: kursus, pelajaran, aksi; guru: murid,
+  aksi; admin: murid, guru, laporan, aksi). Layar cukup punya search_sources().
+- elearning/recents.py: riwayat "Terakhir dibuka" per akun di data\recents.json
+  (trial hanya di memori). Layar kursus: tanpa kolom bawah (pemutar video), Ctrl+K tetap.

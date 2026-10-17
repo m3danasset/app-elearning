@@ -47,6 +47,7 @@ class TeacherScreen(SidebarLayout):
                              self._populate, placeholder="Cari murid (nama / ID)",
                              on_search=self._on_search)
         self.attach(self.sb)
+        self.enable_search("Cari murid (nama / ID) atau aksi")
 
         # --- Kanan: judul menu + isi ---------------------------------------------
         self.header = PageHeader(self.content, VIEW_TITLE[self.view])
@@ -120,6 +121,23 @@ class TeacherScreen(SidebarLayout):
         return sb.item(s["name"], lambda sid=s["id"]: self._on_student_click(sid),
                        active=current, fg=C.ERROR if expired else None,
                        right=f"{s['id']}  ·  expired" if expired else s["id"])
+
+    def search_sources(self):
+        from elearning.ui.search_sources import teacher_sources
+        return teacher_sources(self)
+
+    def open_student(self, student_id):
+        """Dari search palette: tampilkan murid itu (daftar sidebar ikut menunjuknya)."""
+        self.students = list_students()
+        if self.sb.query.strip():
+            self.sb.set_query("")        # murid yang dipilih pasti terlihat di daftar
+            if self.sb._search_job is not None:   # daftar langsung dibuat ulang di bawah
+                self.sb.after_cancel(self.sb._search_job)
+                self.sb._search_job = None
+        self.collapsed.clear()
+        self._on_student_click(student_id)
+        self.sb.refresh()
+        self.sb.scroll_to(self._row_widgets.get(student_id))
 
     def _on_search(self, _query):
         if self.view != "students" and self.sb.query.strip():

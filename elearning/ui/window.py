@@ -231,10 +231,15 @@ class App(tk.Tk):
     def show_admin(self, admin):
         self._show(AdminScreen(self, admin, on_logout=self.logout))
 
-    def show_course(self, student, course):
+    def show_course(self, student, course, lesson=None):
+        try:   # "Terakhir dibuka" di search palette (Ctrl+K)
+            from elearning import recents
+            recents.add(student["id"], f"course:{course['id']}", persist=not is_trial(student))
+        except Exception as exc:
+            config.log(f"Riwayat cari: {exc!r}")
         self._show(CourseScreen(
             self, student, course,
             on_back=lambda: self.show_home(student),
             on_logout=self.logout,
             on_open_course=lambda c: self.show_course(student, c),
-            on_badges=lambda: self.show_badges(student)))
+            on_badges=lambda: self.show_badges(student), lesson=lesson))

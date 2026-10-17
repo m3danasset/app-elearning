@@ -21,7 +21,7 @@ from elearning.ui.sidebar import (AppSidebar, PageHeader, SidebarLayout, blender
 
 class CourseScreen(SidebarLayout):
     def __init__(self, master, student, course, on_back, on_logout, on_open_course,
-                 on_badges=None):
+                 on_badges=None, lesson=None):
         super().__init__(master)
         self.student = student
         self.course = course
@@ -44,6 +44,11 @@ class CourseScreen(SidebarLayout):
                         break
             except Exception as exc:
                 C.log(f"Lanjut tonton: {exc!r}")
+        if self.video and lesson:             # dipilih dari search palette
+            for i, it in enumerate(self.lesson_items):
+                if it["title"] == lesson and not it["sample"]:
+                    self.lesson_index = i
+                    break
         self.panel = None      # LessonsPanel yang sedang tampil (view "materi")
 
         self.sb = AppSidebar(self, student, student_subtitle(student), on_logout,
@@ -57,6 +62,11 @@ class CourseScreen(SidebarLayout):
         self.body = tk.Frame(self.content, bg=C.BG)
         self.body.pack(fill="both", expand=True)
         self._render_body()
+
+    def search_sources(self):
+        """Ctrl+K: search palette (tanpa kolom cari di bawah, supaya pemutar video lega)."""
+        from elearning.ui.search_sources import student_sources
+        return student_sources(self, self.student)
 
     # --- sidebar -----------------------------------------------------------------
     def _populate(self, sb):

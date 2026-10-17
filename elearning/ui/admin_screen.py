@@ -40,6 +40,7 @@ TAB_TITLE = {"students": "Murid", "teachers": "Guru", "reports": "Laporan Guru",
 class AdminScreen(SidebarLayout):
     def __init__(self, master, admin, on_logout):
         super().__init__(master)
+        self.admin_id = admin["id"]
         self.tab = "students"
         self._after = None
         self._online = None      # daftar "Sedang online" terakhir
@@ -55,6 +56,7 @@ class AdminScreen(SidebarLayout):
                              on_search=lambda q: self._search_changed(),
                              suggest=self._suggest, on_enter=self._jump)
         self.attach(self.sb)
+        self.enable_search("Cari murid, guru, laporan, atau aksi")
 
         self.header = PageHeader(self.content, "Panel Admin")
         self.header.pack(fill="x")
@@ -143,6 +145,10 @@ class AdminScreen(SidebarLayout):
                     right="Guru" if p["tab"] == "teachers" else p["id"])
         if not online:
             sb.note("Belum ada guru atau murid yang online.")
+
+    def search_sources(self):
+        from elearning.ui.search_sources import admin_sources
+        return admin_sources(self)
 
     def _compute_online(self):
         people = ([{"id": s["id"], "name": s["name"], "tab": "students"}

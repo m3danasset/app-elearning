@@ -548,6 +548,11 @@ class ResizeCurtain:
         if size == self._size:
             return
         self._size = size
+        try:   # search palette (Ctrl+K) langsung ditutup: tidak tertinggal di posisi lama
+            from elearning.ui.search_palette import close_palette
+            close_palette()
+        except Exception:
+            pass
         if self.skip is not None and self.skip():
             return
         if not self.cover.winfo_ismapped():

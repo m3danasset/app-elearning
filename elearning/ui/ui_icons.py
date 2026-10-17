@@ -248,6 +248,15 @@ def _emo_capek(x, y):    # mata terpejam, mulut kecil, "z"
                _lines(x, y, (14.0, 3.4), (16.2, 3.4), (14.0, 5.8), (16.2, 5.8), hw=0.6))
 
 
+def _clock(x, y):   # jam: "Terakhir dibuka" di search palette
+    return min(_ring(x, y, 10, 10, 7.0), _lines(x, y, (10, 5.8), (10, 10), (13.0, 12.0)))
+
+
+def _enter(x, y):   # panah Enter (kembali ke kiri): buka hasil terpilih
+    return min(_lines(x, y, (15.6, 4.6), (15.6, 11.6), (5.0, 11.6)),
+               _lines(x, y, (8.4, 8.2), (5.0, 11.6), (8.4, 15.0)))
+
+
 SHAPES = {
     "search": _search, "panel": _panel, "home": _home, "grid": _grid, "play": _play,
     "folder": _folder, "image": _image, "users": _users, "user": _user, "file": _file,
@@ -257,6 +266,7 @@ SHAPES = {
     "download": _download, "quiz": _quiz, "award": _award, "copy": _copy, "play_fill": _play_fill, "check": _check, "check_bold": _check_bold,
     "emo_seru": _emo_seru, "emo_paham": _emo_paham, "emo_bingung": _emo_bingung,
     "emo_keren": _emo_keren, "emo_capek": _emo_capek, "emo_bosan": _emo_bosan,
+    "clock": _clock, "enter": _enter,
 }
 
 

@@ -27,7 +27,13 @@ class HomeScreen(SidebarLayout):
                              self._populate, placeholder="Cari kursus",
                              on_search=self._on_search)
         self.attach(self.sb)
+        self.enable_search("Cari kursus atau aksi" if self.trial
+                           else "Cari kursus, pelajaran, atau aksi")
         self._render_view()
+
+    def search_sources(self):
+        from elearning.ui.search_sources import student_sources
+        return student_sources(self, self.student)
 
     # --- sidebar ---------------------------------------------------------------------
     def _populate(self, sb):

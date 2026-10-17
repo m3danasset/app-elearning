@@ -762,6 +762,11 @@ def _install_shortcut(top):
     def focus_search(_e=None):
         sb = _current["sb"]
         if sb is not None and sb.winfo_exists():
+            screen = sb.master
+            if getattr(screen, "search_sources", None) is not None:   # search palette
+                from elearning.ui.search_palette import open_palette
+                if open_palette(screen) is not None:
+                    return "break"
             sb.focus_search()
         return "break"
     for seq in ("<Control-k>", "<Control-K>"):
@@ -1191,19 +1196,53 @@ class AppSidebar(tk.Frame):
 
 
 class SidebarLayout(tk.Frame):
-    """Kerangka layar: sidebar kiri + garis tipis + area isi kanan (self.content)."""
+    """Kerangka layar: sidebar kiri + garis tipis + area isi kanan (self.content).
+
+    Layar yang punya search_sources() (lihat search_palette.py) mendapat search palette
+    (Ctrl+K). Dengan enable_search(): kolom cari juga tampil di tengah bawah area isi,
+    di jalurnya sendiri (tidak menutupi isi / tombol paling bawah).
+    """
+
+    SEARCH_BAR_H = 68
+
+    search_sources = None    # diisi layar: fungsi -> isi palette
 
     def __init__(self, master):
         super().__init__(master, bg=C.BG)
         self.sidebar = None
         self.sidebar_line = tk.Frame(self, bg=C.SIDEBAR_LINE, width=1)
-        self.content = tk.Frame(self, bg=C.BG)
+        self.right = tk.Frame(self, bg=C.BG)
+        self.content = tk.Frame(self.right, bg=C.BG)
+        self.content.pack(side="top", fill="both", expand=True)
+        self.search_bar = None
 
     def attach(self, sidebar):
         self.sidebar = sidebar
         sidebar.pack(side="left", fill="y")
         self.sidebar_line.pack(side="left", fill="y")
-        self.content.pack(side="left", fill="both", expand=True)
+        self.right.pack(side="left", fill="both", expand=True)
+
+    def enable_search(self, placeholder):
+        """Kolom cari di tengah bawah (klik = buka search palette)."""
+        from elearning.ui.search_palette import SearchBar, open_palette
+        lane = tk.Frame(self.right, bg=C.BG, height=self.SEARCH_BAR_H)
+        lane.pack_propagate(False)
+        lane.pack(side="bottom", fill="x", before=self.content)
+        bar = self.search_bar = SearchBar(lane, lambda: open_palette(self), placeholder)
+        bar.place(relx=0.5, rely=0.5, anchor="center", y=-4)
+
+        def fit(e):
+            bar.set_width(max(300, min(560, e.width * 0.5)))
+        lane.bind("<Configure>", fit)
+
+    def open_search(self, tab="all"):
+        from elearning.ui.search_palette import open_palette
+        return open_palette(self, tab)
+
+    def destroy(self):
+        from elearning.ui.search_palette import close_palette
+        close_palette()      # ganti layar / keluar: palette yang terbuka ikut ditutup
+        super().destroy()
 
     def hide_sidebar(self):
         self.sidebar.pack_forget()
@@ -1211,8 +1250,8 @@ class SidebarLayout(tk.Frame):
 
     def show_sidebar(self):
         if not self.sidebar.winfo_manager():
-            self.sidebar.pack(side="left", fill="y", before=self.content)
-            self.sidebar_line.pack(side="left", fill="y", before=self.content)
+            self.sidebar.pack(side="left", fill="y", before=self.right)
+            self.sidebar_line.pack(side="left", fill="y", before=self.right)
 
 
 # --- bagian yang dipakai beberapa layar ------------------------------------------------
@@ -1228,21 +1267,27 @@ def student_subtitle(student):
 _blender_cache = {}
 
 
+def open_blender(sb):
+    """Buka Blender (sidebar murid & search palette)."""
+    from elearning import blender_launcher
+    app = sb.winfo_toplevel()
+    if blender_launcher.open_blender(app):
+        sb._badge("event", "siap_berkarya")
+        ctl = getattr(app, "blender_float", None)
+        if ctl is not None:   # Blender terbuka -> aplikasi mengecil jadi ikon mengambang
+            ctl.enter()
+
+
 def blender_footer(sb):
     """Item "Buka Blender" di dasar sidebar murid (semua murid, termasuk trial)."""
     from elearning import blender_icon, blender_launcher
 
-    def open_blender():
-        app = sb.winfo_toplevel()
-        if blender_launcher.open_blender(app):
-            sb._badge("event", "siap_berkarya")
-            ctl = getattr(app, "blender_float", None)
-            if ctl is not None:   # Blender terbuka -> aplikasi mengecil jadi ikon mengambang
-                ctl.enter()
+    def open_blender_now():
+        open_blender(sb)
 
     if "blender" not in _blender_cache:
         _blender_cache["blender"] = blender_icon.get_photo(22)
-    sb.footer(f"Buka Blender {blender_launcher.VERSION}", open_blender,
+    sb.footer(f"Buka Blender {blender_launcher.VERSION}", open_blender_now,
               image=_blender_cache["blender"], icon="play")
 
 
