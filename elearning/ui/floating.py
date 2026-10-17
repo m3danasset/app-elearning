@@ -405,15 +405,62 @@ class BlenderFloat:
         p = getattr(self.app, "_lesson_player", None)
         try:
             if p is None or not p.winfo_exists() or not p.has_video or not p._path:
-                return None
+                return self._fallback_state()
             panel = p.master
             items, index = panel.items, panel.index
             title = panel.title.cget("text")
         except Exception:
             return None
+        intro = getattr(p, "_intro", None)
+        if intro is not None:     # video pembuka sedang diputar: mini player = video pelajaran
+            path, _hint, subs = intro
+            return {"player": p, "panel": panel, "path": path, "subs": subs,
+                    "pos": float(getattr(p, "_resume", 0.0) or 0.0), "playing": False,
+                    "title": title, "index": index, "count": len(items), "color": p.color}
         return {"player": p, "panel": panel, "path": p._path, "subs": p._subs,
                 "pos": p.pos, "playing": p.playing, "title": title, "index": index,
                 "count": len(items), "color": p.color}
+
+    def _fallback_state(self):
+        """Tidak ada video terbuka di aplikasi (murid di halaman utama / Portfolio / Badges /
+        ... lalu Alt+Tab ke Blender): mini player memakai pelajaran terakhir dari kursus yang
+        sedang / terakhir dibuka, dari posisi lanjut tontonnya."""
+        student = getattr(self.app, "_student", None)
+        if not student:
+            return None
+        try:
+            from elearning import progress
+            from elearning import lessons as lessons_mod
+            from elearning.courses import COURSES, has_video
+            cid = None
+            scr = getattr(self.app, "_screen", None)
+            if getattr(scr, "course", None) is not None:
+                cid = scr.course["id"]
+            if cid is None:
+                cid = getattr(getattr(self.app, "badges", None), "course_id", None)
+            if cid is None:
+                from elearning import recents
+                for key in recents.get(student["id"]):
+                    k = key.get("key", "") if isinstance(key, dict) else str(key)
+                    if k.startswith("course:"):
+                        cid = k.split(":", 1)[1]
+                        break
+            course = next((c for c in COURSES if c["id"] == cid), None)
+            if course is None or not has_video(course)                     or cid not in set(student.get("courses", ())):
+                return None
+            items = [it for it in lessons_mod.lessons_for(course) if it["path"]]
+            if not items:
+                return None
+            last = progress.last_lesson(student["id"], cid) if student.get("id") else None
+            index = next((i for i, it in enumerate(items) if it["title"] == last), 0)
+            it = items[index]
+            pos = progress.resume_pos(progress.record(student["id"], cid, it["title"]))
+        except Exception as exc:
+            C.log(f"Mini player: pelajaran terakhir tidak bisa dibaca: {exc!r}")
+            return None
+        return {"player": None, "panel": None, "path": it["path"], "subs": it.get("subs", ()),
+                "pos": pos, "playing": False, "title": it["label"], "index": index,
+                "count": len(items), "color": course["color"]}
 
     def _open_mini(self, info, x, y):
         """Buat mini player di sebelah ikon (kalau ada pelajaran yang sedang dibuka)."""
@@ -422,7 +469,8 @@ class BlenderFloat:
         if st is None:
             return
         try:
-            st["player"]._pause()   # pemutar utama berhenti; mini player melanjutkan
+            if st["player"] is not None:
+                st["player"]._pause()   # pemutar utama berhenti; mini player melanjutkan
             self.mini = MiniPlayer(self.app, color=st["color"], on_nav=self._mini_nav,
                                    on_drag=self._mini_drag, on_drag_end=self._mini_drag_end,
                                    get_anchor=self._icon_anchor,
@@ -440,7 +488,7 @@ class BlenderFloat:
     def _mini_nav(self, delta):
         """Tombol sebelumnya / selanjutnya di mini player: pelajaran di aplikasi ikut berganti."""
         st = self._lesson_state()
-        if st is None or self.mini is None:
+        if st is None or self.mini is None or st["panel"] is None:
             return
         idx = st["index"] + delta
         if not 0 <= idx < st["count"]:
@@ -471,9 +519,12 @@ class BlenderFloat:
         """Aplikasi kembali penuh: video di aplikasi melanjutkan dari posisi di mini player."""
         pos, playing = resume
         st = self._lesson_state()
-        if st is None or pos is None:
+        if st is None or pos is None or st["player"] is None:   # tidak ada pemutar di aplikasi
             return
         p = st["player"]
+        if getattr(p, "_intro", None) is not None:   # intro belum selesai: lanjut setelah intro
+            p._resume = pos
+            return
         try:
             if pos > 0.5 and p.engine is not None:
                 p.engine.seek(pos, exact=True)
