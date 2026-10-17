@@ -1,4 +1,4 @@
-﻿"""Sidebar kiri gaya claude.ai, dipakai SEMUA peran: admin, guru, murid, dan trial.
+"""Sidebar kiri gaya claude.ai, dipakai SEMUA peran: admin, guru, murid, dan trial.
 
 Susunan (atas -> bawah):
   1. Logo brand (assets\\logo.png; cadangan: logo M3DAN bawaan) + tombol lipat sidebar
