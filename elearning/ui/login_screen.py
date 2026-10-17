@@ -23,7 +23,7 @@ from elearning.ui import ui_icons as I
 from elearning.ui.carousel3d import Carousel3D
 from elearning.ui.login_bg import LoginBackground
 
-MAX_LEN = 32
+MAX_LEN = 10          # maks. huruf + angka di kolom ID / PIN (cegah spam tombol)
 LOGO_ALPHA = 0.92
 FIELD_FILL = 200          # kegelapan isi kolom (0-255)
 TEXT = "#f3f1ea"

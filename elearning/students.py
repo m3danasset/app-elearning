@@ -56,7 +56,7 @@ _COURSE_ORDER = {c["id"]: i for i, c in enumerate(COURSES)}
 
 ID_PREFIX = {"adult": "PB", "kids": "SK"}   # awalan ID otomatis murid baru
 NAME_MAX = 40
-_ID_RE = re.compile(r"^[A-Z0-9_-]{1,20}$")
+_ID_RE = re.compile(r"^[A-Z0-9_-]{1,10}$")   # maks. 10: kolom ID login juga maks. 10
 
 
 # --- baca / tulis file --------------------------------------------------------
@@ -296,7 +296,7 @@ def add_student(name, program, student_id=None):
     data = _load()
     sid = (student_id or "").strip().upper() or next_student_id(program)
     if not _ID_RE.match(sid):
-        raise ValueError("ID hanya boleh huruf, angka, - atau _ (maksimal 20 karakter).")
+        raise ValueError("ID hanya boleh huruf, angka, - atau _ (maksimal 10 karakter).")
     if is_teacher_id(sid):
         raise ValueError("ID tidak boleh diawali GURU (khusus akun guru).")
     if is_admin_id(sid):

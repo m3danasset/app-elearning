@@ -535,7 +535,7 @@ class TeacherDialog(tk.Toplevel):
         StudentDialog._field(
             body, "PIN (untuk login)" if add else "PIN baru (kosongkan kalau tidak diganti)",
             self.pin_var, 32, pady=12)
-        tk.Label(body, text="PIN 4-20 karakter tanpa spasi. Foto dipotong persegi dari tengah.",
+        tk.Label(body, text="PIN 4-10 karakter tanpa spasi. Foto dipotong persegi dari tengah.",
                  bg=C.CARD, fg=C.MUTED, font=(C.FONT, 9), anchor="w",
                  wraplength=340, justify="left").pack(fill="x", pady=(6, 0))
 

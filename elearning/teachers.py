@@ -25,7 +25,7 @@ DEFAULT_TEACHERS = {
 
 PREFIX = "GURU"
 NAME_MAX = 40
-PIN_MIN, PIN_MAX = 4, 20
+PIN_MIN, PIN_MAX = 4, 10   # maks. 10: kolom PIN di layar login juga maks. 10
 _NUM_RE = re.compile(r"^GURU(\d+)$")
 
 
