@@ -1,6 +1,7 @@
 """Perhitungan untuk halaman Analytics di Panel Admin (hanya membaca data, tidak mengubah).
 
-Sumber: data\\sessions.json (masuk/keluar murid & guru), folder portfolio, laporan guru,
+Sumber: data\\sessions.json (masuk/keluar murid & guru), folder portfolio & assignment,
+laporan guru, badge murid (data\\achievements), jadwal kelas (data\\schedule.json),
 dan data murid (status akun, kursus yang dibuka).
 
 compute(period, program) -> dict siap tampil:
@@ -11,7 +12,7 @@ compute(period, program) -> dict siap tampil:
 from datetime import date, datetime, timedelta
 
 from elearning import config as C
-from elearning import portfolio, reports, sessions
+from elearning import achievements, portfolio, reports, schedule, sessions
 from elearning import teachers as T
 from elearning.courses import courses_for
 from elearning.students import STATUS_EXPIRED, list_students
@@ -22,6 +23,9 @@ PROGRAMS = (("all", "Semua program"), ("adult", "Murid dewasa"), ("kids", "Murid
 HEAT_HOURS = range(8, 22)      # jam yang ditampilkan di peta jam ramai (08.00 - 21.59)
 INACTIVE_DAYS = 14             # murid dianggap perlu diperhatikan kalau tidak login selama ini
 TOP_N = 10
+PRESENT_MIN = 10               # hadir jadwal = login min. sekian menit di jam jadwal
+EARLY_MIN = 15                 # login sedikit sebelum jadwal tetap dihitung hadir
+ABSENT_RATE = 0.5              # di bawah ini (min. 2 jadwal) -> "perlu diperhatikan"
 
 DAY_SHORT = ("Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min")
 MONTHS = ("Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des")
@@ -42,6 +46,11 @@ def _sessions(since=None):
         if start and end and end > start:
             out.append((r["id"], start, end))
     return out
+
+
+def _min(hhmm):
+    h, m = str(hhmm).split(":")
+    return int(h) * 60 + int(m)
 
 
 def _overlap(a0, a1, b0, b1):
@@ -97,11 +106,14 @@ def compute(period="30d", program="all"):
 
     # Portfolio semua murid (terfilter program)
     uploads = []   # (id murid, waktu, jenis, judul kursus)
+    assigns = []   # (id murid, waktu)  hasil render assignment
     for s in students:
         for c in courses_for(s["program"]):
             try:
                 for it in portfolio.list_items(s["id"], c["id"]):
                     uploads.append((s["id"], it["added"], it["kind"], c["title"]))
+                for it in portfolio.list_items(s["id"], c["id"], portfolio.ASSIGNMENT):
+                    assigns.append((s["id"], it["added"]))
             except Exception as exc:
                 C.log(f"Analytics: portfolio {s['id']}/{c['id']} gagal dibaca: {exc!r}")
 
@@ -173,6 +185,109 @@ def compute(period="30d", program="all"):
                     pf_img[i] += 1
                 break
     pf_prev = sum(1 for _s, w, _k, _t in uploads if q0 <= w < q1)
+    asg = [0] * len(buckets)
+    asg_period = 0
+    for _sid, when in assigns:
+        if not (p0 <= when <= p1):
+            continue
+        asg_period += 1
+        for i, (b0, b1, _lbl) in enumerate(buckets):
+            if _dt(b0) <= when < _dt(b1):
+                asg[i] += 1
+                break
+    asg_prev = sum(1 for _s, w in assigns if q0 <= w < q1)
+
+    # --- badge ---------------------------------------------------------------------------
+    badge_period = badge_prev = 0
+    badge_count = {}          # id badge -> jumlah murid yang punya (sepanjang masa)
+    badges_by_student = {}
+    for s in students:
+        try:
+            got = achievements.earned(s["id"])
+        except Exception as exc:
+            C.log(f"Analytics: badge {s['id']} gagal dibaca: {exc!r}")
+            got = {}
+        badges_by_student[s["id"]] = len(got)
+        for bid, t in got.items():
+            badge_count[bid] = badge_count.get(bid, 0) + 1
+            try:
+                when = datetime.strptime(t, achievements.FMT)
+            except Exception:
+                continue
+            if p0 <= when <= p1:
+                badge_period += 1
+            elif q0 <= when < q1:
+                badge_prev += 1
+    badge_rows = sorted(({"title": achievements.BY_ID[b]["name"],
+                          "color": achievements.CAT_COLOR.get(achievements.BY_ID[b]["cat"],
+                                                              C.ACCENT),
+                          "count": n, "text": f"{n} murid"}
+                         for b, n in badge_count.items() if b in achievements.BY_ID),
+                        key=lambda r: (-r["count"], r["title"]))[:8]
+
+    # --- kehadiran sesuai jadwal ---------------------------------------------------------
+    try:
+        slots = schedule.list_slots()
+    except Exception as exc:
+        C.log(f"Analytics: jadwal gagal dibaca: {exc!r}")
+        slots = []
+    by_sid = {}
+    for rid, s0, s1 in sess:
+        if rid in student_ids:
+            by_sid.setdefault(rid, []).append((s0, s1))
+    active_ids = {s["id"] for s in students if s.get("status") != STATUS_EXPIRED}
+
+    def attendance(a0, a1):
+        """(hadir, harus hadir, per jadwal {id: [h, n]}, per murid {id: [h, n]})"""
+        pres = exp = 0
+        per_slot, per_sid = {}, {}
+        for sl in slots:
+            members = [m for m in sl["students"] if m in active_ids]
+            if not members:
+                continue
+            first = a0.date()
+            if sl.get("since"):
+                try:
+                    first = max(first, date.fromisoformat(sl["since"]))
+                except ValueError:
+                    pass
+            d = first + timedelta(days=(sl["day"] - first.weekday()) % 7)
+            sm, em = _min(sl["start"]), _min(sl["end"])
+            while d <= a1.date():
+                o0 = _dt(d) + timedelta(minutes=sm)
+                o1 = _dt(d) + timedelta(minutes=em)
+                if o1 > a1:          # jadwal belum selesai: belum dihitung
+                    break
+                for m in members:
+                    here = any(_overlap(s0, s1, o0 - timedelta(minutes=EARLY_MIN), o1)
+                               >= PRESENT_MIN * 60 for s0, s1 in by_sid.get(m, ()))
+                    exp += 1
+                    pres += here
+                    ps = per_slot.setdefault(sl["id"], [0, 0])
+                    pm = per_sid.setdefault(m, [0, 0])
+                    ps[1] += 1
+                    pm[1] += 1
+                    if here:
+                        ps[0] += 1
+                        pm[0] += 1
+                d += timedelta(days=7)
+        return pres, exp, per_slot, per_sid
+
+    att_pres, att_exp, att_slot, att_sid = attendance(p0, p1)
+    prev_pres, prev_exp, _ps, _pm = attendance(q0, q1) if n_days is not None else (0, 0, {}, {})
+    att_rate = att_pres / att_exp * 100.0 if att_exp else None
+    prev_rate = prev_pres / prev_exp * 100.0 if prev_exp else None
+    slot_rows = []
+    for sl in slots:
+        h, n = att_slot.get(sl["id"], (0, 0))
+        if not n:
+            continue
+        rate = h / n
+        slot_rows.append({"title": f"{DAY_SHORT[sl['day']]} {sl['start']}–{sl['end']}",
+                          "color": C.ON if rate >= 0.75 else (C.ACCENT if rate >= ABSENT_RATE
+                                                              else C.ERROR),
+                          "count": h, "frac": rate, "text": f"{round(rate * 100)}%  ({h}/{n})"})
+    scheduled = {m for sl in slots for m in sl["students"]}
 
     # --- laporan guru -------------------------------------------------------------------
     try:
@@ -212,6 +327,11 @@ def compute(period="30d", program="all"):
                 reasons.append(f"tidak login {idle} hari")
         if not pf_total_by_student.get(s["id"]):
             reasons.append("belum pernah upload portfolio")
+        h, n = att_sid.get(s["id"], (0, 0))
+        if n >= 2 and h / n < ABSENT_RATE:
+            reasons.append(f"hadir jadwal {h}/{n}")
+        if slots and s["id"] not in scheduled:
+            reasons.append("belum punya jadwal")
         if reasons:
             attention.append({"id": s["id"], "name": s["name"], "reason": ", ".join(reasons),
                               "idle": idle})
@@ -221,7 +341,7 @@ def compute(period="30d", program="all"):
     top = sorted(student_ids, key=lambda i: (-per_student.get(i, 0.0),
                                             -pf_by_student.get(i, 0), i))
     top = [{"id": i, "name": names.get(i, i), "seconds": per_student.get(i, 0.0),
-            "uploads": pf_by_student.get(i, 0)}
+            "uploads": pf_by_student.get(i, 0), "badges": badges_by_student.get(i, 0)}
            for i in top if per_student.get(i) or pf_by_student.get(i)][:TOP_N]
 
     # --- aktivitas guru ----------------------------------------------------------------------
@@ -250,10 +370,23 @@ def compute(period="30d", program="all"):
             "uploads": pf_period,
             "uploads_delta": delta(pf_period, pf_prev),
             "reports": len(recs),
+            "assignments": asg_period,
+            "assignments_delta": delta(asg_period, asg_prev),
+            "badges": badge_period,
+            "badges_delta": delta(badge_period, badge_prev),
+            "attendance": att_rate,
+            "attendance_delta": (att_rate - prev_rate) if (att_rate is not None
+                                                           and prev_rate is not None) else None,
+            "attendance_n": (att_pres, att_exp),
+            "slots": len(slots),
+            "unscheduled": len(active_ids - scheduled),
         },
         "hours": {"labels": [b[2] for b in buckets], "values": [h / 3600.0 for h in hours]},
         "heat": heat,
-        "portfolio": {"labels": [b[2] for b in buckets], "images": pf_img, "videos": pf_vid},
+        "portfolio": {"labels": [b[2] for b in buckets], "images": pf_img, "videos": pf_vid,
+                      "assignments": asg},
+        "schedule": slot_rows,
+        "badges": badge_rows,
         "courses": course_rows,
         "attention": attention,
         "top": top,

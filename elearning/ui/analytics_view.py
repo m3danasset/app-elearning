@@ -129,18 +129,32 @@ class AnalyticsBoard(tk.Canvas):
         s0, s1 = d["range"]
         span = f"{A._day_label(s0)} – {A._day_label(s1)} {s1.year}"
         prev = "vs sebelumnya"
+        att = k.get("attendance")
+        h, n = k.get("attendance_n", (0, 0))
+        att_note = (prev if k.get("attendance_delta") is not None else f"{h}/{n} hadir") \
+            if att is not None else ("belum ada jadwal" if not k.get("slots")
+                                     else "belum ada jadwal selesai")
         items = (
-            ("Murid aktif", str(k["active"]), f"{k['expired']} expired", None),
+            ("Murid aktif", str(k["active"]), f"{k['expired']} expired  ·  "
+                                              f"{k.get('unscheduled', 0)} tanpa jadwal", None),
             ("Jam belajar", A.fmt_hours(k["seconds"]),
              prev if k["seconds_delta"] is not None else span, k["seconds_delta"]),
+            ("Kehadiran jadwal", "–" if att is None else f"{_num(att, 0)}%", att_note,
+             k.get("attendance_delta"), "pt"),
             ("Portfolio masuk", f"{k['uploads']} file",
              prev if k["uploads_delta"] is not None else span, k["uploads_delta"]),
-            ("Laporan guru", str(k["reports"]), span, None),
+            ("Assignment masuk", f"{k.get('assignments', 0)} file",
+             prev if k.get("assignments_delta") is not None else span,
+             k.get("assignments_delta")),
+            ("Badge didapat", str(k.get("badges", 0)),
+             prev if k.get("badges_delta") is not None else span, k.get("badges_delta")),
         )
         gap = 8 if compact else GAP
-        tw = (w - 3 * gap) / 4
+        tw = (w - (len(items) - 1) * gap) / len(items)
         th = 84 if compact else 108
-        for i, (label, value, note, delta) in enumerate(items):
+        for i, item in enumerate(items):
+            label, value, note, delta = item[:4]
+            pct = "%" if len(item) < 5 else " poin"    # kehadiran: selisih poin persen
             tx = x + i * (tw + gap)
             cx, cy, cw = self._card(tx, y, tw, th, compact=compact)
             self._text(cx, cy, label, "label", C.MUTED)
@@ -150,7 +164,7 @@ class AnalyticsBoard(tk.Canvas):
             if delta is not None:
                 up = delta >= 0
                 arrow = "▲" if up else "▼"
-                t = self._text(nx, ny, f"{arrow} {_num(abs(delta), 0)}%", "dbold",
+                t = self._text(nx, ny, f"{arrow} {_num(abs(delta), 0)}{pct}", "dbold",
                                GREEN if up else RED)
                 nx = self.bbox(t)[2] + 6
             self._text(nx, ny, note, "label", C.MUTED, width=max(10, cx + cw - nx))
@@ -222,20 +236,21 @@ class AnalyticsBoard(tk.Canvas):
                                     f"rata-rata {_num(v)} murid login"], yy))
         return y0 + 7 * (ch + 2)
 
-    def _hbars(self, x, y, w, rows):
+    def _hbars(self, x, y, w, rows, empty="Belum ada kursus.", lw=118, vw=64):
         top = max([r["count"] for r in rows] + [1])
-        lw, vw = 118, 64
         bx, bw = x + lw, w - lw - vw - 8
         for i, r in enumerate(rows):
             yy = y + i * 26
             self._text(x, yy + 6, r["title"], "label", width=lw - 8, anchor="w")
             self._img(I.pill(int(bw), 10, C.SIDEBAR_ACTIVE, C.CARD, r=5), bx, yy + 1)
-            fw = int(bw * r["count"] / top)
+            frac = r["frac"] if "frac" in r else r["count"] / top
+            fw = int(bw * frac)
             if fw >= 6:
                 self._img(I.pill(fw, 10, r["color"], C.SIDEBAR_ACTIVE, r=5), bx, yy + 1)
-            self._text(x + w, yy + 6, f"{r['count']} murid", "label", C.MUTED, anchor="e")
+            self._text(x + w, yy + 6, r.get("text", f"{r['count']} murid"), "label", C.MUTED,
+                       anchor="e")
         if not rows:
-            self._text(x, y, "Belum ada kursus.", "name", C.MUTED)
+            self._text(x, y, empty, "name", C.MUTED)
         return y + max(1, len(rows)) * 26
 
     def _people(self, x, y, w, rows, empty, limit, compact, key):
@@ -276,7 +291,7 @@ class AnalyticsBoard(tk.Canvas):
         return end
 
     def _legend(self, x, y):
-        for name, color in (("Gambar", C.ACCENT), ("Video", BLUE)):
+        for name, color in (("Gambar", C.ACCENT), ("Video", BLUE), ("Assignment", GREEN)):
             self._img(I.dot(color, C.CARD), x, y + 7, anchor="w")
             t = self._text(x + 12, y, name, "label", C.MUTED)
             x = self.bbox(t)[2] + 16
@@ -287,7 +302,8 @@ class AnalyticsBoard(tk.Canvas):
                                          f"{t['sessions']}x login",
                      A.fmt_hours(t["seconds"]), None) for t in d["teachers"]]
         attention = [(a["id"], a["name"], a["reason"], "", None) for a in d["attention"]]
-        top = [(t["id"], t["name"], f"{t['uploads']} portfolio", A.fmt_hours(t["seconds"]),
+        top = [(t["id"], t["name"], f"{t['uploads']} portfolio  ·  {t.get('badges', 0)} badge",
+                A.fmt_hours(t["seconds"]),
                 C.ACCENT_HOVER) for t in d["top"]]
         return teachers, attention, top
 
@@ -312,12 +328,23 @@ class AnalyticsBoard(tk.Canvas):
         cx, cy, cw = self._card(0, y, half, h, "Jam ramai kelas",
                                 "rata-rata murid login per jam")
         self._heat(cx, cy, cw, d["heat"], 24)
-        cx, cy, cw = self._card(half + GAP, y, half, h, f"Upload portfolio per {unit}")
+        cx, cy, cw = self._card(half + GAP, y, half, h,
+                                f"Upload portfolio & assignment per {unit}")
         pf = d["portfolio"]
-        self._bars(cx, cy, cw, h - (cy - y) - 44, pf["labels"],
-                   [("Gambar", pf["images"], C.ACCENT), ("Video", pf["videos"], BLUE)],
+        self._bars(cx, cy, cw, h - (cy - y) - 44, pf["labels"], self._pf_series(pf),
                    " file", integer=True)
         self._legend(cx, y + h - 34)
+        y += h + GAP
+        # Kehadiran per jadwal | Badge terbanyak
+        sched, badges = d.get("schedule", []), d.get("badges", [])
+        h = 48 + 16 + max(max(1, len(sched)), max(1, len(badges))) * 26
+        cx, cy, cw = self._card(0, y, half, h, "Kehadiran per jadwal",
+                                f"login ≥ {A.PRESENT_MIN} menit di jam jadwal")
+        self._hbars(cx, cy, cw, sched, "Belum ada jadwal yang sudah berjalan.", lw=150,
+                    vw=110)
+        cx, cy, cw = self._card(half + GAP, y, half, h, "Badge paling banyak didapat",
+                                f"{k.get('badges', 0)} badge baru  ·  {span}")
+        self._hbars(cx, cy, cw, badges, "Belum ada badge.", lw=170, vw=70)
         y += h + GAP
         teachers, attention, top = self._rows(d)
         # Murid per kursus | Aktivitas guru
@@ -326,13 +353,14 @@ class AnalyticsBoard(tk.Canvas):
                                 "kursus yang sudah dibuka guru")
         self._hbars(cx, cy, cw, d["courses"])
         cx, cy, cw = self._card(half + GAP, y, half, h, "Aktivitas guru",
-                                "jam online  ·  laporan")
+                                f"jam online  ·  {k['reports']} laporan")
         self._people(cx, cy, cw, teachers, "Belum ada guru.", 10, False, "tg")
         y += h + GAP
         # Perlu diperhatikan | Paling rajin
         h = 48 + 16 + max(self._need(attention, 10, 42), self._need(top, 10, 42))
         cx, cy, cw = self._card(0, y, half, h, "Murid perlu diperhatikan",
-                                f"tidak login ≥ {A.INACTIVE_DAYS} hari / belum upload")
+                                f"tidak login ≥ {A.INACTIVE_DAYS} hari / belum upload / "
+                                "absen jadwal")
         self._people(cx, cy, cw, attention, "Semua murid aktif.", 10, False, "at")
         cx, cy, cw = self._card(half + GAP, y, half, h, f"{A.TOP_N} murid paling rajin",
                                 d["period_label"])
@@ -350,10 +378,9 @@ class AnalyticsBoard(tk.Canvas):
         cx, cy, cw = self._card(0, y, third, h, f"Jam belajar per {unit}", compact=True)
         self._bars(cx, cy, cw, h - (cy - y) - 12, d["hours"]["labels"],
                    [("Jam belajar", d["hours"]["values"], C.ACCENT)], " jam")
-        cx, cy, cw = self._card(third + g, y, third, h, f"Portfolio per {unit}", compact=True)
+        cx, cy, cw = self._card(third + g, y, third, h, f"Upload per {unit}", compact=True)
         pf = d["portfolio"]
-        self._bars(cx, cy, cw, h - (cy - y) - 12, pf["labels"],
-                   [("Gambar", pf["images"], C.ACCENT), ("Video", pf["videos"], BLUE)],
+        self._bars(cx, cy, cw, h - (cy - y) - 12, pf["labels"], self._pf_series(pf),
                    " file", integer=True)
         cx, cy, cw = self._card(2 * (third + g), y, third, h, "Jam ramai kelas", compact=True)
         self._heat(cx, cy, cw, d["heat"], 16)
@@ -370,7 +397,20 @@ class AnalyticsBoard(tk.Canvas):
         cx, cy, cw = self._card(2 * (third + g), y, third, h, "Aktivitas guru", "jam online",
                                 compact=True)
         self._people(cx, cy, cw, teachers, "Belum ada guru.", 5, True, "tg")
+        y += h + g
+        half = (W - g) / 2
+        sched, badges = d.get("schedule", [])[:5], d.get("badges", [])[:5]
+        h = 40 + 12 + max(1, len(sched), len(badges)) * 26
+        cx, cy, cw = self._card(0, y, half, h, "Kehadiran per jadwal", compact=True)
+        self._hbars(cx, cy, cw, sched, "Belum ada jadwal yang berjalan.", lw=150, vw=110)
+        cx, cy, cw = self._card(half + g, y, half, h, "Badge terbanyak", compact=True)
+        self._hbars(cx, cy, cw, badges, "Belum ada badge.", lw=170, vw=70)
         return y + h + 4
+
+    @staticmethod
+    def _pf_series(pf):
+        return [("Gambar", pf["images"], C.ACCENT), ("Video", pf["videos"], BLUE),
+                ("Assignment", pf.get("assignments", [0] * len(pf["images"])), GREEN)]
 
     # --- keterangan saat kursor di atas batang / kotak -------------------------------------
     def _motion(self, e):

@@ -39,7 +39,8 @@ def _valid(slot):
     return {"id": str(slot.get("id") or ""), "day": day, "start": to_hhmm(a),
             "end": to_hhmm(b), "teacher": str(slot.get("teacher") or ""),
             "students": [str(s) for s in slot.get("students") or []],
-            "note": str(slot.get("note") or "")[:120]}
+            "note": str(slot.get("note") or "")[:120],
+            "since": str(slot.get("since") or "")[:10]}   # tanggal jadwal dibuat (analytics)
 
 
 def _load():
@@ -89,8 +90,14 @@ def save_slot(slot):
             while f"J{n:04d}" in used:
                 n += 1
             clean["id"] = f"J{n:04d}"
+            if not clean["since"]:
+                from datetime import date
+                clean["since"] = date.today().isoformat()
             slots.append(clean)
         else:
+            old = next((s for s in slots if s["id"] == clean["id"]), None)
+            if old is not None and not clean["since"]:
+                clean["since"] = old.get("since", "")
             slots = [clean if s["id"] == clean["id"] else s for s in slots]
         _save(slots)
     return clean

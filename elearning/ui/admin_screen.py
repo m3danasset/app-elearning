@@ -41,7 +41,7 @@ class AdminScreen(SidebarLayout):
     def __init__(self, master, admin, on_logout):
         super().__init__(master)
         self.admin_id = admin["id"]
-        self.tab = "students"
+        self.tab = "analytics"   # Analytics paling atas & dibuka pertama
         self._after = None
         self._online = None      # daftar "Sedang online" terakhir
         self._sb_sig = None      # tanda isi sidebar terakhir (lihat _refresh_sidebar)
@@ -131,8 +131,8 @@ class AdminScreen(SidebarLayout):
 
     # --- sidebar -------------------------------------------------------------------
     def _populate(self, sb):
-        for key, icon in (("students", "users"), ("teachers", "teacher"),
-                          ("reports", "report"), ("analytics", "activity"),
+        for key, icon in (("analytics", "activity"), ("students", "users"),
+                          ("teachers", "teacher"), ("reports", "report"),
                           ("schedule", "clock")):
             sb.nav(TAB_TITLE[key], icon, lambda k=key: self._set_tab(k),
                    active=self.tab == key)

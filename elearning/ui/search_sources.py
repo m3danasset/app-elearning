@@ -146,12 +146,12 @@ def admin_sources(screen):
                       "sub": text, "words": text, "icon": "report",
                       "action": screen._open_reports_all})
     actions = [
+        {"title": "Analytics", "icon": "activity",
+         "action": lambda: screen._set_tab("analytics")},
         {"title": "Murid", "icon": "users", "action": lambda: screen._set_tab("students")},
         {"title": "Guru", "icon": "teacher", "action": lambda: screen._set_tab("teachers")},
         {"title": "Laporan Guru", "icon": "report",
          "action": lambda: screen._set_tab("reports")},
-        {"title": "Analytics", "icon": "activity",
-         "action": lambda: screen._set_tab("analytics")},
         {"title": "Jadwal", "icon": "clock", "sub": "Kalender hari & jam murid masuk",
          "action": lambda: screen._set_tab("schedule")},
         {"title": "Tambah murid", "icon": "plus", "action": screen._add_student},

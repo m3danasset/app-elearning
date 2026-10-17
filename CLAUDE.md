@@ -32,7 +32,7 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 - ui/badge_art.py (ikon, numpy), ui/badge_ui.py (halaman Badge, notifikasi kiri-bawah di atas
   sidebar, pelacak di thread). Notifikasi ditahan saat video layar penuh / Blender dipakai.
 - Easter egg diatur di config.py (SECRET_CODE, SPECIAL_DAYS); ganti berkala.
-- Belum: statistik badge di Analytics admin, sertifikat, easter egg khusus trial.
+- Belum: sertifikat, easter egg khusus trial. (Statistik badge sudah ada di Analytics.)
 
 ## Status terakhir (layar login)
 - ui/login_screen.py: logo besar (assets\logo.png, dengan bayangan lembut buatan sendiri),
@@ -102,3 +102,13 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 - Baris atas kalender (di canvas yang sama): Hari / Minggu (diingat), panah sebelum/
   sesudah, Hari ini / Minggu ini, tanggal. Tampilan Hari: satu kolom lebar, nama murid
   berkolom. Klik nama hari di tampilan Minggu = buka hari itu. Redraw ~8 ms.
+
+## Analytics admin (tab paling atas, dibuka pertama)
+- Kartu angka: murid aktif (+ tanpa jadwal), jam belajar, kehadiran jadwal (%), portfolio,
+  assignment, badge didapat (naik/turun vs periode sebelumnya; kehadiran dalam poin).
+- Kehadiran jadwal: tiap jadwal yang SUDAH selesai sejak jadwal dibuat ("since" di
+  schedule.json); hadir = login min. 10 menit di jam jadwal (boleh 15 menit lebih awal).
+- Kartu baru: Kehadiran per jadwal, Badge paling banyak didapat; grafik upload ikut
+  Assignment; "Perlu diperhatikan" + hadir jadwal < 50 % / belum punya jadwal; "Paling
+  rajin" + jumlah badge. compute() tetap di thread.
+
