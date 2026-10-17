@@ -307,7 +307,7 @@ class ScheduleBoard(tk.Canvas):
         if p is not None:
             self._imgs.append(p)
             item = self.create_image(x0, y0, image=p, anchor="nw")
-            self._remember(s, item, w, h, base, bg, match, border, 8)
+            self._remember((s["id"],), item, w, h, base, bg, match, border, 8)
         fg = "#ffffff" if match else C.MUTED
         avail = w - 14
         y = y0 + 7
@@ -430,7 +430,8 @@ class ScheduleBoard(tk.Canvas):
             w, hh = int(cw - 6), SLOT_H - 6
             label, base = self._label(sid)
             base = SCH.COLOR_HEX.get(sl.get("color")) or base      # warna pilihan admin
-            hover = self.hover == ("slot", sl["id"]) and self.on_edit is not None
+            # Sesi: hanya SATU sel yang disorot (sel di bawah kursor), bukan semua murid jadwal itu
+            hover = self.hover == ("slot", sl["id"], r, h) and self.on_edit is not None
             match = self._matches(sl)
             bg = _mix(C.BG, C.CARD, 0.5) if (is_today and h == now.hour) else C.BG
             fill = _mix(base, "#ffffff", 0.12) if hover else base
@@ -441,7 +442,7 @@ class ScheduleBoard(tk.Canvas):
             if p is not None:
                 self._imgs.append(p)
                 item = self.create_image(bx, by, image=p, anchor="nw")
-                self._remember(sl, item, w, hh, base, bg, match, border, 6)
+                self._remember((sl["id"], r, h), item, w, hh, base, bg, match, border, 6)
             name = self.students[sid]["name"]
             self.create_text(bx + 7, by + hh / 2, anchor="w", font=self.f["body"],
                              fill="#ffffff" if match else C.MUTED,
@@ -457,7 +458,7 @@ class ScheduleBoard(tk.Canvas):
         for x0, y0, x1, y1, name in self.tools:
             if x0 <= x < x1 and y0 <= y < y1:
                 return ("tool", name), None
-        for x0, y0, x1, y1, s in reversed(self.boxes):
+        for x0, y0, x1, y1, s in (() if self.mode == "slots" else reversed(self.boxes)):
             if x0 <= x <= x1 and y0 <= y <= y1:
                 return ("slot", s["id"]), s
         if self.mode == "slots":
@@ -471,8 +472,8 @@ class ScheduleBoard(tk.Canvas):
                 return None, None
             r = int((y - top) // SLOT_H)
             sl = self._cells.get((r, hours[i]))
-            if sl is not None:      # celah di sel terisi: tetap blok itu (tidak kedip "+ Tambah")
-                return ("slot", sl["id"]), sl
+            if sl is not None:      # sel terisi (termasuk celahnya): sorot sel ini saja
+                return ("slot", sl["id"], r, hours[i]), sl
             return ("cell", self.anchor.weekday(), hours[i], r), None
         if self.mode == "week" and TOOL_H <= y < TOP and x >= GUTTER:
             for d in self._days():
@@ -504,7 +505,7 @@ class ScheduleBoard(tk.Canvas):
             if all(k is None or k[0] in ("slot", "cell") for k in (old, key)):
                 for k, on in ((old, False), (key, True)):
                     if k is not None and k[0] == "slot":
-                        for item, normal, hov in self._slot_items.get(k[1], ()):
+                        for item, normal, hov in self._slot_items.get(k[1:], ()):
                             self.itemconfigure(item, image=hov if on else normal)
                 if (old and old[0] == "cell") or (key and key[0] == "cell"):
                     self._draw_cell_hover()
@@ -558,7 +559,7 @@ class ScheduleBoard(tk.Canvas):
         if normal is None or hov is None:
             return
         self._imgs += [normal, hov]
-        self._slot_items.setdefault(slot["id"], []).append((item, normal, hov))
+        self._slot_items.setdefault(slot, []).append((item, normal, hov))
 
     def _click(self, e):
         key, s = self._hit(e.x, e.y)
