@@ -4,7 +4,7 @@
   sebelah kanan ikon aplikasi, dengan sisi bawahnya sejajar ikon. Kalau di sisi kanan tidak muat
   (ikon dekat tepi kanan jendela Blender), mini player pindah ke sisi kiri ikon.
 - Melanjutkan pelajaran yang sedang dibuka di aplikasi, dari posisi terakhirnya.
-- Bisa DI-RESIZE: tarik pegangan di pojok kanan-atas. Rasio selalu 16:9; ukurannya diingat.
+- Tiga ukuran (Kecil / Sedang / Besar): klik tombol di pojok kanan-atas. Rasio 16:9; diingat.
 - Tidak bisa digeser sendiri: hanya ikon yang digeser, mini player selalu mengikuti di sebelahnya.
 - Tombol putar/jeda: overlay di tengah video, hanya tampil saat kursor di atas mini player
   (klik video juga memutar/menjeda). Bar kontrol: mundur 10 detik, garis posisi, waktu, bisukan.
@@ -29,6 +29,7 @@ from elearning.ui import lesson_view as LV
 from elearning.ui.play_overlay import PlayOverlay, no_activate
 
 MIN_W, MAX_W, DEFAULT_W = 320, 1000, 420   # lebar total jendela (px)
+SIZES = (360, 520, 720)   # tiga ukuran tetap: Kecil / Sedang / Besar (klik tombol ukuran)
 HEAD_H = 26      # tinggi bilah judul
 BAR_H = 34       # tinggi bar kontrol
 GAP = 8          # jarak antara ikon dan mini player
@@ -38,8 +39,6 @@ _KEY = "mini_width"
 _KEY_FOLD = "mini_collapsed"
 REWIND_S = 10
 OV = 72          # ukuran tombol putar/jeda di tengah video
-# pegangan resize: kursor diagonal Windows; di sistem lain pakai kursor sudut bawaan Tk
-GRIP_CURSOR = "size_ne_sw" if sys.platform == "win32" else "top_right_corner"
 
 
 def _fmt(seconds):
@@ -79,6 +78,8 @@ class MiniPlayer(tk.Toplevel):
         saved = BL.load_setting(_KEY)
         self.width = int(saved) if isinstance(saved, (int, float)) else DEFAULT_W
         self.width = max(MIN_W, min(MAX_W, self.width))
+        # ukuran lama (dulu ditarik bebas) -> ukuran tetap terdekat
+        self.width = min(SIZES, key=lambda w: abs(w - self.width))
         self.collapsed = False          # lipat tidak dipakai lagi
 
         self.overrideredirect(True)
@@ -94,15 +95,20 @@ class MiniPlayer(tk.Toplevel):
         # --- bilah judul (geser = pindahkan ikon + mini player) ---
         self.head = tk.Frame(self.box, bg=C.CARD)
         self.grip = tk.Canvas(self.head, width=22, height=HEAD_H, bg=C.CARD,
-                              highlightthickness=0, bd=0, cursor=GRIP_CURSOR)
+                              highlightthickness=0, bd=0, cursor="hand2")
         self.grip.pack(side="right")
         self.title = tk.Label(self.head, text="", bg=C.CARD, fg=C.TEXT, anchor="w",
                               font=(C.FONT, 9, "bold"), padx=8)
         self.title.pack(side="left", fill="both", expand=True)
         self._draw_grip()
-        self.grip.bind("<ButtonPress-1>", self._grip_press)
-        self.grip.bind("<B1-Motion>", self._grip_motion)
-        self.grip.bind("<ButtonRelease-1>", self._grip_release)
+        self.grip.bind("<Button-1>", self._cycle_size)
+        try:
+            from elearning.i18n import L
+            from elearning.ui.sidebar import _Tip
+            _Tip(self.grip, L("Ubah ukuran (Kecil / Sedang / Besar)",
+                              "Change size (Small / Medium / Large)"))
+        except Exception:
+            pass
 
         # --- layar: kanvas (gambar cadangan / pesan) + permukaan untuk mpv ---
         self.stage = tk.Frame(self.box, bg="#000000")
@@ -415,57 +421,20 @@ class MiniPlayer(tk.Toplevel):
             self._seek_at(event.x, exact=True)
             self._drag_seek = False
 
-    # --- resize lewat pegangan pojok kanan-atas ---
-    def _grip_press(self, e):
-        self._gp = (e.x_root, e.y_root, self.width)
-        if not getattr(self, "_fine_timer", False):   # timer 1 ms selama ditarik (jadwal rata)
-            from elearning.ui.carousel3d import _timer_res
-            _timer_res(True)
-            self._fine_timer = True
+    # --- ukuran: tombol pojok kanan-atas (3 ukuran tetap) ---
+    def _cycle_size(self, _e=None):
+        """Tombol ukuran (pojok kanan-atas): Kecil -> Sedang -> Besar -> Kecil. Tiga ukuran
+        tetap (dulu ditarik bebas, tidak bisa mulus di PC biasa karena video ikut di-resize)."""
+        sizes = [w for w in SIZES if w <= self._max_width()] or [MIN_W]
+        bigger = [w for w in sizes if w > self.width + 4]
+        self.set_width(bigger[0] if bigger else sizes[0], save=True)
+        self._draw_grip()
 
-    def _grip_motion(self, e):
-        gp = getattr(self, "_gp", None)
-        if not gp:
-            return
-        dx, dy = e.x_root - gp[0], e.y_root - gp[1]
-        if self._last_geo and self._anchor and int(self._last_geo.split("+")[1]) < self._anchor[0]:
-            dx = -dx                           # mini player di kiri ikon: tarik ke kiri = membesar
-        by_x, by_y = dx, -dy * 16 / 9      # tarik ke kanan atau ke atas = membesar
-        self._want_w = gp[2] + (by_x if abs(by_x) >= abs(by_y) else by_y)
-        if getattr(self, "_rs_job", None) is None:   # maks. 1 resize per frame (30 fps)
-            self._resize_step()
-
-    def _resize_step(self):
-        self._rs_job = None
-        want = getattr(self, "_want_w", None)
-        if want is None:
-            return
-        self._want_w = None
-        t0 = time.perf_counter()
-        self.set_width(want)
-        # Isi (bilah judul, video, kontrol) digambar ulang SEKARANG, sesuai ukuran baru,
-        # supaya tidak ada blok hitam / kontrol terpotong selama ditarik.
-        self.update_idletasks()
-        # Jadwal frame tetap: langkah berikutnya UI_FRAME_MS dari AWAL langkah ini (waktu gambar
-        # ulang tidak ditambahkan -> tetap ~30 fps, dulu ~20 fps dan terasa patah-patah).
-        spent = (time.perf_counter() - t0) * 1000
-        self._rs_job = self.after(max(1, int(C.UI_FRAME_MS - spent)), self._resize_step)
-
-    def _grip_release(self, e):
-        if getattr(self, "_fine_timer", False):
-            from elearning.ui.carousel3d import _timer_res
-            _timer_res(False)
-            self._fine_timer = False
-        job = getattr(self, "_rs_job", None)
-        if job is not None:
-            self.after_cancel(job)
-            self._rs_job = None
-        if getattr(self, "_want_w", None) is not None:
-            self.set_width(self._want_w)
-            self._want_w = None
-        if getattr(self, "_gp", None):
-            self.set_width(self.width, save=True)
-        self._gp = None
+    def _size_name(self):
+        from elearning.i18n import L
+        names = (L("Kecil", "Small"), L("Sedang", "Medium"), L("Besar", "Large"))
+        i = min(range(len(SIZES)), key=lambda k: abs(SIZES[k] - self.width))
+        return names[i]
 
     # =========================================================================
     # Gambar
@@ -717,10 +686,6 @@ class MiniPlayer(tk.Toplevel):
             self._draw_seek()
 
     def destroy(self):
-        if getattr(self, "_fine_timer", False):     # ditutup saat masih ditarik
-            from elearning.ui.carousel3d import _timer_res
-            _timer_res(False)
-            self._fine_timer = False
         if self._job is not None:
             try:
                 self.after_cancel(self._job)
