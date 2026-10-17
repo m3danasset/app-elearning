@@ -15,7 +15,7 @@ import tkinter as tk
 from elearning import brand
 from elearning import config as C
 from elearning import photos
-from elearning.admins import ADMINS, check_admin, is_admin_id
+from elearning.admins import check_admin, is_admin_id
 from elearning.students import STATUS_EXPIRED, lookup_student
 from elearning.teachers import check_teacher, is_teacher_id
 from elearning.trial import is_trial_id, trial_student
@@ -259,17 +259,29 @@ class LoginScreen(tk.Frame):
         self._mods.discard(e.keysym)
 
     def _dev_bypass(self):
-        """Shortcut dev: Ctrl KANAN + Shift KANAN + Backspace = langsung masuk Panel Admin.
-        Ctrl / Shift kiri tidak boleh ikut ditekan."""
-        if self.on_admin is None:
-            return False
+        """Shortcut dev: Ctrl KANAN + Shift KANAN + Backspace = popup pilih akun (admin, guru,
+        murid, trial), lalu langsung masuk tanpa PIN. Ctrl / Shift kiri tidak boleh ikut."""
         if not {"Control_R", "Shift_R"} <= self._mods or self._mods & {"Control_L", "Shift_L"}:
             return False
-        uid = next(iter(ADMINS))
-        C.log("Dev bypass login: masuk sebagai admin")
         self._mods.clear()
-        self.on_admin({"id": uid, "name": ADMINS[uid]["name"]})
+        if getattr(self, "_picker", None) is not None and self._picker.winfo_exists():
+            return True
+        from elearning.ui.dev_login import DevLoginPicker
+        self._picker = DevLoginPicker(self, self._dev_login)
         return True
+
+    def _dev_login(self, kind, account):
+        if not self.winfo_exists() or account is None:
+            return
+        C.log(f"Dev bypass login: {kind} {account.get('id', '')}")
+        if kind == "admin" and self.on_admin is not None:
+            self.on_admin(account)
+        elif kind == "teacher" and self.on_teacher is not None:
+            self.on_teacher(account)
+        elif kind in ("adult", "kids", "trial"):
+            self.on_success(account)
+        else:
+            self._grab_focus()
 
     def _on_key(self, e):
         self._wake()
