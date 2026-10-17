@@ -215,14 +215,24 @@ class DashboardView(tk.Canvas):
         # mockup (sapaan sekitar tengah, kartu di bawah); tidak muat -> rapat + bisa digulir
         free = H - self._content_h()
         self.shift = max(0, min(free * 0.6, H * 0.22))
-        self.scroll = max(0, min(self.scroll, self._content_h() - H))
+        self.scroll = 0                     # widget + sapaan TERKUNCI; hanya kartu yang digulir
         cols = self._cols(W)
         cw = (W - 2 * PAD - (cols - 1) * GAP) / cols
+        n = len(self.items or [])
+        rows = -(-n // cols) if n else 0
+        rowh = CARD_H + GAP
+        top = TOP_H + self.shift
+        vis = max(1, int((H - top - 28) // rowh))       # baris kartu yang muat (utuh)
+        self.row0 = max(0, min(getattr(self, "row0", 0), rows - vis))
+        self._more = max(0, n - (self.row0 + vis) * cols)
         self.rects = []
-        for i in range(len(self.items or [])):
+        for i in range(n):
             r, c = divmod(i, cols)
             x0 = PAD + c * (cw + GAP)
-            y0 = TOP_H + self.shift + r * (CARD_H + GAP)
+            if self.row0 <= r < self.row0 + vis:
+                y0 = top + (r - self.row0) * rowh
+            else:
+                y0 = -10_000            # di luar layar: tidak digambar, tidak bisa diklik
             self.rects.append((x0, y0, x0 + cw, y0 + CARD_H))
         self.hover = None
         self.itemconfigure(self._hover_item, state="hidden")
@@ -449,6 +459,13 @@ class DashboardView(tk.Canvas):
         self._draw_widgets(rects, dy)
         if self.items is None:
             return
+        shown = [r for r in self.rects if r[1] > -1000]
+        if shown and (getattr(self, "_more", 0) or getattr(self, "row0", 0)):
+            yb = max(r[3] for r in shown) + 8
+            hint = (f"Gulir ke bawah untuk {self._more} kartu lainnya  ↓" if self._more
+                    else "Gulir ke atas untuk kartu sebelumnya  ↑")
+            self.create_text(W / 2, yb, anchor="n", tags="txt", font=self.f["small"],
+                             fill=C.MUTED, text=hint)
         if not self.items:
             self.create_text(PAD, TOP_H + dy, anchor="nw", tags="txt", font=self.f["sub"],
                              fill=C.MUTED, text="Belum ada yang bisa ditampilkan.")
@@ -533,15 +550,13 @@ class DashboardView(tk.Canvas):
             self.on_action(self.items[i]["target"])
 
     def _wheel(self, e):
-        H = self._size[1]
-        top = max(0, self._content_h() - H)
-        new = max(0, min(top, self.scroll - int(e.delta / 120) * 60))
-        if new != self.scroll:
-            self.scroll = new
-            self.hover = None
-            self.itemconfigure(self._hover_item, state="hidden")
-            self._build_layer()
-            self._draw_text()
+        """Roda mouse: kartu bergeser per baris (tanpa scrollbar); widget & sapaan diam."""
+        step = -1 if e.delta > 0 else 1
+        old = getattr(self, "row0", 0)
+        self.row0 = max(0, old + step)
+        self._layout()                  # dibatasi otomatis (baris terakhir tetap terlihat)
+        if self.row0 != old:
+            self._motion(e)
 
     # --- video ------------------------------------------------------------------------------
     def _video_tick(self):
