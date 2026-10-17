@@ -34,7 +34,7 @@ KEYWORDS = {"expired": ("status", "expired"), "active": ("status", "active"),
             "dewasa": ("program", "adult")}
 
 TAB_TITLE = {"students": "Murid", "teachers": "Guru", "reports": "Laporan Guru",
-             "analytics": "Analytics", "schedule": "Jadwal"}
+             "analytics": "Analytics", "schedule": "Jadwal", "certificates": "Sertifikat"}
 
 
 class AdminScreen(SidebarLayout):
@@ -120,6 +120,7 @@ class AdminScreen(SidebarLayout):
         self.reports_board = ReportsBoard(self.scroll.inner)
         self.analytics = None
         self.schedule_board = None
+        self.cert_board = None
         self._shown = None
 
         # Tombol di kepala halaman dibuat sekali; teks/fungsinya saja yang diganti per menu
@@ -134,11 +135,17 @@ class AdminScreen(SidebarLayout):
 
     # --- sidebar -------------------------------------------------------------------
     def _populate(self, sb):
+        try:
+            from elearning import certificates
+            waiting = certificates.pending_count()
+        except Exception:
+            waiting = 0
         for key, icon in (("analytics", "activity"), ("students", "users"),
                           ("teachers", "teacher"), ("reports", "report"),
-                          ("schedule", "clock")):
+                          ("schedule", "clock"), ("certificates", "check")):
             sb.nav(TAB_TITLE[key], icon, lambda k=key: self._set_tab(k),
-                   active=self.tab == key)
+                   active=self.tab == key,
+                   right=str(waiting) if key == "certificates" and waiting else None)
 
         # Siapa yang sedang online (klik = tampilkan orang itu di daftar)
         if self._online is None:
@@ -170,7 +177,12 @@ class AdminScreen(SidebarLayout):
     def _refresh_sidebar(self):
         """Sidebar dibuat ulang hanya kalau menu aktif / daftar online benar-benar berubah."""
         self._online = self._compute_online()
-        sig = (self.tab, tuple((p["id"], p["name"]) for p in self._online))
+        try:          # jumlah permintaan sertifikat yang menunggu (angka di menu Sertifikat)
+            from elearning import certificates
+            waiting = certificates.pending_count()
+        except Exception:
+            waiting = 0
+        sig = (self.tab, tuple((p["id"], p["name"]) for p in self._online), waiting)
         if sig != self._sb_sig:
             self._sb_sig = sig
             self.sb.refresh()
@@ -431,9 +443,12 @@ class AdminScreen(SidebarLayout):
         if self.tab == "analytics" and self.analytics is None:
             self.analytics = AnalyticsPanel(self.scroll.inner, self._an_state,
                                             on_open=self._open_person)
+        if self.tab == "certificates" and self.cert_board is None:
+            from elearning.ui.certificate_view import CertificateBoard
+            self.cert_board = CertificateBoard(self.scroll.inner, by=self.admin_id)
         want = {"students": self.people_board, "teachers": self.people_board,
                 "reports": self.reports_board, "analytics": self.analytics,
-                "schedule": self.schedule_board}[self.tab]
+                "schedule": self.schedule_board, "certificates": self.cert_board}[self.tab]
         if self._shown is not want:
             if self._shown is not None:
                 self._shown.pack_forget()
@@ -545,6 +560,8 @@ class AdminScreen(SidebarLayout):
             self._refresh_reports()
         elif self.tab == "schedule":
             self._refresh_schedule()
+        elif self.tab == "certificates":
+            self._refresh_certificates()
         else:
             self._refresh_people()
         self._after = self.after(REFRESH_MS, self.refresh)
@@ -602,6 +619,16 @@ class AdminScreen(SidebarLayout):
         self.sb.set_count(len(people) if self.sb.query.strip() else None)
 
     # --- tab Laporan Guru -------------------------------------------------------
+    def _refresh_certificates(self):
+        from elearning import certificates
+        rows = certificates.list_requests()
+        waiting = sum(1 for r in rows if r.get("status") != certificates.DONE)
+        self.summary.config(fg=C.MUTED, text=(
+            f"{len(rows)} permintaan  ·  {waiting} menunggu  ·  syarat: semua video "
+            f"ditonton, min. {certificates.ASSIGNMENT_MIN} assignment, "
+            f"min. {certificates.PORTFOLIO_MIN} portfolio, min. {certificates.BADGES_MIN} badge"))
+        self.cert_board.show(rows)
+
     def _refresh_reports(self):
         since, until = self.period.range()
         teachers = T.list_teachers()

@@ -32,7 +32,7 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 - ui/badge_art.py (ikon, numpy), ui/badge_ui.py (halaman Badge, notifikasi kiri-bawah di atas
   sidebar, pelacak di thread). Notifikasi ditahan saat video layar penuh / Blender dipakai.
 - Easter egg diatur di config.py (SECRET_CODE, SPECIAL_DAYS); ganti berkala.
-- Belum: sertifikat, easter egg khusus trial. (Statistik badge sudah ada di Analytics.)
+- Belum: easter egg khusus trial. (Statistik badge sudah ada di Analytics.)
 
 ## Status terakhir (layar login)
 - ui/login_screen.py: logo besar (assets\logo.png, dengan bayangan lembut buatan sendiri),
@@ -156,3 +156,13 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   tanggal lahir, umur, badge, upload assignment, jadwal. Portfolio + kolom Bagian
   (Portfolio / Assignment). Sheet baru otomatis tercentang di dialog (baris 2 export_sheets.txt).
 
+
+## Sertifikat (request per kursus)
+- elearning/certificates.py: syarat per kursus = semua video ditonton (progress.completed),
+  min. 5 assignment & min. 1 portfolio di kursus itu, min. 10 badge (total). Kursus tanpa
+  video: syarat video & assignment dilewati. Permintaan di data\certificate_requests.json
+  (pending / done), satu per murid per kursus; ikut terhapus saat murid dihapus.
+- ui/certificate_view.py: CertificatePage (menu "Sertifikat" di sidebar kursus murid, bukan
+  trial; syarat dihitung di thread, diambil thread utama 1x per frame) dan CertificateBoard
+  (Panel Admin tab Sertifikat + menu Sertifikat guru; Tandai selesai / Batalkan). Angka di
+  menu = permintaan yang menunggu.

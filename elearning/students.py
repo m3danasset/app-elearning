@@ -368,3 +368,8 @@ def delete_student(student_id):
         achievements.delete_student(sid)
     except Exception as exc:
         C.log(f"Badge {sid} tidak terhapus: {exc!r}")
+    try:
+        from elearning import certificates
+        certificates.delete_student(sid)
+    except Exception as exc:
+        C.log(f"Permintaan sertifikat {sid} tidak terhapus: {exc!r}")

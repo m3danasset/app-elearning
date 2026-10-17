@@ -28,7 +28,8 @@ from elearning.ui.widgets import ScrollFrame, Switch, add_hover
 PROGRAM_LABEL = {"adult": "Murid dewasa", "kids": "Murid anak"}
 CATEGORIES = ("adult", "kids")  # urutan kategori di sidebar kiri
 VIEW_TITLE = {"students": "Murid & Kursus", "reports": "Laporan Kerja", "quizzes": "Kuis",
-              "examples": "Bahan dari Guru", "schedule": "Jadwal Murid"}
+              "examples": "Bahan dari Guru", "schedule": "Jadwal Murid",
+              "certificates": "Sertifikat"}
 
 
 class TeacherScreen(SidebarLayout):
@@ -81,6 +82,18 @@ class TeacherScreen(SidebarLayout):
         if self.view == "quizzes":
             QuizPanel(self.body, self.teacher).pack(fill="both", expand=True)
             return
+        if self.view == "certificates":     # permintaan sertifikat murid
+            from elearning import certificates
+            from elearning.ui.certificate_view import CertificateBoard
+            from elearning.ui.widgets import ScrollFrame
+            wrap = tk.Frame(self.body, bg=C.BG, padx=28, pady=8)
+            wrap.pack(fill="both", expand=True)
+            sf = ScrollFrame(wrap, bg=C.BG)
+            sf.pack(fill="both", expand=True)
+            board = CertificateBoard(sf.inner, by=self.teacher["id"])
+            board.pack(fill="x")
+            board.show(certificates.list_requests())
+            return
         self._build_student_panel()
 
     # --- sidebar kiri ------------------------------------------------------------
@@ -97,6 +110,13 @@ class TeacherScreen(SidebarLayout):
                active=self.view == "reports")
         sb.nav("Jadwal Murid", "clock", lambda: self._set_view("schedule"),
                active=self.view == "schedule")
+        try:
+            from elearning import certificates
+            waiting = certificates.pending_count()
+        except Exception:
+            waiting = 0
+        sb.nav("Sertifikat", "check", lambda: self._set_view("certificates"),
+               active=self.view == "certificates", right=str(waiting) if waiting else None)
 
         if not self.students:
             sb.section("Murid")

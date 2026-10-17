@@ -86,6 +86,8 @@ class CourseScreen(SidebarLayout):
                 na = portfolio.count(self.student["id"], self.course["id"], portfolio.ASSIGNMENT)
                 sb.nav("Assignment", "file", lambda: self._set_view("assignment"),
                        active=self.view == "assignment", right=str(na) if na else None)
+            sb.nav("Sertifikat", "check", lambda: self._set_view("certificate"),
+                   active=self.view == "certificate")
 
             if not self.video:     # kursus tanpa video: tanpa daftar pelajaran
                 course_items(sb, visible_for(self.student),
@@ -123,6 +125,11 @@ class CourseScreen(SidebarLayout):
             self.header.set_title(course["title"], "Portfolio")
             PortfolioPanel(self.body, self.student, course,
                            on_change=self._uploads_changed).pack(fill="both", expand=True)
+            return
+        if self.view == "certificate":
+            self.header.set_title(course["title"], "Sertifikat")
+            from elearning.ui.certificate_view import CertificatePage
+            CertificatePage(self.body, self.student, course).pack(fill="both", expand=True)
             return
         if self.view == "resource":
             self.header.set_title(course["title"], "Resource")
