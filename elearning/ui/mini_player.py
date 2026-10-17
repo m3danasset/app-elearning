@@ -418,6 +418,10 @@ class MiniPlayer(tk.Toplevel):
     # --- resize lewat pegangan pojok kanan-atas ---
     def _grip_press(self, e):
         self._gp = (e.x_root, e.y_root, self.width)
+        if not getattr(self, "_fine_timer", False):   # timer 1 ms selama ditarik (jadwal rata)
+            from elearning.ui.carousel3d import _timer_res
+            _timer_res(True)
+            self._fine_timer = True
 
     def _grip_motion(self, e):
         gp = getattr(self, "_gp", None)
@@ -437,13 +441,21 @@ class MiniPlayer(tk.Toplevel):
         if want is None:
             return
         self._want_w = None
+        t0 = time.perf_counter()
         self.set_width(want)
         # Isi (bilah judul, video, kontrol) digambar ulang SEKARANG, sesuai ukuran baru,
         # supaya tidak ada blok hitam / kontrol terpotong selama ditarik.
         self.update_idletasks()
-        self._rs_job = self.after(C.UI_FRAME_MS, self._resize_step)
+        # Jadwal frame tetap: langkah berikutnya UI_FRAME_MS dari AWAL langkah ini (waktu gambar
+        # ulang tidak ditambahkan -> tetap ~30 fps, dulu ~20 fps dan terasa patah-patah).
+        spent = (time.perf_counter() - t0) * 1000
+        self._rs_job = self.after(max(1, int(C.UI_FRAME_MS - spent)), self._resize_step)
 
     def _grip_release(self, e):
+        if getattr(self, "_fine_timer", False):
+            from elearning.ui.carousel3d import _timer_res
+            _timer_res(False)
+            self._fine_timer = False
         job = getattr(self, "_rs_job", None)
         if job is not None:
             self.after_cancel(job)
@@ -705,6 +717,10 @@ class MiniPlayer(tk.Toplevel):
             self._draw_seek()
 
     def destroy(self):
+        if getattr(self, "_fine_timer", False):     # ditutup saat masih ditarik
+            from elearning.ui.carousel3d import _timer_res
+            _timer_res(False)
+            self._fine_timer = False
         if self._job is not None:
             try:
                 self.after_cancel(self._job)
