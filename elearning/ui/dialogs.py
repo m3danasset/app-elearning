@@ -9,7 +9,7 @@ from elearning import students as S
 from elearning.ui.avatar import Avatar
 from elearning.ui.report_widgets import KIND_COLOR
 from elearning.ui.controls import (RoundButton, RoundEntry, RoundPanel, RoundSelect,
-                                   dark_titlebar)
+                                   WheelPicker, dark_titlebar)
 from elearning.ui.widgets import add_hover
 
 PROGRAMS = (("adult", "Murid dewasa"), ("kids", "Murid anak"))
@@ -651,6 +651,7 @@ class BirthDialog(tk.Toplevel):
 
     MONTHS = ("Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus",
               "September", "Oktober", "November", "Desember")
+    MIN_YEAR = 1980           # tahun lahir paling lama yang bisa dipilih
 
     def __init__(self, master, name, birth, on_submit):
         super().__init__(master, bg=C.CARD, highlightthickness=1, highlightbackground=C.BORDER)
@@ -679,7 +680,10 @@ class BirthDialog(tk.Toplevel):
         self.d_var = tk.StringVar(value=str(b.day) if b else "1")
         self.m_var = tk.StringVar(value=self.MONTHS[b.month - 1] if b else self.MONTHS[0])
         self.y_var = tk.StringVar(value=str(b.year) if b else str(today.year - 10))
-        years = [str(y) for y in range(today.year, today.year - 81, -1)]
+        if b and b.year < self.MIN_YEAR:
+            self.y_var.set(str(self.MIN_YEAR))
+        years = [str(y) for y in range(self.MIN_YEAR, today.year + 1)]
+        # Tanpa menu turun: gulir roda mouse di atas angka untuk mengganti
         for label, var, values in (("Tanggal", self.d_var, [str(i) for i in range(1, 32)]),
                                    ("Bulan", self.m_var, self.MONTHS),
                                    ("Tahun", self.y_var, years)):
@@ -687,13 +691,15 @@ class BirthDialog(tk.Toplevel):
             col.pack(side="left", padx=(0, 12))
             tk.Label(col, text=label, bg=C.CARD, fg=C.MUTED, font=(C.FONT, 10),
                      anchor="w").pack(fill="x")
-            RoundSelect(col, var, *values, bg=C.BG).pack(anchor="w", pady=(6, 0))
+            WheelPicker(col, var, values, bg=C.CARD, fill=C.BG).pack(anchor="w", pady=(6, 0))
             var.trace_add("write", lambda *a: self._preview())
         self.age = tk.Label(body, text="", bg=C.CARD, fg=C.TEXT, font=(C.FONT, 11, "bold"),
                             anchor="w")
         self.age.pack(fill="x", pady=(14, 0))
-        tk.Label(body, text="Umur diperbarui otomatis setiap hari. Guru hanya melihat umur.",
-                 bg=C.CARD, fg=C.MUTED, font=(C.FONT, 9), anchor="w").pack(fill="x")
+        tk.Label(body, text="Gulir roda mouse di atas angka untuk mengganti. Umur diperbarui "
+                            "otomatis setiap hari. Guru hanya melihat umur.",
+                 bg=C.CARD, fg=C.MUTED, font=(C.FONT, 9), anchor="w", justify="left",
+                 wraplength=420).pack(fill="x")
         self.error = tk.Label(body, text="", bg=C.CARD, fg=C.ERROR, font=(C.FONT, 10),
                               anchor="w")
         self.error.pack(fill="x", pady=(8, 0))

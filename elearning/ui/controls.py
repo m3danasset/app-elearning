@@ -578,3 +578,84 @@ class ResizeCurtain:
             self.cover.place_forget()
         except tk.TclError:
             pass
+
+
+class WheelPicker(tk.Canvas):
+    """Pilihan angka / teks TANPA menu turun: gulir roda mouse di atasnya untuk mengganti
+    (atas = berikutnya, bawah = sebelumnya). Panah atas/bawah juga bisa setelah diklik.
+    Kotak bersudut bulat (antialias), tepi oranye saat kursor di atasnya; nilai sebelum &
+    sesudah tampil samar di kiri-kanan sebagai petunjuk bahwa bisa digulir."""
+
+    H = 34
+
+    def __init__(self, master, variable, values, width=None, bg=C.CARD, fill=C.BG,
+                 font=None, command=None):
+        self.values = [str(v) for v in values]
+        self._var, self._cmd = variable, command
+        self._font = tkfont.Font(font=font or (C.FONT, 10))
+        self._small = tkfont.Font(font=(C.FONT, 8))
+        longest = max(self._font.measure(v) for v in self.values)
+        side = max(self._small.measure(v) for v in self.values)
+        self.W = width or int(longest + 2 * side + 44)
+        super().__init__(master, width=self.W, height=self.H, bg=bg, highlightthickness=0,
+                         bd=0, cursor="sb_v_double_arrow", takefocus=1)
+        self._bg, self._fill = bg, fill
+        self._hover = self._focus = False
+        self._acc = 0
+        self.bind("<MouseWheel>", self._on_wheel)
+        self.bind("<Enter>", lambda e: self._set(hover=True))
+        self.bind("<Leave>", lambda e: self._set(hover=False))
+        self.bind("<Button-1>", lambda e: self.focus_set())
+        self.bind("<FocusIn>", lambda e: self._set(focus=True))
+        self.bind("<FocusOut>", lambda e: self._set(focus=False))
+        self.bind("<Up>", lambda e: self.step(1))
+        self.bind("<Down>", lambda e: self.step(-1))
+        variable.trace_add("write", lambda *a: self._draw())
+        self._draw()
+
+    def _index(self):
+        try:
+            return self.values.index(str(self._var.get()))
+        except ValueError:
+            return 0
+
+    def step(self, n):
+        i = max(0, min(len(self.values) - 1, self._index() + n))
+        if self.values[i] != str(self._var.get()):
+            self._var.set(self.values[i])
+            if self._cmd is not None:
+                self._cmd(self.values[i])
+        return "break"
+
+    def _on_wheel(self, e):
+        self._acc += e.delta                   # touchpad: delta kecil dikumpulkan dulu
+        n = int(self._acc / 120)
+        if n:
+            self._acc -= n * 120
+            self.step(n)
+        return "break"                         # jangan ikut menggulir area di belakangnya
+
+    def _set(self, hover=None, focus=None):
+        if hover is not None:
+            self._hover = hover
+        if focus is not None:
+            self._focus = focus
+        self._draw()
+
+    def _draw(self):
+        from elearning.ui import ui_icons as I
+        self.delete("all")
+        ring = C.ACCENT if (self._hover or self._focus) else None
+        ph = I.pill(self.W, self.H, self._fill, self._bg, r=8, border=ring)
+        if ph is not None:
+            self._ph = ph
+            self.create_image(0, 0, image=ph, anchor="nw")
+        i = self._index()
+        cy = self.H / 2
+        self.create_text(self.W / 2, cy, text=self.values[i], fill=C.TEXT, font=self._font)
+        if i > 0:
+            self.create_text(9, cy, text=self.values[i - 1], anchor="w", fill=C.LOCKED,
+                             font=self._small)
+        if i < len(self.values) - 1:
+            self.create_text(self.W - 9, cy, text=self.values[i + 1], anchor="e",
+                             fill=C.LOCKED, font=self._small)
