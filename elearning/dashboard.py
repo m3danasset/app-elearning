@@ -305,22 +305,34 @@ def _widgets_path():
     return os.path.join(C.DATA_DIR, "dashboard_widgets.json")
 
 
-def load_widgets(uid, role):
-    """Widget pilihan akun ini (urut), bawaan kalau belum pernah diatur."""
+def load_slots(uid, role):
+    """12 slot widget (6 x 2) akun ini: [id atau None, ...]. Bawaan kalau belum diatur.
+    Format lama (daftar id saja) diisi berurutan mulai slot pertama."""
     import json
     ok = {w[0] for w in widget_choices(role)}
+    slots = [None] * MAX_WIDGETS
     try:
         with open(_widgets_path(), encoding="utf-8") as f:
             data = json.load(f)
         ids = data.get(str(uid)) if isinstance(data, dict) else None
-        if isinstance(ids, list):
-            return [i for i in ids if i in ok][:MAX_WIDGETS]
     except (OSError, ValueError):
-        pass
-    return [i for i in DEFAULT_WIDGETS if i in ok]
+        ids = None
+    if not isinstance(ids, list):
+        ids = list(DEFAULT_WIDGETS)
+    seen = set()
+    old = None not in ids and len(ids) < MAX_WIDGETS     # format lama: tanpa slot kosong
+    for k, wid in enumerate(ids[:MAX_WIDGETS]):
+        if wid in ok and wid not in seen:
+            seen.add(wid)
+            slots[len(seen) - 1 if old else k] = wid
+    return slots
 
 
-def save_widgets(uid, ids):
+def load_widgets(uid, role):
+    return [w for w in load_slots(uid, role) if w]
+
+
+def save_slots(uid, slots):
     import json
     import os
     try:
@@ -330,7 +342,7 @@ def save_widgets(uid, ids):
             data = {}
     except (OSError, ValueError):
         data = {}
-    data[str(uid)] = list(ids)[:MAX_WIDGETS]
+    data[str(uid)] = (list(slots) + [None] * MAX_WIDGETS)[:MAX_WIDGETS]
     os.makedirs(C.DATA_DIR, exist_ok=True)
     tmp = _widgets_path() + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:

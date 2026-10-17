@@ -133,6 +133,12 @@ def _refresh(x, y):
                A._poly(x, y, [(3.0, 3.6), (3.4, 9.0), (8.4, 7.2)]))
 
 
+def _pen(x, y):    # pena minimalis: atur widget dashboard
+    return min(_lines(x, y, (13.2, 3.6), (16.4, 6.8), (7.0, 16.2), (3.4, 16.6), (3.8, 13.0),
+                      (13.2, 3.6)),
+               _seg(x, y, (11.2, 5.6), (14.4, 8.8)))
+
+
 def _close(x, y):
     return min(_seg(x, y, (5.4, 5.4), (14.6, 14.6)), _seg(x, y, (14.6, 5.4), (5.4, 14.6)))
 
@@ -280,7 +286,7 @@ SHAPES = {
     "emo_seru": _emo_seru, "emo_paham": _emo_paham, "emo_bingung": _emo_bingung,
     "emo_keren": _emo_keren, "emo_capek": _emo_capek, "emo_bosan": _emo_bosan,
     "clock": _clock, "enter": _enter, "chev_left": _chev_left, "arrow_up": _arrow_up,
-    "list": _list,
+    "list": _list, "pen": _pen,
 }
 
 

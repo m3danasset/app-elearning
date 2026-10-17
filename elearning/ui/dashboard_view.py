@@ -33,8 +33,9 @@ TOP_H = 300                 # widget 1 baris + sapaan (dihitung ulang: _hero_h)
 WIDGET_Y, WIDGET_H, WIDGET_W, WIDGET_GAP = 28, 96, 270, 18
 WIDGET_MIN_W = 150          # lebih sempit dari ini: widget per baris dikurangi
 PER_ROW = 6                 # maks. 6 per baris, 2 baris (dashboard.MAX_WIDGETS)
-ADD_D = 34                  # tombol + (tambah widget)
-DEL_D = 22                  # tombol x (hapus widget)
+PEN_D = 36                  # tombol pena (mode atur widget)
+DEL_D = 22                  # tombol x (sembunyikan widget, mode atur)
+CHIP_H = 34                 # widget tersembunyi di baki (mode atur)
 WIDGET_ACCENT = {"clock": BLUE, "done": "#3fb68b", "online": "#ea7600", "date": "#b39af0",
                  "signups": "#ea7600", "certs": "#3fb68b", "classes": BLUE,
                  "students": BLUE, "idle": "#e3c26f", "unscheduled": "#e3c26f",
@@ -126,11 +127,14 @@ class DashboardView(tk.Canvas):
         self.role, self.user, self.on_action = role, user, on_action
         self.items = None              # None = masih memuat
         self.info = {}                 # isi widget atas (online, kelas berikutnya)
-        self.widgets = D.load_widgets((user or {}).get("id", ""), role)
+        self.slots = D.load_slots((user or {}).get("id", ""), role)   # 12 slot (6 x 2)
+        self.widgets = [w for w in self.slots if w]     # urut slot
         self._wrects = []              # kotak widget (urut sama dengan self.widgets)
-        self._edit = False             # tombol tambah / hapus widget sedang tampil
+        self.editing = False           # mode atur widget (tombol pena)
         self._edit_imgs = {}
         self._ate_click = False
+        self._drag = None              # seret-lepas widget (mode atur)
+        self._geo = None               # tata letak mode atur (slot, baki)
         self._clock_job = None
         self.rects = []                # (x0, y0, x1, y1) kartu (koordinat konten)
         self.hover = None
@@ -169,7 +173,9 @@ class DashboardView(tk.Canvas):
         self.video = _Video(path)
         self.bind("<Configure>", self._on_resize)
         self.bind("<Motion>", self._motion)
-        self.bind("<Leave>", lambda e: (self._set_hover(None), self._set_edit(False)))
+        self.bind("<Leave>", lambda e: self._set_hover(None))
+        self.bind("<B1-Motion>", self._drag_motion)
+        self.bind("<ButtonRelease-1>", self._drag_end)
         self.bind("<Button-1>", self._click)
         self.bind("<MouseWheel>", self._wheel)
         if self.video.ok():
@@ -230,18 +236,57 @@ class DashboardView(tk.Canvas):
         return self._hero_h() + rows * (CARD_H + GAP) + PAD   # tanpa ruang tambahan (shift)
 
     def _widget_rows(self):
-        """Pembagian widget per baris: [jumlah baris 1, baris 2] dan lebar tiap widget."""
+        """Mode biasa: widget per baris slot (baris 1 = slot 1-6, baris 2 = slot 7-12), slot
+        kosong dilewati, tiap baris di tengah. Kembalikan ([jumlah per baris], lebar)."""
         W = self._size[0]
-        n = len(self.widgets)
-        room = W - 2 * PAD - ADD_D - 16                     # sisakan ruang tombol +
-        fit = max(1, int((room + WIDGET_GAP) // (WIDGET_MIN_W + WIDGET_GAP)))
-        per = max(1, min(PER_ROW, max(fit, -(-n // 2))))   # semua widget muat di 2 baris
-        rows = [min(per, n - i) for i in range(0, n, per)][:2] if n else []
+        rows = [n for n in (sum(1 for w in self.slots[:PER_ROW] if w),
+                            sum(1 for w in self.slots[PER_ROW:] if w)) if n]
+        room = W - 2 * PAD - 2 * (PEN_D + 16)            # sisakan ruang tombol pena
         widest = max(rows) if rows else 1
         ww = min(WIDGET_W, (room - (widest - 1) * WIDGET_GAP) / widest)
         return rows, ww
 
+    def _edit_geo(self):
+        """Mode atur: 12 kotak slot (6 x 2) + baki widget tersembunyi di bawahnya."""
+        W = self._size[0]
+        room = W - 2 * PAD - 2 * (PEN_D + 16)
+        gw = min(WIDGET_W, (room - (PER_ROW - 1) * WIDGET_GAP) / PER_ROW)
+        x = (W - (PER_ROW * gw + (PER_ROW - 1) * WIDGET_GAP)) / 2
+        y = WIDGET_Y + self.shift * 0.35
+        slots = []
+        for k in range(D.MAX_WIDGETS):
+            r, c = divmod(k, PER_ROW)
+            x0 = x + c * (gw + WIDGET_GAP)
+            y0 = y + r * (WIDGET_H + WIDGET_GAP)
+            slots.append((x0, y0, x0 + gw, y0 + WIDGET_H))
+        grid_bottom = slots[-1][3]
+        free = [w for w in D.widget_choices(self.role) if w[0] not in self.slots]
+        chips, line, cy = [], [], grid_bottom + 58
+        maxw = W - 2 * PAD
+        f = self.f["btn"]
+
+        def flush(line, cy):
+            tot = sum(w for _i, w in line) + 10 * max(0, len(line) - 1)
+            cx = (W - tot) / 2
+            for wid, w in line:
+                chips.append((wid, (cx, cy, cx + w, cy + CHIP_H)))
+                cx += w + 10
+        for wid, label, _r, _t in free:
+            w = f.measure(label) + 44
+            if line and sum(x for _i, x in line) + 10 * len(line) + w > maxw:
+                flush(line, cy)
+                line, cy = [], cy + CHIP_H + 10
+            line.append((wid, w))
+        if line:
+            flush(line, cy)
+            cy += CHIP_H
+        tray = (PAD, grid_bottom + 18, W - PAD, max(cy, grid_bottom + 58 + CHIP_H) + 16)
+        return {"slots": slots, "chips": chips, "tray": tray, "w": gw}
+
     def _hero_h(self):
+        if self.editing:
+            g = self._geo or self._edit_geo()
+            return g["tray"][3] + 30 - self.shift * 0.35
         rows, _ww = self._widget_rows()
         area = len(rows) * WIDGET_H + max(0, len(rows) - 1) * WIDGET_GAP if rows else 36
         return WIDGET_Y + area + 40 + 56 + 54
@@ -252,8 +297,11 @@ class DashboardView(tk.Canvas):
             return
         # layar tinggi & kartu muat: bagian atas (widget + sapaan) diberi ruang lega seperti
         # mockup (sapaan sekitar tengah, kartu di bawah); tidak muat -> rapat + bisa digulir
+        self._geo = None
         free = H - self._content_h()
-        self.shift = max(0, min(free * 0.6, H * 0.22))
+        self.shift = 0 if self.editing else max(0, min(free * 0.6, H * 0.22))
+        if self.editing:
+            self._geo = self._edit_geo()
         self.scroll = 0                     # widget + sapaan TERKUNCI; hanya kartu yang digulir
         cols = self._cols(W)
         cw = (W - 2 * PAD - (cols - 1) * GAP) / cols
@@ -276,7 +324,12 @@ class DashboardView(tk.Canvas):
         self._draw_text()
 
     def _widget_rects(self):
-        """Kotak widget: maks. 6 per baris, 2 baris, tiap baris di tengah."""
+        """Kotak widget terpasang (urut slot). Biasa: rapat & di tengah; atur: posisi slot."""
+        if self.editing:
+            g = self._geo or self._edit_geo()
+            out = [g["slots"][k] for k, w in enumerate(self.slots) if w]
+            self._wrects = out
+            return out
         W = self._size[0]
         rows, ww = self._widget_rows()
         out = []
@@ -290,14 +343,10 @@ class DashboardView(tk.Canvas):
         self._wrects = out
         return out
 
-    def _add_pos(self):
-        """Tombol + : di kanan widget terakhir (atau tengah kalau belum ada widget)."""
-        if len(self.widgets) >= D.MAX_WIDGETS:
-            return None
-        if not self._wrects:
-            return (self._size[0] / 2, WIDGET_Y + self.shift * 0.35 + 18)
-        x0, y0, x1, y1 = self._wrects[-1]
-        return (x1 + 16 + ADD_D / 2, (y0 + y1) / 2)
+    def _pen_pos(self):
+        W = self._size[0]
+        y = WIDGET_Y + self.shift * 0.35 + PEN_D / 2 + 2
+        return (W - PAD - PEN_D / 2, y)
 
     def _build_layer(self):
         """Semua kartu (bayangan + badan + ikon + tombol) ke SATU gambar RGBA."""
@@ -327,6 +376,15 @@ class DashboardView(tk.Canvas):
             if sx1 > sx0 and sy1 > sy0:
                 tgt[0].alpha_composite(img.crop((sx0, sy0, sx1, sy1)), (x + sx0, y + sy0))
 
+        if self.editing:                 # slot kosong: kotak samar bergaris tepi
+            g = self._geo or self._edit_geo()
+            for k, (x0, y0, x1, y1) in enumerate(g["slots"]):
+                if self.slots[k]:
+                    continue
+                w, h = int(x1 - x0), int(y1 - y0)
+                place(self._ghost(w, h), x0, y0)
+            tx0, ty0, tx1, ty1 = g["tray"]
+            place(self._ghost(int(tx1 - tx0), int(ty1 - ty0), 0.10), tx0, ty0)
         # widget atas (gaya widget: kartu kecil membulat, isi besar)
         for k, (x0, y0, x1, y1) in enumerate(self._widget_rects()):
             kind = self.widgets[k]
@@ -495,91 +553,252 @@ class DashboardView(tk.Canvas):
                 color)
         self._t(x0 + 18, y0 + 64, self._fit(sub, x1 - x0 - 34), "small", C.MUTED)
 
-    # --- tombol tambah / hapus widget (muncul saat kursor di area widget) --------------------
-    def _edit_img(self, key, d, fill, alpha):
+    # --- mode atur widget (tombol pena): slot, baki widget tersembunyi, seret-lepas ---------
+    @staticmethod
+    def _ghost(w, h, fill_alpha=0.18):
+        """Kotak samar bergaris tepi (slot kosong / baki)."""
+        def make():
+            Image = photos.Image
+            ring = I.round_mask(w, h, 16).copy()
+            ring.paste(0, (1, 1), I.round_mask(w - 2, h - 2, 15))
+            fill = I.round_mask(w - 2, h - 2, 15).point(lambda v: int(v * fill_alpha))
+            a = Image.new("L", (w, h), 0)
+            a.paste(fill, (1, 1))
+            a = Image.composite(ring.point(lambda v: v * 150 // 255), a, ring)
+            img = Image.new("RGBA", (w, h), I._rgb("#8f8b82") + (0,))
+            img.putalpha(a)
+            return img
+        return _cached(("ghost", w, h, fill_alpha), make)
+
+    def _edit_img(self, key, make):
         ph = self._edit_imgs.get(key)
         if ph is None:
-            Image = photos.Image
-            img = Image.new("RGBA", (d, d), I._rgb(fill) + (0,))
-            img.putalpha(I.round_mask(d, d, d / 2).point(lambda v: v * alpha // 255))
-            ph = self._edit_imgs[key] = photos.to_photoimage(img)
+            ph = self._edit_imgs[key] = photos.to_photoimage(make())
         return ph
 
+    def _disc(self, d, fill, alpha=255, icon=None, icon_color="#ffffff"):
+        def make():
+            Image = photos.Image
+            if icon:
+                img = I._render_icon(icon, icon_color, fill, d, disc=fill).convert("RGBA")
+            else:
+                img = Image.new("RGBA", (d, d), I._rgb(fill) + (0,))
+            img.putalpha(I.round_mask(d, d, d / 2).point(lambda v: v * alpha // 255))
+            return img
+        return self._edit_img(("disc", d, fill, alpha, icon, icon_color), make)
+
+    def _chip_img(self, w, h, hov=False):
+        def make():
+            Image = photos.Image
+            img = Image.new("RGBA", (w, h), I._rgb(C.BORDER if hov else C.CARD) + (0,))
+            img.putalpha(I.round_mask(w, h, h / 2).point(lambda v: v * 240 // 255))
+            return img
+        return self._edit_img(("chip", w, h, hov), make)
+
     def _draw_edit(self):
+        """Tombol pena (selalu) + isi mode atur: x di widget, + di slot kosong, baki."""
         self.delete("wedit")
-        show = "normal" if (self._edit or not self.widgets) else "hidden"
-        for k, (x0, y0, x1, y1) in enumerate(self._wrects):
-            cx, cy = x1 - 6, y0 + 6
-            tag = ("txt", "wedit", f"wdel{k}")
-            self.create_image(cx, cy, image=self._edit_img("del", DEL_D, "#3a3936", 245),
-                              tags=tag, state=show)
-            self.create_text(cx, cy - 1, text="×", font=self.f["btn"], fill=C.TEXT, tags=tag,
-                             state=show)
-            self.tag_bind(f"wdel{k}", "<Button-1>", lambda e, k=k: self._remove_widget(k))
-        pos = self._add_pos()
-        if pos is not None:
-            cx, cy = pos
-            tag = ("txt", "wedit", "wadd")
-            self.create_image(cx, cy, image=self._edit_img("add", ADD_D, C.ACCENT, 255),
-                              tags=tag, state=show)
-            self.create_text(cx, cy - 1, text="+", font=self.f["big"], fill="white", tags=tag,
-                             state=show)
-            self.tag_bind("wadd", "<Button-1>", self._add_menu)
-        self.tag_bind("wedit", "<Enter>", lambda e: self.config(cursor="hand2"))
-
-    def _set_edit(self, on):
-        if on == self._edit:
+        px, py = self._pen_pos()
+        if self.editing:
+            img = self._disc(PEN_D, C.ACCENT, 255, "check", "#ffffff")
+        else:
+            img = self._disc(PEN_D, "#2c2b28", 235, "pen", "#d8d5cc")
+        self.create_image(px, py, image=img, tags=("txt", "wedit", "pen"))
+        self.tag_bind("pen", "<Button-1>", self._toggle_edit)
+        self.tag_bind("pen", "<Enter>", lambda e: self.config(cursor="hand2"))
+        if not self.editing:
             return
-        self._edit = on
-        if self.widgets:
-            self.itemconfigure("wedit", state="normal" if on else "hidden")
+        self.create_text(px, py + PEN_D / 2 + 6, anchor="n", tags=("txt", "wedit"),
+                         font=self.f["small"], fill=C.ACCENT, text="Selesai")
+        g = self._geo or self._edit_geo()
+        for k, (x0, y0, x1, y1) in enumerate(g["slots"]):
+            if self.slots[k]:
+                tag = ("txt", "wedit", f"wdel{k}")
+                cx, cy = x1 - 6, y0 + 6
+                self.create_image(cx, cy, image=self._disc(DEL_D, "#3a3936", 245), tags=tag)
+                self.create_text(cx, cy - 1, text="×", font=self.f["btn"], fill=C.TEXT,
+                                 tags=tag)
+                self.tag_bind(f"wdel{k}", "<Button-1>", lambda e, k=k: self._hide_slot(k))
+            else:
+                self.create_text((x0 + x1) / 2, (y0 + y1) / 2, tags=("txt", "wedit"),
+                                 font=self.f["big"], fill="#6f6c64", text="+")
+        tx0, ty0, tx1, ty1 = g["tray"]
+        title = ("Widget tersembunyi  ·  seret ke slot kosong" if g["chips"]
+                 else "Semua widget sudah terpasang")
+        self.create_text((tx0 + tx1) / 2, ty0 + 14, tags=("txt", "wedit", "traytitle"),
+                         font=self.f["small"], fill=C.MUTED, text=title)
+        names = {w[0]: w[1] for w in D.WIDGETS}
+        for wid, (x0, y0, x1, y1) in g["chips"]:
+            tag = ("txt", "wedit", f"chip_{wid}")
+            self.create_image(x0, y0, anchor="nw", tags=tag,
+                              image=self._chip_img(int(x1 - x0), int(y1 - y0)))
+            self.create_image(x0 + 18, (y0 + y1) / 2, tags=tag,
+                              image=self._disc(9, WIDGET_ACCENT.get(wid, BLUE)))
+            self.create_text(x0 + 30, (y0 + y1) / 2, anchor="w", tags=tag,
+                             font=self.f["btn"], fill=C.TEXT, text=names.get(wid, wid))
 
-    def _in_widget_area(self, x, y):
-        pos = self._add_pos()
-        boxes = list(self._wrects)
-        if pos is not None:
-            boxes.append((pos[0] - ADD_D, pos[1] - ADD_D, pos[0] + ADD_D, pos[1] + ADD_D))
-        if not boxes:
-            return False
-        x0 = min(b[0] for b in boxes) - 24
-        x1 = max(b[2] for b in boxes) + 24
-        y0 = min(b[1] for b in boxes) - 24
-        y1 = max(b[3] for b in boxes) + 16
-        return x0 <= x <= x1 and y0 <= y <= y1
-
-    def _remove_widget(self, k):
+    def _toggle_edit(self, _e=None):
         self._ate_click = True
-        if 0 <= k < len(self.widgets):
-            del self.widgets[k]
-            self._save_widgets()
+        self.editing = not self.editing
+        self._drag_cancel()
+        self.card_scroll = 0
+        self._layout()
 
-    def _add_menu(self, e):
+    def _hit_slot(self, x, y):
+        g = self._geo or self._edit_geo()
+        for k, (x0, y0, x1, y1) in enumerate(g["slots"]):
+            if x0 - WIDGET_GAP / 2 <= x < x1 + WIDGET_GAP / 2 and \
+                    y0 - WIDGET_GAP / 2 <= y < y1 + WIDGET_GAP / 2:
+                return k
+        return None
+
+    def _hit_chip(self, x, y):
+        g = self._geo or self._edit_geo()
+        for wid, (x0, y0, x1, y1) in g["chips"]:
+            if x0 <= x < x1 and y0 <= y < y1:
+                return wid
+        return None
+
+    def _in_tray(self, x, y):
+        tx0, ty0, tx1, ty1 = (self._geo or self._edit_geo())["tray"]
+        return tx0 <= x < tx1 and ty0 <= y < ty1
+
+    def _press_edit(self, e):
+        """Mode atur: tekan di widget / widget tersembunyi = mulai seret; di slot kosong =
+        menu pilihan widget untuk slot itu."""
+        k = self._hit_slot(e.x, e.y)
+        if k is not None and self.slots[k]:
+            self._drag = {"id": self.slots[k], "from": k, "x": e.x, "y": e.y, "moved": False}
+            return
+        wid = self._hit_chip(e.x, e.y)
+        if wid is not None:
+            self._drag = {"id": wid, "from": None, "x": e.x, "y": e.y, "moved": False}
+            return
+        if k is not None:
+            self._slot_menu(k, e)
+
+    def _drag_motion(self, e):
+        d = self._drag
+        if d is None:
+            return
+        if not d["moved"]:
+            if abs(e.x - d["x"]) + abs(e.y - d["y"]) < 5:
+                return
+            d["moved"] = True
+            self._drag_ghost(d, e)
+        self.move("drag", e.x - d["x"], e.y - d["y"])
+        d["x"], d["y"] = e.x, e.y
+        # sorot tujuan: slot di bawah kursor / baki (lepas = sembunyikan)
+        k = self._hit_slot(e.x, e.y)
+        g = self._geo or self._edit_geo()
+        if k is not None:
+            x0, y0, x1, y1 = g["slots"][k]
+            self.coords("dropring", x0, y0)
+            self.itemconfigure("dropring", state="normal")
+        else:
+            self.itemconfigure("dropring", state="hidden")
+        over = d["from"] is not None and self._in_tray(e.x, e.y)
+        self.itemconfigure("traytitle", fill=C.ACCENT if over else C.MUTED,
+                           text="Lepas untuk menyembunyikan widget" if over else
+                           ("Widget tersembunyi  ·  seret ke slot kosong"
+                            if g["chips"] else "Semua widget sudah terpasang"))
+
+    def _drag_ghost(self, d, e):
+        """Salinan widget yang mengikuti kursor (tembus pandang) + bingkai slot tujuan."""
+        g = self._geo or self._edit_geo()
+        w, h = int(g["w"]), WIDGET_H
+        accent = WIDGET_ACCENT.get(d["id"], BLUE)
+
+        def body():
+            Image = photos.Image
+            img = Image.new("RGBA", (w, h), I._rgb(accent) + (0,))
+            img.putalpha(I.round_mask(w, h, 16).point(lambda v: v * 230 // 255))
+            inner = Image.new("RGBA", (w - 4, h - 4), I._rgb(C.CARD) + (0,))
+            inner.putalpha(I.round_mask(w - 4, h - 4, 14).point(lambda v: v * 225 // 255))
+            img.alpha_composite(inner, (2, 2))
+            return img
+
+        def ring():
+            Image = photos.Image
+            a = I.round_mask(w, h, 16).copy()
+            a.paste(0, (2, 2), I.round_mask(w - 4, h - 4, 14))
+            img = Image.new("RGBA", (w, h), I._rgb(C.ACCENT) + (0,))
+            img.putalpha(a)
+            return img
+        self.create_image(0, 0, anchor="nw", tags=("drag", "dropring"), state="hidden",
+                          image=self._edit_img(("dropring", w, h), ring))
+        self.dtag("dropring", "drag")
+        x0, y0 = e.x - w / 2, e.y - h / 2
+        self.create_image(x0, y0, anchor="nw", tags="drag",
+                          image=self._edit_img(("dragbody", w, h, accent), body))
+        name = D.WIDGET_BY_ID.get(d["id"], (d["id"], d["id"]))[1]
+        self.create_text(e.x, e.y, tags="drag", font=self.f["btn"], fill=C.TEXT,
+                         text=self._fit(name, w - 24, "btn"))
+        if d["from"] is not None:           # widget asal diredupkan selama diseret
+            self._drag_dim = True
+        self.config(cursor="fleur")
+
+    def _drag_end(self, e):
+        d, self._drag = self._drag, None
+        self.delete("drag")
+        self.delete("dropring")
+        self.config(cursor="")
+        if d is None or not d["moved"]:
+            return
+        k = self._hit_slot(e.x, e.y)
+        changed = False
+        if k is not None:
+            if d["from"] is None:                     # dari baki ke slot (yang lama tersembunyi)
+                self.slots[k] = d["id"]
+            elif k != d["from"]:                      # pindah / tukar posisi
+                self.slots[d["from"]], self.slots[k] = self.slots[k], self.slots[d["from"]]
+            changed = True
+        elif d["from"] is not None and self._in_tray(e.x, e.y):
+            self.slots[d["from"]] = None              # disembunyikan
+            changed = True
+        if changed:
+            self._slots_changed(reload=d["from"] is None)
+        else:
+            self._layout()
+
+    def _drag_cancel(self):
+        self._drag = None
+        self.delete("drag")
+        self.delete("dropring")
+
+    def _hide_slot(self, k):
         self._ate_click = True
-        have = set(self.widgets)
+        if self.slots[k]:
+            self.slots[k] = None
+            self._slots_changed()
+
+    def _slot_menu(self, k, e):
+        free = [w for w in D.widget_choices(self.role) if w[0] not in self.slots]
         m = tk.Menu(self, tearoff=0, font=(C.FONT, 10), bg=C.CARD, fg=C.TEXT,
                     activebackground=C.ACCENT, activeforeground="white", bd=0)
-        free = [w for w in D.widget_choices(self.role) if w[0] not in have]
         for wid, label, _roles, _t in free:
-            m.add_command(label=f"  {label}", command=lambda i=wid: self._add_widget(i))
+            m.add_command(label=f"  {label}", command=lambda i=wid: self._put(k, i))
         if not free:
-            m.add_command(label="  Semua widget sudah dipasang", state="disabled")
+            m.add_command(label="  Semua widget sudah terpasang", state="disabled")
         m.add_separator()
         m.add_command(label="  Kembalikan ke bawaan", command=self._reset_widgets)
         m.tk_popup(e.x_root, e.y_root)
 
-    def _add_widget(self, wid):
-        if wid not in self.widgets and len(self.widgets) < D.MAX_WIDGETS:
-            self.widgets.append(wid)
-            self._save_widgets(reload=True)
+    def _put(self, k, wid):
+        self.slots[k] = wid
+        self._slots_changed(reload=True)
 
     def _reset_widgets(self):
-        self.widgets = [i for i in D.DEFAULT_WIDGETS
-                        if i in {w[0] for w in D.widget_choices(self.role)}]
-        self._save_widgets(reload=True)
+        ok = {w[0] for w in D.widget_choices(self.role)}
+        self.slots = [None] * D.MAX_WIDGETS
+        for n, wid in enumerate(w for w in D.DEFAULT_WIDGETS if w in ok):
+            self.slots[n] = wid
+        self._slots_changed(reload=True)
 
-    def _save_widgets(self, reload=False):
+    def _slots_changed(self, reload=False):
+        self.widgets = [w for w in self.slots if w]
         try:
-            D.save_widgets((self.user or {}).get("id", ""), self.widgets)
+            D.save_slots((self.user or {}).get("id", ""), self.slots)
         except OSError as exc:
             C.log(f"Dashboard: widget tidak tersimpan: {exc!r}")
         self._layout()
@@ -669,6 +888,12 @@ class DashboardView(tk.Canvas):
         name = (self.user or {}).get("name", "")
         rects = self._widget_rects()
         gy = (max(r[3] for r in rects) + 40) if rects else WIDGET_Y + self.shift * 0.35 + 76
+        if self.editing:
+            self._draw_widgets(rects, dy)
+            if self.items is not None:
+                self._draw_cards_text(W, H)
+                self._fade_text()
+            return
         self.create_text(W / 2, gy + dy, anchor="n", tags="txt", font=self.f["hero"],
                          fill=C.TEXT, text=f"{D.greeting()}, {name}")
         if self.items is None:
@@ -787,14 +1012,20 @@ class DashboardView(tk.Canvas):
         self.coords(self._hover_item, int(round(x0)), int(round(y0)))
 
     def _motion(self, e):
+        if self._drag is not None:
+            return
         self._set_hover(self._index_at(e.x, e.y))
-        self._set_edit(self._in_widget_area(e.x, e.y))
         if any(x0 <= e.x < x1 and y0 <= e.y < y1 for x0, y0, x1, y1 in self._wrects):
-            self.config(cursor="hand2")
+            self.config(cursor="fleur" if self.editing else "hand2")
+        elif self.editing and self._hit_chip(e.x, e.y) is not None:
+            self.config(cursor="fleur")
 
     def _click(self, e):
-        if self._ate_click:              # klik di tombol tambah / hapus widget
+        if self._ate_click:              # klik di tombol pena / x
             self._ate_click = False
+            return
+        if self.editing:
+            self._press_edit(e)
             return
         for k, (x0, y0, x1, y1) in enumerate(self._wrects):
             if x0 <= e.x < x1 and y0 <= e.y < y1:

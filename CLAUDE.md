@@ -290,10 +290,12 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 - Admin & guru TANPA kolom cari bawah: kolom cari sidebar membuka search palette (palette=True,
   seperti murid). Guru: "Tambah murid" tidak di sidebar lagi -> tombol di kepala halaman
   Murid & Kursus + aksi Ctrl+K.
-- Widget atas bisa diatur per akun (data\dashboard_widgets.json, dashboard.WIDGETS: jam,
-  progres beres, online, kalender, pendaftar, sertifikat, kelas hari ini, murid aktif, tidak
-  aktif, tanpa jadwal, laporan hari ini, karya baru). Maks. 12 = 6 per baris x 2 baris, tiap
-  baris di tengah; jendela sempit: widget mengecil (label turun ke bawah angka), tetap 2 baris.
-  Tombol x (hapus) di pojok widget & + (tambah, menu pilihan + "Kembalikan ke bawaan") di
-  kanan widget terakhir: TERSEMBUNYI, muncul saat kursor di area widget. Klik widget = buka
-  menu terkait. Angka widget dihitung di thread (dashboard.info); muat ulang diantre (_again).
+- Widget atas diatur per akun di 12 SLOT (6 x 2; data\dashboard_widgets.json = 12 id/null,
+  format lama daftar id diisi berurutan). Katalog dashboard.WIDGETS (jam, progres beres,
+  online, kalender, pendaftar, sertifikat, kelas hari ini, murid aktif, tidak aktif, tanpa
+  jadwal, laporan hari ini, karya baru). Biasa: widget per baris slot dirapatkan & di tengah,
+  hanya ikon PENA (ui_icons "pen") di kanan atas. Klik pena = mode atur (ikon jadi centang +
+  "Selesai"): grid 6 x 2 dengan slot kosong (+, klik = menu pilihan), baki "Widget
+  tersembunyi" (chip) menggantikan sapaan; SERET chip ke slot, seret widget antar slot (tukar),
+  seret ke baki / klik x = sembunyikan. Klik widget (mode biasa) = buka menu terkait. Angka
+  widget dihitung di thread (dashboard.info); muat ulang diantre (_again).
