@@ -150,15 +150,16 @@ class DevPanel(tk.Toplevel):
             fill="x", pady=(8, 2))
 
     def _settings_tab(self):
+        self._pending = {}           # perubahan yang belum di-Apply: key -> nilai
+        self._pending_feat = {}
         self._section("Tampilan login")
         mode = tk.StringVar(value=S.login_mode())
         for key, label in LOGIN_LABELS:
             tk.Radiobutton(self.body, text=label, value=key, variable=mode, font=FONT,
                            bg=BG, fg=FG, selectcolor=FIELD, activebackground=BG,
                            activeforeground=FG, anchor="w",
-                           command=lambda: self._save("login_mode", mode.get(),
-                                                      "Tampilan login")).pack(fill="x")
-        self._section("Warna aksen  (buka ulang app)")
+                           command=lambda: self._mark("login_mode", mode.get())).pack(fill="x")
+        self._section("Warna aksen")
         acc = tk.StringVar(value=S.get("accent"))
         row = tk.Frame(self.body, bg=BG)
         row.pack(fill="x")
@@ -166,7 +167,7 @@ class DevPanel(tk.Toplevel):
             tk.Radiobutton(row, text=name, value=key, variable=acc, font=FONT, bg=BG,
                            fg=color, selectcolor=FIELD, activebackground=BG,
                            activeforeground=color, anchor="w",
-                           command=lambda: self._save("accent", acc.get(), "Warna aksen")
+                           command=lambda: self._mark("accent", acc.get())
                            ).grid(row=n // 3, column=n % 3, sticky="w", padx=(0, 6))
         self._section("Fitur")
         for key, label in S.FEATURES:
@@ -174,29 +175,51 @@ class DevPanel(tk.Toplevel):
             tk.Checkbutton(self.body, text=label, variable=v, font=FONT, bg=BG, fg=FG,
                            selectcolor=FIELD, activebackground=BG, activeforeground=FG,
                            anchor="w",
-                           command=lambda k=key, var=v, lb=label: self._feature(k, var.get(), lb)
+                           command=lambda k=key, var=v: self._mark_feat(k, var.get())
                            ).pack(fill="x")
         tk.Label(self.body, text=f"PC kuat (NVIDIA + >=12 thread): "
                                  f"{'ya' if getattr(C, 'HIGH_END', False) else 'tidak'}",
                  bg=BG, fg=MUTED, font=FONT, anchor="w").pack(fill="x", pady=(8, 0))
+        self.apply_btn = tk.Button(self.body, text="Apply", font=BOLD, relief="flat",
+                                   bg=C.ACCENT, fg="white", activebackground=C.ACCENT_HOVER,
+                                   activeforeground="white", state="disabled",
+                                   command=self._apply)
+        self.apply_btn.pack(fill="x", ipady=3, pady=(10, 0), side="bottom")
 
-    def _save(self, key, value, label):
+    def _mark(self, key, value):
+        self._pending[key] = value
+        self._changed()
+
+    def _mark_feat(self, key, on):
+        self._pending_feat[key] = bool(on)
+        self._changed()
+
+    def _changed(self):
+        n = len(self._pending) + len(self._pending_feat)
+        self.apply_btn.config(state="normal" if n else "disabled")
+        self._note(f"{n} perubahan belum diterapkan" if n else "")
+
+    def _apply(self):
+        """Simpan semua perubahan lalu terapkan langsung ke aplikasi (tanpa buka ulang)."""
         try:
-            S.set(key, value)
+            for key, value in self._pending.items():
+                S.set(key, value)
+            for key, on in self._pending_feat.items():
+                S.set_feature(key, on)
         except OSError as exc:
-            C.log(f"Dev: {key} gagal disimpan: {exc!r}")
+            C.log(f"Dev: setting gagal disimpan: {exc!r}")
             self._note("Gagal menyimpan (folder data?).")
             return
-        self._note(f"Tersimpan: {label} = {value}")
-
-    def _feature(self, key, on, label):
+        self._pending, self._pending_feat = {}, {}
         try:
-            S.set_feature(key, on)
-        except OSError as exc:
-            C.log(f"Dev: fitur {key} gagal disimpan: {exc!r}")
-            self._note("Gagal menyimpan (folder data?).")
+            self.app.apply_dev_settings()
+        except Exception as exc:
+            C.log(f"Dev: apply gagal: {exc!r}")
+            self._note("Tersimpan, tapi gagal diterapkan (lihat app.log).")
             return
-        self._note(f"{label}: {'ON' if on else 'OFF'} (berlaku di layar berikutnya)")
+        self.show("settings")              # warna tombol ikut aksen baru
+        self.lift()
+        self._note("Diterapkan.")
 
     def destroy(self):
         _open["win"] = None

@@ -44,12 +44,19 @@ def _fps60():
         return False
 
 
-_HI = _fps60()
-WORKERS = WORKERS if _HI else max(1, int(getattr(C, "WORKER_THREADS", 2)))
-FPS = 60 if _HI else max(10, min(30, int(getattr(C, "LOGIN_CAROUSEL_FPS", 30))))
-# Jadwal frame di kisi 2x FPS (60): frame dibuat tiap DIVS langkah = 30 / 20 / 15 / 10 fps,
-# selalu rata. Layar besar (2560x1440) yang tidak sanggup 30 tetap mulus di 20 fps.
-GRID = 2 * FPS
+def reconfigure():
+    """Hitung ulang thread & fps dari setting (jendela Dev > Apply); berlaku untuk carousel
+    berikutnya (layar login dibangun ulang)."""
+    global WORKERS, FPS, GRID
+    hi = _fps60()
+    WORKERS = max(1, int(getattr(C, "CAROUSEL_WORKERS", 2))) if hi else         max(1, int(getattr(C, "WORKER_THREADS", 2)))
+    FPS = 60 if hi else max(10, min(30, int(getattr(C, "LOGIN_CAROUSEL_FPS", 30))))
+    # Jadwal frame di kisi 2x FPS: frame dibuat tiap DIVS langkah, selalu rata.
+    GRID = 2 * FPS
+
+
+WORKERS = FPS = GRID = 0
+reconfigure()
 DIVS = (2, 3, 4, 6, 8)    # kisi 120 (spek tinggi): 60/40/30/20/15 fps; kisi 60: 30/20/15/10/7.5
 LEAD = 0.12              # frame disiapkan maks. sekian detik sebelum tampil
 FADE = 0.22              # lebar fade tepi kiri & kanan (proporsi lebar layar)

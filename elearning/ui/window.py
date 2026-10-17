@@ -213,6 +213,50 @@ class App(tk.Tk):
         else:
             self.login_student(account)
 
+    def rebuild_screen(self):
+        """Bangun ulang layar yang sedang tampil di posisi yang sama (jendela Dev > Apply:
+        warna aksen, fitur, tampilan login langsung terlihat)."""
+        scr = self._screen
+        try:
+            if isinstance(scr, LoginScreen):
+                self.show_login()
+            elif isinstance(scr, CourseScreen):
+                lesson = None
+                if scr.view == "materi" and scr.lesson_items:
+                    lesson = scr.lesson_items[scr.lesson_index].get("title")
+                self.show_course(scr.student, scr.course, lesson=lesson, view=scr.view)
+            elif isinstance(scr, HomeScreen):
+                self.show_home(scr.student, view=scr.view)
+            elif isinstance(scr, TeacherScreen):
+                self.show_teacher(scr.teacher)
+            elif isinstance(scr, AdminScreen):
+                tab = scr.tab
+                self.show_admin({"id": scr.admin_id, "name": "Admin"})
+                self._screen._set_tab(tab)
+        except Exception as exc:
+            config.log(f"Dev: layar tidak bisa dibangun ulang: {exc!r}")
+
+    def apply_dev_settings(self):
+        """Jendela Dev > Apply: terapkan semua pengaturan ke aplikasi yang sedang berjalan."""
+        from elearning import app_settings
+        from elearning.app_settings import feature
+        from elearning.ui import carousel3d
+        app_settings.apply_theme()          # warna aksen
+        carousel3d.reconfigure()            # 60 fps on/off
+        student = self._student
+        if student is not None:             # murid sedang masuk: fitur latar ikut
+            if feature("floating"):
+                if not self.blender_float.active:
+                    self.blender_float.start()
+            else:
+                self.blender_float.stop()
+            if feature("badges"):
+                if self.badges.student is None:
+                    self.badges.start(student)
+            else:
+                self.badges.stop()
+        self.rebuild_screen()
+
     def logout(self):
         self._confirm(L("Keluar dari akun?", "Log out?"), L("Keluar", "Log out"), self._logout)
 
