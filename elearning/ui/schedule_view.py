@@ -24,7 +24,10 @@ TOOL_H = 46        # baris atas: Hari / Minggu, panah, Hari ini, tanggal
 TOP = TOOL_H + HEAD_H
 MONTHS = ("Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus",
           "September", "Oktober", "November", "Desember")
-_view = {"mode": "week"}   # tampilan terakhir (diingat selama aplikasi terbuka)
+_view = {"mode": "slots"}  # admin: tampilan Sesi (seperti sheet) default
+MAX_ROWS = 20              # slot murid per sesi jam (baris)
+SLOT_H = 30                # tinggi baris di tampilan Sesi
+SLOT_HEAD = 46   # tampilan terakhir (diingat selama aplikasi terbuka)
 GUTTER = 58
 GRID = "#2f2e2b"
 PROGRAM_COLOR = {"adult": "#3f6f8f", "kids": "#9a4f73", "mix": "#6b5f8f", "none": "#4a4945"}
@@ -125,7 +128,7 @@ class ScheduleBoard(tk.Canvas):
             self.on_nav()
 
     def _range_text(self):
-        if self.mode == "day":
+        if self.mode != "week":
             d = self.anchor
             return f"{SCH.DAYS[d.weekday()]}, {d.day} {MONTHS[d.month - 1]} {d.year}"
         a = self._date_of(0)
@@ -157,7 +160,8 @@ class ScheduleBoard(tk.Canvas):
         self.tools = []
         y, h = 6, 30
         x = GUTTER
-        for mode, label in (() if self.day_only else (("day", "Hari"), ("week", "Minggu"))):
+        for mode, label in (() if self.day_only else (("slots", "Sesi"), ("day", "Hari"),
+                                                       ("week", "Minggu"))):
             on = self.mode == mode
             f = self.f["tool_b"] if on else self.f["tool"]
             w = f.measure(label) + 28
@@ -168,7 +172,7 @@ class ScheduleBoard(tk.Canvas):
         x += 34
         self._tool(x, y, 30, h, "next", icon="chev_right")
         x += 38
-        label = "Hari ini" if self.mode == "day" else "Minggu ini"
+        label = "Minggu ini" if self.mode == "week" else "Hari ini"
         w = self.f["tool"].measure(label) + 26
         self._tool(x, y, w, h, "today", text=label)
         x += w + 16
@@ -216,6 +220,12 @@ class ScheduleBoard(tk.Canvas):
         top, bottom = TOP, self._y(HOURS[1] * 60)
         today = date.today()
         self._draw_toolbar()
+        if self.mode == "slots":
+            self._draw_sessions()
+            return
+        want = TOP + (HOURS[1] - HOURS[0]) * HOUR_H + 12
+        if int(self.cget("height")) != want:
+            self.configure(height=want)
         for d in self._days():
             x0, x1 = self._col(d)
             day = self._date_of(d)
@@ -345,6 +355,117 @@ class ScheduleBoard(tk.Canvas):
         self.boxes.append((x0, y0, x1, y1, s))
 
     # --- interaksi -----------------------------------------------------------------------
+    # --- tampilan Sesi: kolom = sesi jam, baris = slot murid (maks. 20), seperti sheet ---
+    def _label(self, sid):
+        s = self.students.get(sid)
+        if s is None:
+            return "", PROGRAM_COLOR["none"]
+        if s["program"] == "kids":
+            return "SK", PROGRAM_COLOR["kids"]
+        if any(c.startswith("intermediate") for c in s.get("courses", [])):
+            return "IC", "#4f6f9a"
+        return "PB", PROGRAM_COLOR["adult"]
+
+    def _session_rows(self, day):
+        """{(baris, jam): (id murid, jadwal)} + {jam: jumlah yang tidak muat}.
+        Murid yang sama di jam berurutan tetap di baris yang sama (mudah dibaca)."""
+        cells, over = {}, {}
+        items = []
+        for sl in self.slots:
+            if sl["day"] != day:
+                continue
+            a = max(HOURS[0], SCH.to_min(sl["start"]) // 60)
+            b = min(HOURS[1], -(-SCH.to_min(sl["end"]) // 60))
+            for sid in sl["students"]:
+                if sid in self.students:
+                    items.append((a, b, sid, sl))
+        items.sort(key=lambda t: (t[0], -(t[1] - t[0]), self.students[t[2]]["name"].lower()))
+        for a, b, sid, sl in items:
+            for r in range(MAX_ROWS):
+                if all((r, h) not in cells for h in range(a, b)):
+                    for h in range(a, b):
+                        cells[(r, h)] = (sid, sl)
+                    break
+            else:
+                for h in range(a, b):
+                    over[h] = over.get(h, 0) + 1
+        return cells, over
+
+    def _draw_sessions(self):
+        W = self._width
+        day = self.anchor.weekday()
+        hours = list(range(HOURS[0], HOURS[1]))
+        x0 = GUTTER
+        cw = max(90, (W - 4 - x0) / len(hours))
+        top = TOOL_H + SLOT_HEAD
+        bottom = top + MAX_ROWS * SLOT_H
+        want = int(bottom + 34)
+        if int(self.cget("height")) != want:
+            self.configure(height=want)
+        cells, over = self._session_rows(day)
+        self.grid_cells = []
+        now = datetime.now()
+        is_today = self.anchor == date.today()
+        for i, h in enumerate(hours):
+            cx = x0 + i * cw
+            live = is_today and h == now.hour
+            used = sum(1 for r in range(MAX_ROWS) if (r, h) in cells)
+            self.create_text(cx + cw / 2, TOOL_H + 14, text=f"{h:02d}.00-{h + 1:02d}.00",
+                             font=self.f["day"], fill=C.TEXT if live else C.MUTED)
+            fill = C.ERROR if used >= MAX_ROWS else (C.ACCENT if live else C.LOCKED)
+            self.create_text(cx + cw / 2, TOOL_H + 32,
+                             text=f"{used}/{MAX_ROWS}" + (f"  +{over[h]}" if over.get(h) else ""),
+                             font=self.f["hour"], fill=fill)
+            if live:
+                self.create_rectangle(cx, top, cx + cw, bottom, fill=_mix(C.BG, C.CARD, 0.5),
+                                      outline="")
+        for r in range(MAX_ROWS):          # nomor slot di kiri
+            self.create_text(x0 - 10, top + r * SLOT_H + SLOT_H / 2, text=str(r + 1),
+                             anchor="e", font=self.f["hour"], fill=C.LOCKED)
+        for r in range(MAX_ROWS + 1):
+            y = top + r * SLOT_H
+            self.create_rectangle(x0, y, x0 + cw * len(hours), y + 1, fill=GRID, outline="")
+        for i in range(len(hours) + 1):
+            x = x0 + i * cw
+            self.create_rectangle(x, top, x + 1, bottom, fill=GRID, outline="")
+        for (r, h), (sid, sl) in cells.items():
+            i = hours.index(h)
+            bx, by = x0 + i * cw + 3, top + r * SLOT_H + 3
+            w, hh = int(cw - 6), SLOT_H - 6
+            label, base = self._label(sid)
+            hover = self.hover == ("slot", sl["id"]) and self.on_edit is not None
+            match = self._matches(sl)
+            bg = _mix(C.BG, C.CARD, 0.5) if (is_today and h == now.hour) else C.BG
+            fill = _mix(base, "#ffffff", 0.12) if hover else base
+            if not match:
+                fill = _mix(base, bg, 0.7)
+            p = I.pill(w, hh, fill, bg, r=6, border=C.ACCENT if (self.query and match) else None)
+            if p is not None:
+                self._imgs.append(p)
+                self.create_image(bx, by, image=p, anchor="nw")
+            name = self.students[sid]["name"]
+            self.create_text(bx + 7, by + hh / 2, anchor="w", font=self.f["body"],
+                             fill="#ffffff" if match else C.MUTED,
+                             text=_fit(self.f["body"], f"{label} {name}", w - 12))
+            self.boxes.append((bx, by, bx + w, by + hh, sl))
+        # kotak kosong: tambah jadwal di jam itu
+        if self.on_add and self.hover and self.hover[0] == "cell":
+            _d, h = self.hover[1], self.hover[2]
+            r = self.hover[3] if len(self.hover) > 3 else 0
+            if h in hours:
+                i = hours.index(h)
+                bx, by = x0 + i * cw + 3, top + r * SLOT_H + 3
+                p = I.pill(int(cw - 6), SLOT_H - 6, C.CARD_HOVER, C.BG, r=6)
+                if p is not None:
+                    self._imgs.append(p)
+                    self.create_image(bx, by, image=p, anchor="nw")
+                self.create_text(bx + (cw - 6) / 2, by + (SLOT_H - 6) / 2, text="+  Tambah",
+                                 font=self.f["plus"], fill=C.MUTED)
+        legend = "SK = SUPERKIDS   ·   PB = basic   ·   IC = intermediate   ·   " \
+                 "klik nama = ubah jadwal, klik kotak kosong = tambah"
+        self.create_text(x0, bottom + 18, text=legend, anchor="w", font=self.f["hour"],
+                         fill=C.LOCKED)
+
     def _hit(self, x, y):
         for x0, y0, x1, y1, name in self.tools:
             if x0 <= x < x1 and y0 <= y < y1:
@@ -352,6 +473,17 @@ class ScheduleBoard(tk.Canvas):
         for x0, y0, x1, y1, s in reversed(self.boxes):
             if x0 <= x <= x1 and y0 <= y <= y1:
                 return ("slot", s["id"]), s
+        if self.mode == "slots":
+            hours = list(range(HOURS[0], HOURS[1]))
+            cw = max(90, (self._width - 4 - GUTTER) / len(hours))
+            top = TOOL_H + SLOT_HEAD
+            if x < GUTTER or y < top or y >= top + MAX_ROWS * SLOT_H:
+                return None, None
+            i = int((x - GUTTER) // cw)
+            if not 0 <= i < len(hours):
+                return None, None
+            r = int((y - top) // SLOT_H)
+            return ("cell", self.anchor.weekday(), hours[i], r), None
         if self.mode == "week" and TOOL_H <= y < TOP and x >= GUTTER:
             for d in self._days():
                 x0, x1 = self._col(d)

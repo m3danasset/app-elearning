@@ -102,6 +102,10 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 - Baris atas kalender (di canvas yang sama): Hari / Minggu (diingat), panah sebelum/
   sesudah, Hari ini / Minggu ini, tanggal. Tampilan Hari: satu kolom lebar, nama murid
   berkolom. Klik nama hari di tampilan Minggu = buka hari itu. Redraw ~8 ms.
+- Tampilan Sesi (default admin, seperti sheet jadwal): satu hari, kolom = sesi per jam,
+  baris = slot murid 1-20 (MAX_ROWS), sel "SK/PB/IC Nama" (IC = kursus intermediate dibuka).
+  Murid yang sama di jam berurutan tetap satu baris; kepala kolom "terisi/20" (+lebih).
+  Klik nama = ubah jadwal, klik sel kosong = tambah di jam itu. Guru tetap tampilan Hari.
 
 ## Analytics admin (tab paling atas, dibuka pertama)
 - Kartu angka: murid aktif (+ tanpa jadwal), jam belajar, kehadiran jadwal (%), portfolio,
