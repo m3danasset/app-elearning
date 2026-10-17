@@ -283,8 +283,10 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   >= 720. Admin: menu "Dashboard" paling atas (tab default); guru: view "dashboard" default.
 - Layout (mockup): 3 widget di tengah atas (jam + kelas berikutnya, cincin "x/y beres",
   jumlah online; dashboard.info), sapaan besar di tengah, kartu di bawah. Layar tinggi:
-  ruang atas melebar (shift). Widget + sapaan TERKUNCI; hanya kartu yang digulir (roda mouse,
-  per baris utuh, tanpa scrollbar; teks petunjuk 'Gulir ke bawah untuk n kartu lainnya'). Jam widget diperbarui tiap 15 dtk.
+  ruang atas melebar (shift). Widget + sapaan TERKUNCI; hanya area kartu yang digulir (roda mouse,
+  per piksel, tanpa scrollbar). Kartu di lapisan sendiri, alpha x _fade_mask: terpotong
+  lembut di bawah sapaan (FADE_TOP) dan memudar di bawah layar (FADE_BOTTOM); teks kartu
+  (tag "ct") warnanya dicampur ke latar sesuai posisi.
 - Admin & guru TANPA kolom cari bawah: kolom cari sidebar membuka search palette (palette=True,
   seperti murid). Guru: "Tambah murid" tidak di sidebar lagi -> tombol di kepala halaman
   Murid & Kursus + aksi Ctrl+K.

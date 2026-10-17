@@ -30,6 +30,7 @@ GAP = 18
 PAD = 40
 TOP_H = 300                 # widget + sapaan (kartu mulai di bawahnya)
 WIDGET_Y, WIDGET_H, WIDGET_W, WIDGET_GAP = 28, 96, 270, 22
+FADE_TOP, FADE_BOTTOM = 26, 120     # kartu memudar di batas atas area gulir & di bawah layar
 ICON = 38
 BLUE = "#7cc8ff"
 INFO = "#8f8b82"
@@ -122,6 +123,8 @@ class DashboardView(tk.Canvas):
         self.hover = None
         self.scroll = 0
         self.shift = 0                 # ruang tambahan di atas (layar tinggi)
+        self.card_scroll = 0           # gulir area kartu (px); widget & sapaan tidak ikut
+        self.cards_top = TOP_H
         self._size = (0, 0)
         self._layer = None
         self._photo = None
@@ -221,18 +224,15 @@ class DashboardView(tk.Canvas):
         n = len(self.items or [])
         rows = -(-n // cols) if n else 0
         rowh = CARD_H + GAP
-        top = TOP_H + self.shift
-        vis = max(1, int((H - top - 28) // rowh))       # baris kartu yang muat (utuh)
-        self.row0 = max(0, min(getattr(self, "row0", 0), rows - vis))
-        self._more = max(0, n - (self.row0 + vis) * cols)
+        top = self.cards_top = TOP_H + self.shift - 12
+        # bisa digulir sampai baris terakhir keluar dari area pudar bawah
+        self.card_scroll = max(0, min(self.card_scroll,
+                                      rows * rowh + FADE_BOTTOM - (H - top)))
         self.rects = []
         for i in range(n):
             r, c = divmod(i, cols)
             x0 = PAD + c * (cw + GAP)
-            if self.row0 <= r < self.row0 + vis:
-                y0 = top + (r - self.row0) * rowh
-            else:
-                y0 = -10_000            # di luar layar: tidak digambar, tidak bisa diklik
+            y0 = top + 12 + r * rowh - self.card_scroll       # koordinat layar
             self.rects.append((x0, y0, x0 + cw, y0 + CARD_H))
         self.hover = None
         self.itemconfigure(self._hover_item, state="hidden")
@@ -256,7 +256,7 @@ class DashboardView(tk.Canvas):
         Image = photos.Image
         W, H = self._size
         layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        dy = -self.scroll
+        dy = 0
         card = I._rgb(C.CARD)
 
         def body(w, h, border, alpha=CARD_ALPHA):
@@ -270,12 +270,14 @@ class DashboardView(tk.Canvas):
             img.alpha_composite(inner, (1, 1))
             return img
 
+        tgt = [layer]
+
         def place(img, x, y):
             x, y = int(round(x)), int(round(y))
             sx0, sy0 = max(0, -x), max(0, -y)
             sx1, sy1 = min(img.width, W - x), min(img.height, H - y)
             if sx1 > sx0 and sy1 > sy0:
-                layer.alpha_composite(img.crop((sx0, sy0, sx1, sy1)), (x + sx0, y + sy0))
+                tgt[0].alpha_composite(img.crop((sx0, sy0, sx1, sy1)), (x + sx0, y + sy0))
 
         # widget atas (gaya widget: kartu kecil membulat, isi besar)
         for k, (x0, y0, x1, y1) in enumerate(self._widget_rects()):
@@ -293,8 +295,10 @@ class DashboardView(tk.Canvas):
                     if self.items else [], None, 8, C.BORDER, gap_px=0))
                 if ring is not None:
                     place(ring.convert("RGBA"), x0 + 18, y0 + dy + (h - 60) / 2)
+        cards = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        tgt[0] = cards                   # kartu: lapisan sendiri, lalu dipudarkan di tepi
         for i, (x0, y0, x1, y1) in enumerate(self.rects):
-            if y1 + dy < -40 or y0 + dy > H + 40:
+            if y1 + 40 < self.cards_top or y0 > H + 40:
                 continue
             it = self.items[i]
             lv = _level_color(it["level"])
@@ -330,6 +334,9 @@ class DashboardView(tk.Canvas):
                 dot = Image.new("RGBA", (10, 10), I._rgb(lv) + (0,))
                 dot.putalpha(I.round_mask(10, 10, 5))
                 place(dot, x1 - 22, y0 + dy + 16)
+        a = cards.getchannel("A")
+        cards.putalpha(Image.composite(a, Image.new("L", (W, H), 0), self._fade_mask(W, H)))
+        layer.alpha_composite(cards)
         self._layer = layer
         self.video.layer = layer if self.video.ok() else None
         self._show_static()
@@ -420,6 +427,24 @@ class DashboardView(tk.Canvas):
             return img
         return _cached(("tint", w, h, color, strength), make)
 
+    def _fade(self, y):
+        """0..1: kartu di y terlihat sepenuhnya (1) / memudar / hilang (0)."""
+        H = self._size[1]
+        t0 = self.cards_top
+        if y < t0:
+            return 0.0
+        return max(0.0, min(1.0, (y - t0) / FADE_TOP, (H - y) / FADE_BOTTOM))
+
+    def _fade_mask(self, W, H):
+        t0 = int(self.cards_top)
+
+        def make():
+            Image = photos.Image
+            col = Image.new("L", (1, H))
+            col.putdata([int(255 * self._fade(y + 0.5)) for y in range(H)])
+            return col.resize((W, H))
+        return _cached(("fade", W, H, t0), make)
+
     def _btn_size(self, it):
         text = it["action"] + "  →"
         return int(self.f["btn"].measure(text) + 30), 30
@@ -442,7 +467,7 @@ class DashboardView(tk.Canvas):
     def _draw_text(self):
         self.delete("txt")
         W, H = self._size
-        dy = -self.scroll
+        dy = 0                              # widget & sapaan terkunci (tidak ikut gulir)
         name = (self.user or {}).get("name", "")
         rects = self._widget_rects()
         gy = (rects[0][3] + 40 + self.shift * 0.35) if rects else 40 + self.shift * 0.5
@@ -459,13 +484,32 @@ class DashboardView(tk.Canvas):
         self._draw_widgets(rects, dy)
         if self.items is None:
             return
-        shown = [r for r in self.rects if r[1] > -1000]
-        if shown and (getattr(self, "_more", 0) or getattr(self, "row0", 0)):
-            yb = max(r[3] for r in shown) + 8
-            hint = (f"Gulir ke bawah untuk {self._more} kartu lainnya  ↓" if self._more
-                    else "Gulir ke atas untuk kartu sebelumnya  ↑")
-            self.create_text(W / 2, yb, anchor="n", tags="txt", font=self.f["small"],
-                             fill=C.MUTED, text=hint)
+        self._draw_cards_text(W, H)
+        self._fade_text()
+
+    def _fade_text(self):
+        """Teks kartu di tepi area gulir: warnanya dicampur ke latar (ikut memudar)."""
+        for item in self.find_withtag("ct"):
+            box = self.bbox(item)
+            if not box:
+                continue
+            f = self._fade((box[1] + box[3]) / 2)
+            if f < 0.06:
+                self.itemconfigure(item, state="hidden")
+                continue
+            base = self._ct_color.get(item)
+            if base is None:
+                base = self.itemcget(item, "fill")
+                if not base.startswith("#"):          # nama warna ("white") -> #rrggbb
+                    r, g, b = self.winfo_rgb(base)
+                    base = "#%02x%02x%02x" % (r >> 8, g >> 8, b >> 8)
+                self._ct_color[item] = base
+            self.itemconfigure(item, state="normal",
+                               fill=base if f >= 0.99 else _mix(C.BG, base, f))
+
+    def _draw_cards_text(self, W, H):
+        self._ct_color = {}
+        dy = 0
         if not self.items:
             self.create_text(PAD, TOP_H + dy, anchor="nw", tags="txt", font=self.f["sub"],
                              fill=C.MUTED, text="Belum ada yang bisa ditampilkan.")
@@ -478,29 +522,29 @@ class DashboardView(tk.Canvas):
             tx = x0 + 20 + ICON + 14
             right = x1 - 20 - (16 if it["level"] == "urgent" else 0)
             done = it["level"] == "done"
-            self.create_text(tx, y0 + 22 + dy, anchor="nw", tags="txt", font=self.f["tag"],
+            self.create_text(tx, y0 + 22 + dy, anchor="nw", tags=("txt", "ct"), font=self.f["tag"],
                              fill=lv, text=it["tag"])
             if it.get("when"):
                 tw = self.f["tag"].measure(it["tag"])
-                self.create_text(tx + tw + 8, y0 + 22 + dy, anchor="nw", tags="txt",
+                self.create_text(tx + tw + 8, y0 + 22 + dy, anchor="nw", tags=("txt", "ct"),
                                  font=self.f["when"], fill=C.MUTED, text=f"·  {it['when']}")
             title = self._wrap(self.f["title"], it["title"], right - tx, 2)
-            self.create_text(tx, y0 + 40 + dy, anchor="nw", tags="txt", font=self.f["title"],
+            self.create_text(tx, y0 + 40 + dy, anchor="nw", tags=("txt", "ct"), font=self.f["title"],
                              fill=C.MUTED if done else C.TEXT, text="\n".join(title))
             by = y0 + 40 + len(title) * (self.f["title"].metrics("linespace")) + 6
             bw, bh = self._btn_size(it)
             body = self._wrap(self.f["body"], it["body"], x1 - 20 - tx,
                               2 if by + 2 * 16 < y1 - 16 - bh - 4 else 1)
-            self.create_text(tx, by + dy, anchor="nw", tags="txt", font=self.f["body"],
+            self.create_text(tx, by + dy, anchor="nw", tags=("txt", "ct"), font=self.f["body"],
                              fill=C.MUTED, text="\n".join(body))
             # label tombol
             bx = x1 - 18 - bw
             byy = y1 - 16 - bh
             fg = "white" if it["level"] in ("urgent", "todo") else C.TEXT
-            self.create_text(bx + bw / 2, byy + bh / 2 + dy, tags="txt", font=self.f["btn"],
+            self.create_text(bx + bw / 2, byy + bh / 2 + dy, tags=("txt", "ct"), font=self.f["btn"],
                              fill=fg, text=it["action"] + "  →")
             if done:
-                self.create_text(tx, byy + bh / 2 + dy, anchor="w", tags="txt",
+                self.create_text(tx, byy + bh / 2 + dy, anchor="w", tags=("txt", "ct"),
                                  font=self.f["btn"], fill=C.ON, text="✓  Beres")
 
     @staticmethod
@@ -510,7 +554,8 @@ class DashboardView(tk.Canvas):
 
     # --- interaksi ---------------------------------------------------------------------------
     def _index_at(self, x, y):
-        y += self.scroll
+        if self._fade(y) < 0.5:          # di atas batas / di area pudar bawah: tidak aktif
+            return None
         for i, (x0, y0, x1, y1) in enumerate(self.rects):
             if x0 <= x < x1 and y0 <= y < y1:
                 return i
@@ -539,7 +584,9 @@ class DashboardView(tk.Canvas):
             return photos.to_photoimage(img)
         self._hover_photo = _cached(("ring", w, h, color), ring)
         self.itemconfigure(self._hover_item, image=self._hover_photo, state="normal")
-        self.coords(self._hover_item, int(round(x0)), int(round(y0 - self.scroll)))
+        if self._fade(y0) < 0.99 or self._fade(y1) < 0.99:   # bingkai tidak ikut memudar:
+            self.itemconfigure(self._hover_item, state="hidden")   # hanya kartu yang utuh
+        self.coords(self._hover_item, int(round(x0)), int(round(y0)))
 
     def _motion(self, e):
         self._set_hover(self._index_at(e.x, e.y))
@@ -550,12 +597,12 @@ class DashboardView(tk.Canvas):
             self.on_action(self.items[i]["target"])
 
     def _wheel(self, e):
-        """Roda mouse: kartu bergeser per baris (tanpa scrollbar); widget & sapaan diam."""
-        step = -1 if e.delta > 0 else 1
-        old = getattr(self, "row0", 0)
-        self.row0 = max(0, old + step)
-        self._layout()                  # dibatasi otomatis (baris terakhir tetap terlihat)
-        if self.row0 != old:
+        """Roda mouse: area kartu digulir atas-bawah (tanpa scrollbar); widget & sapaan diam.
+        Kartu memudar di batas atas area dan di bawah layar."""
+        old = self.card_scroll
+        self.card_scroll = max(0, old - int(e.delta / 120 * 80))
+        self._layout()                  # dibatasi otomatis
+        if self.card_scroll != old:
             self._motion(e)
 
     # --- video ------------------------------------------------------------------------------
