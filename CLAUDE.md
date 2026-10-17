@@ -197,7 +197,13 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   fitur on/off (app_settings.FEATURES: intro, badges, certificate, floating, mini_player,
   palette, fps60; cek dengan app_settings.feature). Fitur baru yang bisa dimatikan: tambahkan
   ke FEATURES + cek feature() di kodenya. Tab Setting di Panel Admin sudah dihapus.
-- Tab Login: 3 kolom (Jenis | ID | Nama, huruf Consolas), filter jenis; urutan utama selalu admin, guru, trial, dewasa, SUPERKIDS, lalu Nama / ID.
+- Tab Login: tabel di SATU kanvas, 4 kolom (Jenis | ID | Nama | PIN, Consolas; x dari lebar
+  huruf "0"), filter jenis; urutan utama selalu admin, guru, trial, dewasa, SUPERKIDS, lalu
+  Nama / ID. PIN tampil **** (titik), kursor di atas baris = PIN terlihat. Klik 2x sel = ubah
+  di tempat (Entry di kanvas; Enter / pindah fokus = simpan, Esc = batal, salah = tetap
+  terbuka + pesan): Jenis murid (menu Dewasa / SUPERKIDS), ID murid (change_id), Nama semua,
+  PIN guru / admin. Trial tidak bisa diubah. Masuk = tombol / Enter (bukan klik 2x lagi).
+  _student_changed: murid yang sedang login ikut diperbarui + rebuild_screen.
   "Edit murid" (StudentEditor): nama, ID, kategori, status, tgl lahir, kursus buka/tampil.
   "Edit PIN" (PinEditor) untuk guru & admin: guru lewat teachers.update_teacher; admin lewat
   admins.set_pin -> data\admin_pins.json (menimpa PIN di admins.ADMINS; check_admin memakai get_pin).
