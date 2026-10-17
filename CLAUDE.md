@@ -178,3 +178,11 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   file khusus murid (lesson_view, lesson_extras, course_dock, file_browser, mini_player,
   halaman sertifikat) langsung English. Badge punya name_en/desc_en, kursus desc_en
   (courses.visible_for). Fitur murid baru wajib English.
+
+## Panel Admin > Setting; carousel login 3 baris
+- elearning/app_settings.py: pengaturan admin di data\app_settings.json (BUKAN data\settings.json,
+  itu milik blender_launcher). ui/settings_panel.py: tab Setting (kartu + switch, simpan langsung).
+- login_carousel_rows3 (default OFF): carousel login + pita kartu kecil DATAR di atas & bawah,
+  bergerak berlawanan arah, total 30 portfolio (10 per baris). Pita = strip kartu yang digeser
+  crop per piksel (bukan kartu silinder: dulu 60+ transform/frame, terlalu berat).
+  Ukur: 1080p 30 fps, 1440p 15 fps (1 baris: 20), PC 4 thread 1366x768 30 fps.

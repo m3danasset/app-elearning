@@ -34,7 +34,8 @@ KEYWORDS = {"expired": ("status", "expired"), "active": ("status", "active"),
             "dewasa": ("program", "adult")}
 
 TAB_TITLE = {"students": "Murid", "teachers": "Guru", "reports": "Laporan Guru",
-             "analytics": "Analytics", "schedule": "Jadwal", "certificates": "Sertifikat"}
+             "analytics": "Analytics", "schedule": "Jadwal", "certificates": "Sertifikat",
+             "settings": "Setting"}
 
 
 class AdminScreen(SidebarLayout):
@@ -121,6 +122,7 @@ class AdminScreen(SidebarLayout):
         self.analytics = None
         self.schedule_board = None
         self.cert_board = None
+        self.settings_panel = None
         self._shown = None
 
         # Tombol di kepala halaman dibuat sekali; teks/fungsinya saja yang diganti per menu
@@ -142,7 +144,8 @@ class AdminScreen(SidebarLayout):
             waiting = 0
         for key, icon in (("analytics", "activity"), ("students", "users"),
                           ("teachers", "teacher"), ("reports", "report"),
-                          ("schedule", "clock"), ("certificates", "check")):
+                          ("schedule", "clock"), ("certificates", "check"),
+                          ("settings", "panel")):
             sb.nav(TAB_TITLE[key], icon, lambda k=key: self._set_tab(k),
                    active=self.tab == key,
                    right=str(waiting) if key == "certificates" and waiting else None)
@@ -412,7 +415,7 @@ class AdminScreen(SidebarLayout):
                 self.add_btn.pack(side="right", padx=(8, 0), after=self.export_btn)
         else:
             self.add_btn.pack_forget()
-        if self.tab == "analytics":   # halaman grafik: tanpa ringkasan & filter laporan
+        if self.tab in ("analytics", "settings"):   # tanpa ringkasan & filter laporan
             self.summary.pack_forget()
             self.rbar.pack_forget()
         else:
@@ -443,12 +446,16 @@ class AdminScreen(SidebarLayout):
         if self.tab == "analytics" and self.analytics is None:
             self.analytics = AnalyticsPanel(self.scroll.inner, self._an_state,
                                             on_open=self._open_person)
+        if self.tab == "settings" and self.settings_panel is None:
+            from elearning.ui.settings_panel import SettingsPanel
+            self.settings_panel = SettingsPanel(self.scroll.inner)
         if self.tab == "certificates" and self.cert_board is None:
             from elearning.ui.certificate_view import CertificateBoard
             self.cert_board = CertificateBoard(self.scroll.inner, by=self.admin_id)
         want = {"students": self.people_board, "teachers": self.people_board,
                 "reports": self.reports_board, "analytics": self.analytics,
-                "schedule": self.schedule_board, "certificates": self.cert_board}[self.tab]
+                "schedule": self.schedule_board, "certificates": self.cert_board,
+                "settings": self.settings_panel}[self.tab]
         if self._shown is not want:
             if self._shown is not None:
                 self._shown.pack_forget()
@@ -554,7 +561,7 @@ class AdminScreen(SidebarLayout):
         if self._after is not None:
             self.after_cancel(self._after)
         self._refresh_sidebar()   # daftar "Sedang online" ikut diperbarui
-        if self.tab == "analytics":   # dihitung ulang hanya saat dibuka / Muat ulang
+        if self.tab in ("analytics", "settings"):   # dihitung ulang hanya saat dibuka
             return
         if self.tab == "reports":
             self._refresh_reports()
