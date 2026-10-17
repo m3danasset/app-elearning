@@ -55,13 +55,16 @@ class LoginScreen(tk.Frame):
         self.bgv.place(x=0, y=0, relwidth=1, relheight=1)
         cv = self.bgv
         self._t_brand = cv.create_text(0, 0, text="", fill=TEXT, anchor="center")
+        # bayangan lembut di bawah teks ID & PIN (gambar RGBA, dibuat sebelum teksnya)
+        self._sh = {}
+        for name in ("value", "pin", "msg"):
+            self._sh[name] = {"item": cv.create_image(0, 0, anchor="center"), "key": None,
+                              "img": None}
         self._t_value = cv.create_text(0, 0, text="", fill=MUTED, anchor="center")
         self._t_pin = cv.create_text(0, 0, text="", fill=MUTED, anchor="center")
         self._t_caret = cv.create_line(0, 0, 0, 0, fill=TEXT, width=2)
-        # bayangan lembut di bawah pesan (gambar RGBA, di bawah teks) + teks pesan
-        self._t_msg_sh = cv.create_image(0, 0, anchor="center")
+        self._t_msg_sh = self._sh["msg"]["item"]
         self._t_msg = cv.create_text(0, 0, text="", fill=MUTED, anchor="n", justify="center")
-        self._msg_sh_key = None
 
         self.carousel = Carousel3D(cv)
         self.carousel.start()
@@ -149,6 +152,8 @@ class LoginScreen(tk.Frame):
         self.carousel.configure(W, H, cy, ch, overlays, extra)
         self._refresh()
         cv.tag_raise(self._t_brand)
+        cv.tag_raise(self._sh["value"]["item"])
+        cv.tag_raise(self._sh["pin"]["item"])
         cv.tag_raise(self._t_value)
         cv.tag_raise(self._t_pin)
         cv.tag_raise(self._t_caret)
@@ -215,22 +220,25 @@ class LoginScreen(tk.Frame):
         self._place_caret()
 
     def _msg_shadow(self):
-        """Bayangan lembut (kapsul gelap ter-blur, sedikit turun) di bawah teks pesan, supaya
-        pesan terbaca di atas carousel / video. Dibuat ulang hanya kalau teks / ukuran berubah."""
+        """Bayangan lembut (kapsul gelap ter-blur, sedikit turun) di bawah teks pesan, ID, dan
+        PIN, supaya terbaca di atas carousel / video. Dibuat ulang hanya kalau ukurannya berubah."""
+        for name, item in (("msg", self._t_msg), ("value", self._t_value), ("pin", self._t_pin)):
+            self._shadow_for(self._sh[name], item)
+
+    def _shadow_for(self, sh, text_item):
         cv = self.bgv
-        bbox = cv.bbox(self._t_msg) if self.message else None
+        bbox = cv.bbox(text_item) if cv.itemcget(text_item, "text") else None
         if not bbox:
-            cv.itemconfigure(self._t_msg_sh, image="")
-            self._msg_sh_key = None
+            cv.itemconfigure(sh["item"], image="")
+            sh["key"] = None
             return
         x0, y0, x1, y1 = bbox
         w, h = x1 - x0, y1 - y0
-        key = (w, h)
-        if key != self._msg_sh_key:
-            self._msg_sh_key = key
-            self._msg_sh_img = _text_shadow(w, h)
-        cv.itemconfigure(self._t_msg_sh, image=self._msg_sh_img or "")
-        cv.coords(self._t_msg_sh, (x0 + x1) / 2, (y0 + y1) / 2 + max(2, h // 10))
+        if (w, h) != sh["key"]:
+            sh["key"] = (w, h)
+            sh["img"] = _text_shadow(w, h)
+        cv.itemconfigure(sh["item"], image=sh["img"] or "")
+        cv.coords(sh["item"], (x0 + x1) / 2, (y0 + y1) / 2 + max(2, h // 10))
 
     def _place_caret(self):
         cv = self.bgv
@@ -468,7 +476,7 @@ def _text_shadow(w, h):
         pad = blur * 2
         W, H = w + 2 * pad, h + 2 * pad
         a = Image.new("L", (W, H), 0)
-        a.paste(185, (pad - 4, pad + 2, pad + w + 4, pad + h - 2))
+        a.paste(130, (pad - 4, pad + 2, pad + w + 4, pad + h - 2))   # ~30% lebih tipis dari 185
         small = a.resize((max(1, W // blur), max(1, H // blur)), Image.BILINEAR)
         a = small.resize((W, H), Image.BICUBIC)
         out = Image.new("RGBA", (W, H), (0, 0, 0, 0))
