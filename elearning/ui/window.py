@@ -149,6 +149,8 @@ class App(tk.Tk):
         from elearning.ui.dialogs import MiniConfirm
         self._confirming = True
         try:
+            from elearning.ui.play_overlay import PlayOverlay
+            PlayOverlay.hide_all()     # tombol putar/jeda (topmost) jangan di atas popup
             dlg = MiniConfirm(self, question, confirm_text=confirm_text)
             dlg.wait_window()
             ok = dlg.result

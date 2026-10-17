@@ -1034,9 +1034,9 @@ class LessonPlayer(tk.Frame):
         e = self.engine
         if e is None or not e.has_audio or not self.has_video:
             return
-        menu = tk.Menu(self, tearoff=0, bg=C.CARD, fg=C.TEXT, activebackground=C.ACCENT,
+        menu = tk.Menu(self, tearoff=0, bg=C.CARD, fg=C.TEXT, activebackground=self.color,
                        activeforeground="#ffffff", bd=0, relief="flat",
-                       selectcolor=C.ACCENT, font=(C.FONT, 10))
+                       selectcolor=self.color, font=(C.FONT, 10))
         opts = e.sub_options()
         current = next((o["id"] for o in opts if o["selected"]), 0) if e.sub_active() else 0
         var = tk.IntVar(value=current or 0)
@@ -1104,7 +1104,8 @@ class LessonPlayer(tk.Frame):
     def _draw_button(self):
         b = self.btn
         b.delete("all")
-        col = C.ACCENT_HOVER if (self._btn_hover and self.has_video) else (
+        # hover = warna kursus (sama dengan garis waktu, CC, subtitle naik), bukan oranye
+        col = self.color if (self._btn_hover and self.has_video) else (
             C.TEXT if self.has_video else C.LOCKED)
         if self.playing:
             ph = _icon(("pl-pause", col), [(AA.bars([(11, 9, 16, 27), (21, 9, 26, 27)], 1.0), col)], 36, 36)

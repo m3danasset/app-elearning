@@ -40,8 +40,11 @@ def no_activate(win):
 
 
 class PlayOverlay(tk.Toplevel):
+    _live = []
+
     def __init__(self, master, on_click, size=72):
         super().__init__(master)
+        PlayOverlay._live.append(self)
         self.size = size
         self.playing = False
         self.shown = False
@@ -100,8 +103,30 @@ class PlayOverlay(tk.Toplevel):
         self.hide()
         self._block = time.time() + SETTLE
 
+    @staticmethod
+    def hide_all():
+        """Popup konfirmasi / dialog dibuka: semua tombol putar/jeda disembunyikan (jendela
+        topmost, kalau tidak akan tampil DI ATAS popup)."""
+        for ov in list(PlayOverlay._live):
+            try:
+                ov.hide()
+            except tk.TclError:
+                pass
+
+    def _blocked_by_dialog(self):
+        """True selama popup konfirmasi (App._confirming) atau dialog modal (grab) terbuka."""
+        try:
+            if getattr(self._root(), "_confirming", False):
+                return True
+            g = self.grab_current()
+            return g is not None and g.winfo_toplevel() is not self.master.winfo_toplevel()
+        except (tk.TclError, KeyError):
+            return False
+
     def sync(self, want, cx, cy):
         """Tampilkan di tengah (cx, cy) kalau want; kalau tidak, sembunyikan."""
+        if want and self._blocked_by_dialog():
+            want = False
         if not want:
             self.hide()
             return
@@ -119,3 +144,8 @@ class PlayOverlay(tk.Toplevel):
             self.attributes("-topmost", True)
             self.lift()
             self.shown = True
+
+    def destroy(self):
+        if self in PlayOverlay._live:
+            PlayOverlay._live.remove(self)
+        super().destroy()
