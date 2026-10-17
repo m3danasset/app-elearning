@@ -40,6 +40,15 @@ def _mix(a, b, t):
     return "#%02x%02x%02x" % tuple(int(round(ca[i] + (cb[i] - ca[i]) * t)) for i in range(3))
 
 
+def _saturate(color, k=1.7, lift=1.12):
+    """Versi warna yang lebih 'menyala' (saturasi naik): sel murid yang hadir di jadwalnya."""
+    import colorsys
+    r, g, b = (v / 255 for v in I._rgb(color))
+    h, l, sat = colorsys.rgb_to_hls(r, g, b)
+    r, g, b = colorsys.hls_to_rgb(h, min(0.62, l * lift), min(1.0, sat * k))
+    return "#%02x%02x%02x" % tuple(int(round(v * 255)) for v in (r, g, b))
+
+
 def _fit(font, text, avail):
     if font.measure(text) <= avail:
         return text
@@ -58,6 +67,7 @@ class ScheduleBoard(tk.Canvas):
         self.hover = None          # ("slot", id) / ("cell", day, hour)
         self._slot_items = {}
         self._cells = {}
+        self._present = {}         # cache kehadiran: (tanggal, menit) -> {(id murid, id jadwal)}
         self.boxes = []            # (x0, y0, x1, y1, slot)
         self._imgs = []
         self._width = 0
@@ -361,6 +371,39 @@ class ScheduleBoard(tk.Canvas):
             return "IC", "#4f6f9a"
         return "PB", PROGRAM_COLOR["adult"]
 
+    def _attended(self, day):
+        """{(id murid, id jadwal)} yang HADIR di jadwalnya pada tanggal `day`: login min.
+        PRESENT_MIN menit di jam jadwal (boleh EARLY_MIN menit lebih awal), sama dengan
+        Analytics. Jadwal yang sedang berjalan ikut dihitung (sudah login cukup lama)."""
+        now = datetime.now()
+        if day > now.date():
+            return set()
+        key = (day, now.hour * 60 + now.minute)
+        hit = self._present.get(key)
+        if hit is not None:
+            return hit
+        out = set()
+        try:
+            from elearning import analytics as AN
+            d0 = datetime(day.year, day.month, day.day)
+            by_sid = {}
+            for sid, a, b in AN._sessions(day):
+                if b > d0 and a < d0 + timedelta(days=1):
+                    by_sid.setdefault(sid, []).append((a, b))
+            for sl in self.slots:
+                if sl["day"] != day.weekday():
+                    continue
+                o0 = d0 + timedelta(minutes=SCH.to_min(sl["start"]))
+                o1 = d0 + timedelta(minutes=SCH.to_min(sl["end"]))
+                for sid in sl["students"]:
+                    if any(AN._overlap(a, b, o0 - timedelta(minutes=AN.EARLY_MIN), o1)
+                           >= AN.PRESENT_MIN * 60 for a, b in by_sid.get(sid, ())):
+                        out.add((sid, sl["id"]))
+        except Exception as exc:
+            C.log(f"Jadwal: kehadiran tidak bisa dihitung: {exc!r}")
+        self._present = {key: out}
+        return out
+
     def _session_rows(self, day):
         """{(baris, jam): (id murid, jadwal)} + {jam: jumlah yang tidak muat}.
         Murid yang sama di jam berurutan tetap di baris yang sama (mudah dibaca)."""
@@ -399,6 +442,7 @@ class ScheduleBoard(tk.Canvas):
             self.configure(height=want)
         cells, over = self._session_rows(day)
         self._cells = {k: v[1] for k, v in cells.items()}
+        present = self._attended(self.anchor)
         self.grid_cells = []
         now = datetime.now()
         is_today = self.anchor == date.today()
@@ -430,6 +474,8 @@ class ScheduleBoard(tk.Canvas):
             w, hh = int(cw - 6), SLOT_H - 6
             label, base = self._label(sid)
             base = SCH.COLOR_HEX.get(sl.get("color")) or base      # warna pilihan admin
+            if (sid, sl["id"]) in present:      # murid hadir di jadwal ini: warna menyala
+                base = _saturate(base)
             # Sesi: hanya SATU sel yang disorot (sel di bawah kursor), bukan semua murid jadwal itu
             hover = self.hover == ("slot", sl["id"], r, h) and self.on_edit is not None
             match = self._matches(sl)
@@ -449,7 +495,7 @@ class ScheduleBoard(tk.Canvas):
                              text=_fit(self.f["body"], f"{label} {name}", w - 12))
             self.boxes.append((bx, by, bx + w, by + hh, sl))
         self._draw_cell_hover()
-        legend = "SK = SUPERKIDS   ·   PB = basic   ·   IC = intermediate   ·   " \
+        legend = "SK = SUPERKIDS   ·   PB = basic   ·   IC = intermediate   ·   warna menyala = hadir   ·   " \
                  "klik nama = ubah jadwal, klik kotak kosong = tambah"
         self.create_text(x0, bottom + 18, text=legend, anchor="w", font=self.f["hour"],
                          fill=C.LOCKED)
