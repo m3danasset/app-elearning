@@ -517,7 +517,7 @@ class ScheduleBoard(tk.Canvas):
             return
         if key[0] == "tool":
             name = key[1]
-            if name in ("day", "week"):
+            if name in ("day", "week", "slots"):
                 self.set_mode(name)
             elif name == "prev":
                 self.shift(-1)
