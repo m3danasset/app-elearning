@@ -76,8 +76,9 @@ HOME_VIDEO_OPACITY = 0.22  # video latar halaman utama murid (assets\\video\\hom
 # File browser murid (upload Portfolio / Assignment): murid HANYA bisa membuka drive ini
 # (penyimpanan lokal murid) dan flashdisk yang tercolok. Ganti kalau huruf drive berbeda.
 STUDENT_DRIVE = "Z:\\"
-# Drive yang TIDAK BOLEH dibuka / ditulisi murid lewat aplikasi (B: = sistem e-learning).
-BLOCKED_DRIVES = ("B:",)
+# Drive yang TIDAK BOLEH dibuka / ditulisi murid lewat aplikasi (B: = sistem e-learning,
+# C: = Windows).
+BLOCKED_DRIVES = ("B:", "C:")
 LESSON_DIR = os.path.join(APP_DIR, "assets", "lessons")
 LOG_PATH = os.path.join(APP_DIR, "app.log")
 

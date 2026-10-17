@@ -51,6 +51,9 @@ def _start_folder():
         pass
     if drives:
         return drives[0]
+    z = getattr(C, "STUDENT_DRIVE", "")
+    if z and os.path.isdir(z):   # bukan folder profil di C: (drive Windows, diblok)
+        return z
     return os.path.expanduser("~")
 
 
@@ -92,7 +95,7 @@ def save_items(widget, items, on_done, subfolder=""):
         return
     from elearning.ui.file_browser import blocked
     if blocked(folder):   # B: = sistem e-learning: murid tidak boleh menyimpan ke sana
-        on_done("Tidak boleh menyimpan ke drive sistem. Pilih flashdisk atau drive Z:.", False)
+        on_done("Tidak boleh menyimpan ke drive sistem (B: / C:). Pilih flashdisk atau drive Z:.", False)
         return
     if subfolder:
         folder = os.path.join(folder, "".join(ch for ch in subfolder if ch not in '\\/:*?"<>|'))
