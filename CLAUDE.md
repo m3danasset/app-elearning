@@ -121,3 +121,9 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   hanya tampilan Hari, panah + Hari ini, hanya lihat (tidak bisa tambah/ubah), nama murid
   + umur, diperbarui tiap 60 detik.
 
+
+## Impor murid dari sheet jadwal Oktober 2026
+- elearning/student_import.py: daftar murid PB / IC / SK dari sheet (label lain tidak).
+  IC = intermediate = murid dewasa (ID PB...). Jalan otomatis sekali saat admin login
+  (penanda data\import_oktober2026.done), bisa diulang dari Ctrl+K admin; nama + kategori
+  yang sudah ada dilewati. Kursus awal dibuka: PB BASIC 1, IC INTERMEDIATE 1, SK SUPERKIDS 1.

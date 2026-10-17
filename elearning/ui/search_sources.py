@@ -159,6 +159,8 @@ def admin_sources(screen):
         {"title": "Tambah murid", "icon": "plus", "action": screen._add_student},
         {"title": "Tambah guru", "icon": "plus", "action": screen._add_teacher_from_nav},
         {"title": "Export Excel", "icon": "download", "action": screen._export},
+        {"title": "Impor murid sheet Oktober 2026", "icon": "users",
+         "sub": "PB, IC, SK (yang sudah ada dilewati)", "action": screen.import_students},
         {"title": "Muat ulang", "icon": "refresh", "action": screen._reload},
         {"title": "Keluar", "icon": "logout", "action": app.logout},
     ]

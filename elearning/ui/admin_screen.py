@@ -129,6 +129,7 @@ class AdminScreen(SidebarLayout):
 
         self._layout_tab()
         self.refresh()
+        self.after(400, self._auto_import)   # impor murid dari sheet (sekali saja)
 
     # --- sidebar -------------------------------------------------------------------
     def _populate(self, sb):
@@ -308,6 +309,31 @@ class AdminScreen(SidebarLayout):
         self.summary.config(
             text=f"Murid {created['id']} ({created['name']}) ditambahkan. Semua kursusnya "
                  "masih terkunci: guru membukanya di menu Murid & Kursus.", fg=C.ON)
+
+    def _auto_import(self):
+        try:
+            from elearning import student_import
+            result = student_import.run_once()
+        except Exception as exc:
+            C.log(f"Impor murid gagal: {exc!r}")
+            return
+        if result is not None:
+            self._import_done(result)
+
+    def import_students(self):
+        """Ctrl+K: impor ulang (aman: murid yang sudah ada tidak ditambah lagi)."""
+        from elearning import student_import
+        self._import_done(student_import.import_roster())
+
+    def _import_done(self, result):
+        from elearning import student_import
+        self._after_change()
+        try:
+            self.tk.call("tk_messageBox", "-parent", str(self.winfo_toplevel()),
+                         "-title", "Impor murid", "-message", student_import.summary_text(result),
+                         "-type", "ok", "-icon", "info")
+        except Exception as exc:
+            C.log(f"Pesan impor murid gagal: {exc!r}")
 
     def _edit_birth(self, person):
         """Admin mengisi / mengubah tanggal lahir murid (guru hanya melihat umurnya)."""
