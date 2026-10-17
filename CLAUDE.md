@@ -263,3 +263,7 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   minat kelas (INTERESTS), tabel menunggu persetujuan. analytics.signup_stats (di thread).
 - ui/chart_art.py: area melengkung (Hermite monoton, gradasi) & donut, numpy float32, anti-
   alias, TANPA ImageDraw; cache PhotoImage di AnalyticsBoard._art (area 700x230 ~12 ms sekali).
+- Seluruh halaman Analytics bergaya dashboard: kartu angka Lengkap ada progress bar (murid
+  aktif, kehadiran) atau sparkline (jam belajar, portfolio, assignment, badge); Jam belajar =
+  grafik area (lengkap & ringkas). Urutan Lengkap: kartu, Jam belajar, "Pendaftar dari trial",
+  lalu judul "Aktivitas kelas" (jam ramai, upload, kehadiran, badge, kursus, guru, murid).

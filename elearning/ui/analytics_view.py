@@ -136,41 +136,59 @@ class AnalyticsBoard(tk.Canvas):
         att_note = (prev if k.get("attendance_delta") is not None else f"{h}/{n} hadir") \
             if att is not None else ("belum ada jadwal" if not k.get("slots")
                                      else "belum ada jadwal selesai")
+        pf = d["portfolio"]
+        uploads = [a + b for a, b in zip(pf["images"], pf["videos"])]
+        total = k["active"] + k["expired"]
+        # (label, nilai, catatan, selisih, satuan selisih, visual)
+        # visual: ("bar", 0..1, warna) progress bar | ("spark", nilai per periode, warna)
         items = (
             ("Murid aktif", str(k["active"]), f"{k['expired']} expired  ·  "
-                                              f"{k.get('unscheduled', 0)} tanpa jadwal", None),
+                                              f"{k.get('unscheduled', 0)} tanpa jadwal", None,
+             "%", ("bar", k["active"] / total if total else 0, GREEN)),
             ("Jam belajar", A.fmt_hours(k["seconds"]),
-             prev if k["seconds_delta"] is not None else span, k["seconds_delta"]),
+             prev if k["seconds_delta"] is not None else span, k["seconds_delta"], "%",
+             ("spark", d["hours"]["values"], C.ACCENT)),
             ("Kehadiran jadwal", "–" if att is None else f"{_num(att, 0)}%", att_note,
-             k.get("attendance_delta"), "pt"),
+             k.get("attendance_delta"), " poin", ("bar", (att or 0) / 100.0, C.ACCENT)),
             ("Portfolio masuk", f"{k['uploads']} file",
-             prev if k["uploads_delta"] is not None else span, k["uploads_delta"]),
+             prev if k["uploads_delta"] is not None else span, k["uploads_delta"], "%",
+             ("spark", uploads, BLUE)),
             ("Assignment masuk", f"{k.get('assignments', 0)} file",
              prev if k.get("assignments_delta") is not None else span,
-             k.get("assignments_delta")),
+             k.get("assignments_delta"), "%", ("spark", pf.get("assignments", []), GREEN)),
             ("Badge didapat", str(k.get("badges", 0)),
-             prev if k.get("badges_delta") is not None else span, k.get("badges_delta")),
+             prev if k.get("badges_delta") is not None else span, k.get("badges_delta"), "%",
+             ("spark", k.get("badge_series", []), PURPLE)),
         )
         gap = 8 if compact else GAP
         tw = (w - (len(items) - 1) * gap) / len(items)
-        th = 84 if compact else 108
-        for i, item in enumerate(items):
-            label, value, note, delta = item[:4]
-            pct = "%" if len(item) < 5 else " poin"    # kehadiran: selisih poin persen
+        th = 84 if compact else 132
+        for i, (label, value, note, delta, unit, viz) in enumerate(items):
             tx = x + i * (tw + gap)
             cx, cy, cw = self._card(tx, y, tw, th, compact=compact)
             self._text(cx, cy, label, "label", C.MUTED)
             self._text(cx, cy + 16, value, "mid" if compact else "big", width=cw)
-            ny = cy + (40 if compact else 52)
-            nx = cx
-            if delta is not None:
-                up = delta >= 0
-                arrow = "▲" if up else "▼"
-                t = self._text(nx, ny, f"{arrow} {_num(abs(delta), 0)}{pct}", "dbold",
-                               GREEN if up else RED)
-                nx = self.bbox(t)[2] + 6
-            self._text(nx, ny, note, "label", C.MUTED, width=max(10, cx + cw - nx))
+            if compact:
+                self._delta(cx, cy + 40, delta, note, cx + cw, unit)
+                continue
+            if viz is not None and viz[0] == "bar":
+                self._progress(cx, cy + 62, cw, viz[1], viz[2])
+            elif viz is not None:
+                self._sparkline(cx, cy + 50, int(cw), 24, viz[1], viz[2])
+            self._delta(cx, cy + 82, delta, note, cx + cw, unit)
         return y + th, span
+
+    def _sparkline(self, x, y, w, h, values, color):
+        """Gelombang kecil di kartu angka (tanpa sumbu). Kosong: garis datar tipis."""
+        from elearning.ui import chart_art as CA
+        values = [float(v) for v in values]
+        if not values or max(values) <= 0:
+            self._img(I.pill(int(w), 2, C.SIDEBAR_ACTIVE, C.CARD, r=1), x, y + h - 2)
+            return
+        top = max(values) * 1.1
+        key = ("spark", int(w), int(h), color, tuple(round(v, 3) for v in values))
+        self._img(self._art_img(key, lambda: CA.area(int(w), int(h), [(values, color)], C.CARD,
+                                                     top, line_w=1.6, top_margin=2)), x, y)
 
     # --- grafik halus (chart_art: numpy, anti-alias) ---------------------------------------
     def _art_img(self, key, make):
@@ -207,7 +225,7 @@ class AnalyticsBoard(tk.Canvas):
         if note:
             self._text(x, y, note, "label", C.MUTED, width=max(10, right - x))
 
-    def _area_chart(self, x, y, w, h, labels, series, unit=""):
+    def _area_chart(self, x, y, w, h, labels, series, unit="", integer=True):
         """Grafik area melengkung (gradasi) + sumbu + keterangan saat kursor di atasnya."""
         from elearning.ui import chart_art as CA
         vals = [v for _n, values, _c in series for v in values]
@@ -215,18 +233,23 @@ class AnalyticsBoard(tk.Canvas):
             self._text(x + w / 2, y + h / 2, "Belum ada data pada periode ini.", "name",
                        C.MUTED, anchor="center")
             return
-        top = max(4, math.ceil(max(vals) * 1.15 / 4) * 4)
+        if integer:
+            top = max(4, math.ceil(max(vals) * 1.15 / 4) * 4)
+            fmt = lambda v: str(int(round(v)))
+        else:
+            top = max(0.4, _nice_max(max(vals) * 1.1))
+            fmt = _num
         L, B = 34, 22
         x0, x1, y0, y1 = x + L, x + w, y + 6, y + h - B
         pw, ph = int(x1 - x0), int(y1 - y0)
         grid = [ph - 0.5 - (ph - 6) * k / 4 for k in range(5)]
         key = ("area", pw, ph, top, C.ACCENT,
-               tuple((tuple(v), c) for _n, v, c in series))
+               tuple((tuple(round(q, 3) for q in v), c) for _n, v, c in series))
         img = self._art_img(key, lambda: CA.area(pw, ph, [(v, c) for _n, v, c in series],
                                                  C.CARD, top, grid=grid, grid_color=GRID))
         self._img(img, x0, y0)
         for k in range(5):
-            self._text(x0 - 8, y0 + grid[k], str(int(top * k / 4)), "small", C.MUTED,
+            self._text(x0 - 8, y0 + grid[k], fmt(top * k / 4), "small", C.MUTED,
                        anchor="e")
         n = len(labels)
         xs = CA.points_x(pw, n, 0)
@@ -239,7 +262,8 @@ class AnalyticsBoard(tk.Canvas):
             high = max(v[i] for _n, v, _c in series)
             ty = y0 + (ph - 0.5) - (ph - 6) * high / top
             self._tips.append((cx - slot / 2, y0, cx + slot / 2, y1,
-                               [labels[i]] + [f"{nm}: {v[i]}{unit}" for nm, v, _c in series],
+                               [labels[i]] + [f"{nm}: {fmt(v[i])}{unit}"
+                                              for nm, v, _c in series],
                                ty))
 
     def _donut(self, x, y, w, h, parts, total, noun="pendaftar"):
@@ -597,9 +621,13 @@ class AnalyticsBoard(tk.Canvas):
         ch = 300   # Jam belajar (lebar penuh)
         cx, cy, cw = self._card(0, y, W, ch, f"Jam belajar murid per {unit}",
                                 f"{k['learners']} murid belajar  ·  {span}")
-        self._bars(cx, cy, cw, ch - (cy - y) - 16, d["hours"]["labels"],
-                   [("Jam belajar", d["hours"]["values"], C.ACCENT)], " jam")
-        y += ch + GAP
+        self._area_chart(cx, cy, cw, ch - (cy - y) - 16, d["hours"]["labels"],
+                         [("Jam belajar", d["hours"]["values"], C.ACCENT)], " jam",
+                         integer=False)
+        y += ch + GAP + 8
+        y = self._signup_full(d, y, W) + GAP + 8     # Pendaftar dari trial (survey)
+        self._text(0, y + 6, "Aktivitas kelas", "mid")
+        y += 44
         half = (W - GAP) / 2
         h = 292    # Jam ramai | Portfolio
         cx, cy, cw = self._card(0, y, half, h, "Jam ramai kelas",
@@ -642,9 +670,7 @@ class AnalyticsBoard(tk.Canvas):
         cx, cy, cw = self._card(half + GAP, y, half, h, f"{A.TOP_N} murid paling rajin",
                                 d["period_label"])
         self._people(cx, cy, cw, top, "Belum ada murid yang belajar.", 10, False, "tp")
-        y += h + GAP + 8
-        y = self._signup_full(d, y, W)     # Pendaftar dari trial (survey)
-        return y + 4
+        return y + h + 4
 
     # --- susunan Ringkas (3 kolom, muat satu layar) ------------------------------------------
     def _compact(self, d, W):
@@ -655,8 +681,9 @@ class AnalyticsBoard(tk.Canvas):
         y += g
         h = 214
         cx, cy, cw = self._card(0, y, third, h, f"Jam belajar per {unit}", compact=True)
-        self._bars(cx, cy, cw, h - (cy - y) - 12, d["hours"]["labels"],
-                   [("Jam belajar", d["hours"]["values"], C.ACCENT)], " jam")
+        self._area_chart(cx, cy, cw, h - (cy - y) - 12, d["hours"]["labels"],
+                         [("Jam belajar", d["hours"]["values"], C.ACCENT)], " jam",
+                         integer=False)
         cx, cy, cw = self._card(third + g, y, third, h, f"Upload per {unit}", compact=True)
         pf = d["portfolio"]
         self._bars(cx, cy, cw, h - (cy - y) - 12, pf["labels"], self._pf_series(pf),
@@ -664,6 +691,7 @@ class AnalyticsBoard(tk.Canvas):
         cx, cy, cw = self._card(2 * (third + g), y, third, h, "Jam ramai kelas", compact=True)
         self._heat(cx, cy, cw, d["heat"], 16)
         y += h + g
+        y = self._signup_compact(d, y, W) + g      # Pendaftar dari trial (survey)
         teachers, attention, top = self._rows(d)
         h = 40 + 12 + max(self._need(attention, 5, 24), self._need(top, 5, 24),
                           self._need(teachers, 5, 24))
@@ -684,9 +712,7 @@ class AnalyticsBoard(tk.Canvas):
         self._hbars(cx, cy, cw, sched, "Belum ada jadwal yang berjalan.", lw=150, vw=110)
         cx, cy, cw = self._card(half + g, y, half, h, "Badge terbanyak", compact=True)
         self._hbars(cx, cy, cw, badges, "Belum ada badge.", lw=170, vw=70)
-        y += h + g
-        y = self._signup_compact(d, y, W)  # Pendaftar dari trial (survey)
-        return y + 4
+        return y + h + 4
 
     @staticmethod
     def _pf_series(pf):

@@ -370,6 +370,7 @@ def compute(period="30d", program="all"):
 
     # --- badge ---------------------------------------------------------------------------
     badge_period = badge_prev = 0
+    badge_series = [0] * len(buckets)      # sparkline kartu "Badge didapat"
     badge_count = {}          # id badge -> jumlah murid yang punya (di kursus mana pun)
     badges_by_student = {}    # badge per kursus: dijumlah semua kursus
     for s in students:
@@ -388,6 +389,10 @@ def compute(period="30d", program="all"):
                 continue
             if p0 <= when <= p1:
                 badge_period += 1
+                for i, (b0, b1, _lbl) in enumerate(buckets):
+                    if _dt(b0) <= when < _dt(b1):
+                        badge_series[i] += 1
+                        break
             elif q0 <= when < q1:
                 badge_prev += 1
     badge_rows = sorted(({"title": achievements.BY_ID[b]["name"],
@@ -526,6 +531,7 @@ def compute(period="30d", program="all"):
             "assignments_delta": delta(asg_period, asg_prev),
             "badges": badge_period,
             "badges_delta": delta(badge_period, badge_prev),
+            "badge_series": badge_series,
             "attendance": att_rate,
             "attendance_delta": (att_rate - prev_rate) if (att_rate is not None
                                                            and prev_rate is not None) else None,
