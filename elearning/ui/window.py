@@ -30,6 +30,8 @@ class App(tk.Tk):
 
         from elearning import app_settings
         app_settings.apply_theme()   # warna aksen pilihan (jendela Dev)
+        from elearning import dev_values
+        dev_values.apply_all()       # nilai pengaturan dari jendela Dev (Settings > Nilai)
         splash.close()  # splash ditutup tepat sebelum jendela utama dibuat
         super().__init__()
         self.title(config.APP_NAME)
@@ -242,6 +244,8 @@ class App(tk.Tk):
         from elearning.app_settings import feature
         from elearning.ui import carousel3d
         app_settings.apply_theme()          # warna aksen
+        from elearning import dev_values
+        dev_values.apply_all()              # nilai (jam jadwal, syarat sertifikat, ...)
         carousel3d.reconfigure()            # 60 fps on/off
         student = self._student
         if student is not None:             # murid sedang masuk: fitur latar ikut

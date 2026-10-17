@@ -72,7 +72,9 @@ class DevPanel(tk.Toplevel):
         self.title("Dev")
         self.attributes("-topmost", True)      # selalu di atas
         self.resizable(False, True)
-        self.geometry(f"360x520+{app.winfo_rootx() + 40}+{app.winfo_rooty() + 60}")
+        self.geometry(f"380x680+{app.winfo_rootx() + 40}+{app.winfo_rooty() + 60}")
+        self._scroll_cv = None
+        self.bind("<MouseWheel>", self._wheel)
         tabs = tk.Frame(self, bg=BG)
         tabs.pack(fill="x", padx=8, pady=(8, 4))
         self.body = tk.Frame(self, bg=BG)
@@ -219,9 +221,31 @@ class DevPanel(tk.Toplevel):
         tk.Label(self.body, text=text, bg=BG, fg=MUTED, font=BOLD, anchor="w").pack(
             fill="x", pady=(8, 2))
 
+    def _wheel(self, e):
+        cv = self._scroll_cv
+        if cv is not None and cv.winfo_exists():
+            cv.yview_scroll(int(-e.delta / 120) or (-1 if e.delta > 0 else 1), "units")
+
     def _settings_tab(self):
+        from elearning import dev_values as DV
         self._pending = {}           # perubahan yang belum di-Apply: key -> nilai
         self._pending_feat = {}
+        self._val_vars = {}
+        # area gulir (isi panjang) + tombol Apply tetap di bawah
+        outer = self.body
+        bottom = tk.Frame(outer, bg=BG)
+        bottom.pack(side="bottom", fill="x")
+        cv = tk.Canvas(outer, bg=BG, highlightthickness=0, bd=0)
+        sb = tk.Scrollbar(outer, command=cv.yview)
+        cv.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        cv.pack(fill="both", expand=True)
+        inner = tk.Frame(cv, bg=BG)
+        win = cv.create_window(0, 0, window=inner, anchor="nw")
+        inner.bind("<Configure>", lambda e: cv.configure(scrollregion=cv.bbox("all")))
+        cv.bind("<Configure>", lambda e: cv.itemconfigure(win, width=e.width))
+        self._scroll_cv = cv
+        self.body = inner
         self._section("Tampilan login")
         mode = tk.StringVar(value=S.login_mode())
         for key, label in LOGIN_LABELS:
@@ -250,11 +274,34 @@ class DevPanel(tk.Toplevel):
         tk.Label(self.body, text=f"PC kuat (NVIDIA + >=12 thread): "
                                  f"{'ya' if getattr(C, 'HIGH_END', False) else 'tidak'}",
                  bg=BG, fg=MUTED, font=FONT, anchor="w").pack(fill="x", pady=(8, 0))
-        self.apply_btn = tk.Button(self.body, text="Apply", font=BOLD, relief="flat",
+        # --- nilai (isi angka / teks) ---
+        group = None
+        grid = None
+        for key, grp, label, _kind, _t in DV.VALUES:
+            if grp != group:
+                group = grp
+                self._section(grp)
+                grid = tk.Frame(self.body, bg=BG)
+                grid.pack(fill="x")
+                grid.columnconfigure(0, weight=1)
+                r = 0
+            var = tk.StringVar(value=DV.current_text(key))
+            self._val_vars[key] = (var, var.get())
+            tk.Label(grid, text=label, bg=BG, fg=FG, font=FONT, anchor="w").grid(
+                row=r, column=0, sticky="w", pady=1)
+            tk.Entry(grid, textvariable=var, font=FONT, bg=FIELD, fg=FG, insertbackground=FG,
+                     relief="flat", width=14).grid(row=r, column=1, sticky="e", pady=1, ipady=1)
+            var.trace_add("write", lambda *a: self._changed())
+            r += 1
+        tk.Button(self.body, text="Reset semua nilai ke bawaan", font=FONT, relief="flat",
+                  bg=FIELD, fg=FG, activebackground="#3a3a3a", activeforeground=FG,
+                  command=self._reset_values).pack(fill="x", pady=(10, 4), ipady=2)
+        self.body = outer
+        self.apply_btn = tk.Button(bottom, text="Apply", font=BOLD, relief="flat",
                                    bg=C.ACCENT, fg="white", activebackground=C.ACCENT_HOVER,
                                    activeforeground="white", state="disabled",
                                    command=self._apply)
-        self.apply_btn.pack(fill="x", ipady=3, pady=(10, 0), side="bottom")
+        self.apply_btn.pack(fill="x", ipady=3, pady=(6, 0))
 
     def _mark(self, key, value):
         self._pending[key] = value
@@ -264,14 +311,34 @@ class DevPanel(tk.Toplevel):
         self._pending_feat[key] = bool(on)
         self._changed()
 
+    def _val_changes(self):
+        return {k: var.get() for k, (var, start) in self._val_vars.items()
+                if var.get().strip() != start}
+
     def _changed(self):
-        n = len(self._pending) + len(self._pending_feat)
+        n = len(self._pending) + len(self._pending_feat) + len(self._val_changes())
         self.apply_btn.config(state="normal" if n else "disabled")
         self._note(f"{n} perubahan belum diterapkan" if n else "")
 
     def _apply(self):
         """Simpan semua perubahan lalu terapkan langsung ke aplikasi (tanpa buka ulang)."""
+        from elearning import dev_values as DV
+        vals = self._val_changes()
+        for key, text in vals.items():          # periksa dulu: salah satu salah = batal semua
+            try:
+                DV.parse(key, text)
+            except ValueError as exc:
+                self._note(str(exc))
+                return
         try:
+            if vals:
+                saved = dict(S.get("values") or {})
+                for key, text in vals.items():
+                    if text.strip() == DV.default_text(key):
+                        saved.pop(key, None)        # sama dengan bawaan: tidak perlu disimpan
+                    else:
+                        saved[key] = text.strip()
+                S.set("values", saved)
             for key, value in self._pending.items():
                 S.set(key, value)
             for key, on in self._pending_feat.items():
@@ -290,6 +357,18 @@ class DevPanel(tk.Toplevel):
         self.show("settings")              # warna tombol ikut aksen baru
         self.lift()
         self._note("Diterapkan.")
+
+    def _reset_values(self):
+        """Hapus semua nilai isian dev: kembali ke nilai bawaan kode, langsung diterapkan."""
+        try:
+            S.set("values", {})
+            self.app.apply_dev_settings()
+        except Exception as exc:
+            C.log(f"Dev: reset nilai gagal: {exc!r}")
+            self._note("Gagal reset (lihat app.log).")
+            return
+        self.show("settings")
+        self._note("Nilai kembali ke bawaan.")
 
     def destroy(self):
         _open["win"] = None

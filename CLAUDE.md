@@ -193,6 +193,13 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   Ganti ID = students.change_id: pindahkan foto, progres, badge, portfolio & assignment,
   riwayat login (+ arsip), jadwal, kuis, sertifikat, recents; ditolak kalau ID sudah dipakai.
   Ganti kategori = students.set_program (kursus disesuaikan). Settings: tombol Apply.
+- Settings > nilai isian (bisa digulir, per grup): elearning/dev_values.py VALUES = 30 nilai
+  (login, carousel, video, mini player, badge, kode rahasia, hari spesial, syarat sertifikat,
+  jam & slot jadwal, aturan hadir, analytics, drive murid, refresh admin). Disimpan di
+  app_settings "values" (hanya yang beda dari bawaan), dipasang ke atribut modul lewat
+  dev_values.apply_all() (App mulai + Apply). Format salah -> Apply batal + pesan. "Reset semua
+  nilai ke bawaan". Nilai baru: tambah baris di VALUES; modulnya harus membaca atribut itu
+  saat dipakai (bukan disalin saat import).
 
 ## Tampilan login (3 mode, diatur di jendela Dev)
 - elearning/app_settings.py: data\app_settings.json (BUKAN data\settings.json, milik
