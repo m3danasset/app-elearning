@@ -1,7 +1,8 @@
 """Resource kursus (file tambahan dari guru: .blend, tekstur, PDF, gambar, video, ...).
 
 Taruh file di  assets\\resources\\<id kursus>\\  (nama folder juga boleh judul kursus,
-mis. "BASIC 1"). Boleh berisi subfolder. Murid hanya bisa melihat, membuka, dan
+mis. "BASIC 1"). Kelas trial memakai satu folder bersama: assets\\resources\\trial\\ .
+Boleh berisi subfolder. Murid hanya bisa melihat, membuka, dan
 menyimpan ke flashdisk lewat file browser di halaman Resource (tidak bisa menghapus).
 """
 
@@ -17,8 +18,13 @@ def _norm(text):
     return re.sub(r"[^a-z0-9]", "", str(text).lower())
 
 
+TRIAL_FOLDER = "trial"   # semua kelas trial (ANIMATION, MODELING) memakai SATU folder ini
+
+
 def course_folder(course):
-    """Folder resource kursus (mungkin belum ada)."""
+    """Folder resource kursus (mungkin belum ada). Kelas trial: satu folder bersama."""
+    if course.get("program") == "trial":
+        return os.path.join(RESOURCE_DIR, TRIAL_FOLDER)
     exact = os.path.join(RESOURCE_DIR, course["id"])
     if os.path.isdir(exact):
         return exact
