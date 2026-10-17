@@ -58,7 +58,10 @@ class LoginScreen(tk.Frame):
         self._t_value = cv.create_text(0, 0, text="", fill=MUTED, anchor="center")
         self._t_pin = cv.create_text(0, 0, text="", fill=MUTED, anchor="center")
         self._t_caret = cv.create_line(0, 0, 0, 0, fill=TEXT, width=2)
+        # bayangan lembut di bawah pesan (gambar RGBA, di bawah teks) + teks pesan
+        self._t_msg_sh = cv.create_image(0, 0, anchor="center")
         self._t_msg = cv.create_text(0, 0, text="", fill=MUTED, anchor="n", justify="center")
+        self._msg_sh_key = None
 
         self.carousel = Carousel3D(cv)
         self.carousel.start()
@@ -149,6 +152,7 @@ class LoginScreen(tk.Frame):
         cv.tag_raise(self._t_value)
         cv.tag_raise(self._t_pin)
         cv.tag_raise(self._t_caret)
+        cv.tag_raise(self._t_msg_sh)
         cv.tag_raise(self._t_msg)
 
     def _logo(self, max_w, max_h):
@@ -204,10 +208,29 @@ class LoginScreen(tk.Frame):
         self._field = self._fields.get(self.mode, self._field)
         if self.message:
             cv.itemconfigure(self._t_msg, text=self.message,
-                             fill=C.ERROR if self._msg_error else MUTED)
+                             fill=MSG_ERROR if self._msg_error else MUTED)
         else:
             cv.itemconfigure(self._t_msg, text="")
+        self._msg_shadow()
         self._place_caret()
+
+    def _msg_shadow(self):
+        """Bayangan lembut (kapsul gelap ter-blur, sedikit turun) di bawah teks pesan, supaya
+        pesan terbaca di atas carousel / video. Dibuat ulang hanya kalau teks / ukuran berubah."""
+        cv = self.bgv
+        bbox = cv.bbox(self._t_msg) if self.message else None
+        if not bbox:
+            cv.itemconfigure(self._t_msg_sh, image="")
+            self._msg_sh_key = None
+            return
+        x0, y0, x1, y1 = bbox
+        w, h = x1 - x0, y1 - y0
+        key = (w, h)
+        if key != self._msg_sh_key:
+            self._msg_sh_key = key
+            self._msg_sh_img = _text_shadow(w, h)
+        cv.itemconfigure(self._t_msg_sh, image=self._msg_sh_img or "")
+        cv.coords(self._t_msg_sh, (x0 + x1) / 2, (y0 + y1) / 2 + max(2, h // 10))
 
     def _place_caret(self):
         cv = self.bgv
@@ -430,6 +453,30 @@ class LoginScreen(tk.Frame):
             return
         self._set_message("")
         self.on_success(student)
+
+
+MSG_ERROR = "#ff2e2e"      # pesan salah ID / PIN: merah menyala (lebih jenuh dari C.ERROR)
+
+
+def _text_shadow(w, h):
+    """PhotoImage RGBA: kapsul gelap ter-blur seukuran teks (blur lewat perkecil-perbesar,
+    tanpa ImageFilter / ImageDraw)."""
+    try:
+        from PIL import Image
+        from elearning import photos
+        blur = max(6, h // 2)
+        pad = blur * 2
+        W, H = w + 2 * pad, h + 2 * pad
+        a = Image.new("L", (W, H), 0)
+        a.paste(185, (pad - 4, pad + 2, pad + w + 4, pad + h - 2))
+        small = a.resize((max(1, W // blur), max(1, H // blur)), Image.BILINEAR)
+        a = small.resize((W, H), Image.BICUBIC)
+        out = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        out.putalpha(a)
+        return photos.to_photoimage(out)
+    except Exception as exc:
+        C.log(f"Bayangan pesan login gagal: {exc!r}")
+        return None
 
 
 def _soft_shadow(img):
