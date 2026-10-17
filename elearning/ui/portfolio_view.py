@@ -183,7 +183,8 @@ class PortfolioPanel(tk.Frame):
         self.scroll.pack(fill="both", expand=True, padx=(28, 16), pady=(0, 12))
         self.gallery = GalleryBoard(self.scroll.inner, on_open=self._open,
                                     on_save=None if self.teacher else self._save,
-                                    on_delete=self._delete)
+                                    on_delete=self._delete,
+                                    on_blender=None if self.teacher else self._to_blender)
         self.gallery.pack(fill="x")
         self.refresh()
 
@@ -239,6 +240,17 @@ class PortfolioPanel(tk.Frame):
         except Exception as exc:
             C.log(f"Gagal membuka {item['path']!r}: {exc!r}")
             self.status.config(text="File tidak bisa dibuka.", fg=C.ERROR)
+
+    # --- gambar guru -> Blender (Image Editor di kiri 3D viewport, tanpa addon) -----------
+    def _to_blender(self, item):
+        from elearning import blender_launcher
+        app = self.winfo_toplevel()
+        if blender_launcher.open_with_reference(app, [item["path"]]):
+            self.status.config(text="Blender dibuka dengan gambar referensi di sebelah kiri.",
+                               fg=C.ON)
+            ctl = getattr(app, "blender_float", None)
+            if ctl is not None:   # sama seperti tombol Buka Blender: aplikasi mengecil
+                ctl.enter()
 
     # --- simpan ke flashdisk ---------------------------------------------------------
     def _save(self, items):

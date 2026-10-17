@@ -581,7 +581,40 @@ def _ask_location(parent):
     return path
 
 
-def open_blender(parent):
+def blender_running():
+    """True kalau Blender sudah terbuka / sedang dimuat (tanpa memindahkan jendela)."""
+    if _find_blender_window():
+        return True
+    proc = _proc[0]
+    return proc is not None and proc.poll() is None
+
+
+REFERENCE_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                "blender_scripts", "reference_view.py")
+
+
+def open_with_reference(parent, image_paths):
+    """Buka Blender BARU dengan gambar referensi di Image Editor kiri (tanpa addon).
+    Kalau Blender sudah terbuka: minta murid menyimpan & menutupnya dulu. True = dibuka."""
+    paths = [p for p in image_paths if os.path.isfile(p)]
+    if not paths:
+        _show_message(parent, "error", "Gambar tidak ditemukan",
+                      "Gambar referensi tidak bisa dibuka. Hubungi guru.")
+        return False
+    if blender_running():
+        _show_message(
+            parent, "info", "Tutup Blender dulu",
+            "Blender sedang terbuka.\n\nSimpan pekerjaanmu (Ctrl+S), tutup Blender, lalu "
+            "klik tombol ini lagi. Blender akan dibuka dengan gambar referensi di sebelah "
+            "kiri.")
+        return False
+    if not os.path.isfile(REFERENCE_SCRIPT):
+        C.log(f"Blender: skrip referensi tidak ada: {REFERENCE_SCRIPT!r}")
+        return open_blender(parent)
+    return open_blender(parent, ["--python", REFERENCE_SCRIPT, "--"] + paths)
+
+
+def open_blender(parent, args=()):
     """Buka Blender, atau pindah ke Blender yang sudah terbuka. True kalau berhasil."""
     if _already_running():
         return True
@@ -594,7 +627,7 @@ def open_blender(parent):
         kw = {}
         if sys.platform == "win32":
             kw["creationflags"] = 0x00000008 | 0x00000200  # DETACHED_PROCESS | NEW_PROCESS_GROUP
-        _proc[0] = subprocess.Popen([path], cwd=os.path.dirname(path), close_fds=True, **kw)
+        _proc[0] = subprocess.Popen([path] + list(args), cwd=os.path.dirname(path), close_fds=True, **kw)
     except OSError as exc:
         C.log(f"Blender: gagal menjalankan {path!r}: {exc!r}")
         if _load_settings().get(_KEY) == path:

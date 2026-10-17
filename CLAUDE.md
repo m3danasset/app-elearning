@@ -79,3 +79,12 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   cache 400 gambar; hasil diambil 1x per frame. Ukur (1 core): buka ~50 ms, aksi main
   thread maks. ~11 ms, 24 thumbnail render Full HD ~0,9 dtk (bertahap).
 
+## Referensi guru -> Blender (tanpa addon)
+- Gambar "Dari guru" (Portfolio / Assignment murid) punya tombol ikon panel di pojok sampul:
+  blender_launcher.open_with_reference membuka Blender BARU dengan
+  --python elearning\blender_scripts\reference_view.py -- <gambar>. Skrip itu (bukan addon,
+  tidak dipasang) membelah 3D viewport: Image Editor kiri 35 % + gambar. Handler load_post
+  persistent: File > New / Open tetap dapat Image Editor + gambar selama Blender itu terbuka.
+- Kalau Blender sudah terbuka: pesan "Simpan & tutup Blender dulu" (tanpa addon tidak bisa
+  mengirim gambar ke Blender yang sedang jalan). Belum diuji di Blender asli (4.2).
+

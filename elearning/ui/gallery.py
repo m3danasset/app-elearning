@@ -50,9 +50,11 @@ def _when(d):
 
 
 class GalleryBoard(tk.Canvas):
-    def __init__(self, master, on_open=None, on_save=None, on_delete=None, empty=""):
+    def __init__(self, master, on_open=None, on_save=None, on_delete=None, empty="",
+                 on_blender=None):
         super().__init__(master, bg=C.BG, highlightthickness=0, bd=0, height=80)
         self.on_open, self.on_save, self.on_delete = on_open, on_save, on_delete
+        self.on_blender = on_blender   # gambar dari guru: buka di Blender sebagai referensi
         self.empty = empty
         self.items = []
         self.tiles = []          # (x, y, w, h) sampul tiap item
@@ -145,7 +147,7 @@ class GalleryBoard(tk.Canvas):
     def _cover_img(self, it, tw, th, hover):
         """Sampul membulat (+ tanda video, + tombol saat hover) -> PhotoImage (diingat)."""
         key = (it["path"], int(tw), int(th), hover, bool(self.on_save),
-               bool(self.on_delete and it.get("own", True)))
+               bool(self.on_delete and it.get("own", True)), self._ref_ok(it))
         ph = self._imgs.get(key)
         if ph is not None:
             return ph
@@ -175,8 +177,14 @@ class GalleryBoard(tk.Canvas):
         self._imgs[key] = ph
         return ph
 
+    def _ref_ok(self, it):
+        return (self.on_blender is not None and not it.get("own", True)
+                and it["kind"] == "image")
+
     def _buttons(self, it):
         out = []
+        if self._ref_ok(it):        # paling kanan: buka di Blender (Image Editor kiri)
+            out.append(("panel", self.on_blender))
         if self.on_delete is not None and it.get("own", True):
             out.append(("close", self.on_delete))
         if self.on_save is not None:
@@ -213,6 +221,8 @@ class GalleryBoard(tk.Canvas):
         meta = f"{_when(it['added'])}  ·  {portfolio.format_size(it['size'])}"
         if it["kind"] == "video":
             meta += "  ·  Video"
+        elif self._ref_ok(it):     # petunjuk tombol ikon di pojok sampul
+            meta += "  ·  arahkan kursor: buka di Blender"
         self.create_text(x + 2, ty + 19, text=meta, anchor="nw", font=self.f["meta"],
                          fill=C.MUTED, tags=tag)
 
