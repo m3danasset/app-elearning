@@ -61,54 +61,46 @@ def _norm(path):
 
 
 # --- tempat (mode pick) ------------------------------------------------------------------
-def _places():
-    """[(label, path)] yang ada di PC ini."""
-    home = os.path.expanduser("~")
+def _roots():
+    """Drive yang BOLEH dibuka murid: drive lokal murid (config.STUDENT_DRIVE, mis. Z:)
+    dan flashdisk yang tercolok. [(label, path)]"""
     out = []
-    for label, subs in (("Desktop", ("Desktop", "OneDrive\\Desktop", "OneDrive/Desktop")),
-                        ("Dokumen", ("Documents", "OneDrive\\Documents", "OneDrive/Documents")),
-                        ("Unduhan", ("Downloads",)),
-                        ("Gambar", ("Pictures", "OneDrive\\Pictures", "OneDrive/Pictures")),
-                        ("Video", ("Videos",))):
-        for sub in subs:
-            p = os.path.join(home, sub)
-            if os.path.isdir(p):
-                out.append((label, p))
-                break
-    tmp = "C:\\tmp" if WIN else "/tmp"     # folder render bawaan Blender ("/tmp/")
-    if os.path.isdir(tmp):
-        out.append(("Render Blender", tmp))
+    z = getattr(C, "STUDENT_DRIVE", "Z:\\")
+    if z and os.path.isdir(z):
+        out.append((f"Local ({os.path.splitdrive(z)[0] or z.rstrip(os.sep)})", z))
     try:
         from elearning.ui.usb_save import removable_drives
         for d in removable_drives():
             out.append((f"Flashdisk {d[:2]}", d))
     except Exception:
         pass
-    out.append(("Drive", DRIVES))
     return out
+
+
+def _inside(path, roots):
+    """True kalau path DAN tujuan aslinya (shortcut folder / junction) ada di dalam salah
+    satu drive yang diizinkan."""
+    def ok(p):
+        p = _norm(p)
+        for _label, r in roots:
+            rn = _norm(r).rstrip("\\/")
+            if p == rn or p == _norm(r) or p.startswith(rn + os.sep):
+                return True
+        return False
+    try:
+        real = os.path.realpath(path)
+    except OSError:
+        return False
+    return bool(roots) and ok(path) and ok(real)
+
+
+def _places():
+    return _roots()
 
 
 def _drives():
-    if not WIN:
-        return [{"name": "/", "path": "/", "is_dir": True, "kind": "folder", "size": 0,
-                 "mtime": 0}]
-    out = []
-    try:
-        import ctypes
-        import string
-        k = ctypes.windll.kernel32
-        mask = k.GetLogicalDrives()
-        for i, letter in enumerate(string.ascii_uppercase):
-            if mask & (1 << i):
-                root = f"{letter}:\\"
-                kind = k.GetDriveTypeW(root)
-                if kind in (2, 3):        # flashdisk / disk lokal (tanpa CD & jaringan)
-                    label = "Flashdisk" if kind == 2 else "Disk lokal"
-                    out.append({"name": f"{label} ({letter}:)", "path": root, "is_dir": True,
-                                "kind": "folder", "size": 0, "mtime": 0})
-    except Exception as exc:
-        C.log(f"File browser: daftar drive gagal: {exc!r}")
-    return out
+    return [{"name": label, "path": p, "is_dir": True, "kind": "folder", "size": 0,
+             "mtime": 0} for label, p in _roots()]
 
 
 # --- kerja di thread ------------------------------------------------------------------------
@@ -299,7 +291,7 @@ class FileBrowser(OverlayPanel):
         if self.pick:
             self.tabs = [(p, label) for label, p in _places()]
             start = opts.get("start") or _state["last_pick"]
-            if not start or not (start == DRIVES or os.path.isdir(start)):
+            if not start or not os.path.isdir(start) or not _inside(start, self.tabs_roots()):
                 start = self.tabs[0][0] if self.tabs else DRIVES
         else:
             self.tabs = [("all", "Semua"), ("image", "Gambar"), ("video", "Video"),
@@ -411,9 +403,17 @@ class FileBrowser(OverlayPanel):
         self.list.focus_set()
 
     # --- navigasi -------------------------------------------------------------------------
+    def tabs_roots(self):
+        return [(label, p) for p, label in self.tabs]
+
     def _go(self, path, remember=True):
         if path is None:
             return
+        if self.pick and path != DRIVES:
+            roots = _roots()            # flashdisk bisa dicabut / dicolok kapan saja
+            if not _inside(path, roots):
+                C.log(f"File browser: akses ditolak {path!r}")
+                return                  # murid hanya boleh drive lokal murid & flashdisk
         if remember and self.cur is not None and _norm(path) != _norm(self.cur):
             self.history.append(self.cur)
         self.cur = path
@@ -441,6 +441,8 @@ class FileBrowser(OverlayPanel):
         parent = os.path.dirname(os.path.normpath(cur))
         if not parent or _norm(parent) == _norm(cur):
             return DRIVES if self.pick else None
+        if self.pick and not _inside(parent, _roots()):
+            return DRIVES               # di atas akar drive murid: daftar drive yang boleh
         return parent
 
     def _up(self):
@@ -505,6 +507,9 @@ class FileBrowser(OverlayPanel):
                     self.error = "Folder ini tidak bisa dibuka."
                     self.entries = []
                 else:
+                    if self.pick and path != DRIVES:   # shortcut ke luar drive murid: sembunyi
+                        roots = _roots()
+                        data = [e for e in data if not e["is_dir"] or _inside(e["path"], roots)]
                     self.entries = data
                 self.offset = 0
                 self._apply_filter(draw=False)
@@ -757,6 +762,8 @@ class FileBrowser(OverlayPanel):
                                  else "Tidak ada gambar atau video di folder ini.")
             if not self.pick and self.cur == self.root and not self.entries:
                 msg = "Belum ada resource untuk kursus ini."
+            if self.pick and self.cur == DRIVES and not self.entries:
+                msg = "Drive Z: dan flashdisk tidak ditemukan. Hubungi guru."
             cv.create_text(lw / 2, 70, text=msg, fill=C.MUTED, font=self._f_row)
             return
         if self.loading:

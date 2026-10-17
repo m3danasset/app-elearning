@@ -73,6 +73,9 @@ def _low_priority():
 _low_priority()
 HOME_VIDEO_OPACITY = 0.22  # video latar halaman utama murid (assets\\video\\home): 0 = tak terlihat, 1 = penuh
 # Video pelajaran, DI LUAR .exe juga: <folder .exe>\assets\lessons\<id kursus>\01.mp4, 02.mp4, ...
+# File browser murid (upload Portfolio / Assignment): murid HANYA bisa membuka drive ini
+# (penyimpanan lokal murid) dan flashdisk yang tercolok. Ganti kalau huruf drive berbeda.
+STUDENT_DRIVE = "Z:\\"
 LESSON_DIR = os.path.join(APP_DIR, "assets", "lessons")
 LOG_PATH = os.path.join(APP_DIR, "app.log")
 

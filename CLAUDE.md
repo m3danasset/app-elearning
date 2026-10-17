@@ -66,7 +66,8 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 - ui/file_browser.py: FileBrowser (overlay yang sama dengan search palette: OverlayPanel di
   search_palette.py). Tampilan Details / Small thumbnails (diingat selama aplikasi terbuka).
   Mode "pick": tombol Upload murid (Portfolio / Assignment) memilih gambar & video dari PC
-  (tab: Desktop, Dokumen, Unduhan, Gambar, Video, Render Blender C:\tmp, flashdisk, Drive),
+  HANYA drive lokal murid (config.STUDENT_DRIVE, default Z:\) dan flashdisk yang tercolok;
+  folder lain, naik di atas akar drive, dan shortcut/junction ke luar drive ditolak.
   centang banyak file -> Upload. Guru tetap memakai dialog bawaan Windows.
   Mode "resource": ResourcePage di layar kursus, hanya baca: buka (Enter / klik dua kali),
   centang -> Simpan ke flashdisk; tidak bisa naik di atas folder kursus.
