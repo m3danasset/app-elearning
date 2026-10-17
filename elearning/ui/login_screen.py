@@ -68,6 +68,10 @@ class LoginScreen(tk.Frame):
         cv.bind("<Button-1>", self._on_click)
         cv.bind("<Motion>", self._on_motion)
         cv.focus_set()
+        # Dari logout: dialog konfirmasi baru ditutup SETELAH layar ini dibuat, sehingga fokus
+        # keyboard hilang (ID tidak bisa diketik). Ambil fokus lagi setelah dialog tertutup.
+        for ms in (1, 120, 400):
+            self.after(ms, self._grab_focus)
         self._layout_job = None
         self._layout_size = None
         self.bind("<Configure>", self._on_configure)
@@ -294,6 +298,17 @@ class LoginScreen(tk.Frame):
     def _needs_pin(self):
         sid = self.value["id"].strip()
         return bool(sid) and (is_teacher_id(sid) or is_admin_id(sid))
+
+    def _grab_focus(self):
+        try:
+            if not self.winfo_exists():
+                return
+            top = self.winfo_toplevel()
+            if top.focus_get() is not self.bgv:
+                top.focus_force()
+                self.bgv.focus_set()
+        except Exception:
+            pass
 
     def _on_click(self, e):
         self.bgv.focus_set()

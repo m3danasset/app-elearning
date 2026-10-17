@@ -579,6 +579,8 @@ class LessonPlayer(tk.Frame):
         bar = tk.Frame(self.column, bg=C.CARD, height=BAR_H)
         bar.pack(fill="x")
         bar.pack_propagate(False)
+        # Penutup bar selama intro: timeline & tombol tidak tampil, susunan tidak bergeser
+        self._bar_cover = tk.Frame(bar, bg=C.BG)
         # Baris di bawah bar: dipakai LessonsPanel untuk tombol Sebelumnya / Selanjutnya
         self.footer = tk.Frame(self.column, bg=C.BG, height=FOOT_H)
         self.footer.pack(fill="x", side="bottom")
@@ -695,7 +697,7 @@ class LessonPlayer(tk.Frame):
     def _fs_apply(self, want):
         """Ubah susunan layar (terjadi saat jendela sedang transparan)."""
         bg = "#000000" if want else C.BG
-        for w in (self.holder, self.column):
+        for w in (self.holder, self.column, self._bar_cover):
             w.config(bg=bg)
         no_footer = want or getattr(self, "no_footer", False)   # trial: tanpa baris tombol
         self._foot = 0 if no_footer else FOOT_H
@@ -879,6 +881,9 @@ class LessonPlayer(tk.Frame):
             return
         self._intro = (path, hint, subs)
         self._intro_t0 = time.time()
+        self._bar_cover.config(bg=self.column.cget("bg"))
+        self._bar_cover.place(x=0, y=0, relwidth=1, relheight=1)
+        self._bar_cover.lift()
         try:
             self.engine.set_playing(True)
             self.playing = True
@@ -906,6 +911,7 @@ class LessonPlayer(tk.Frame):
 
     def load(self, path, hint="", subs=()):
         self._intro = None
+        self._bar_cover.place_forget()
         self._resume = 0.0
         self._ensure_engine()
         e = self.engine
@@ -968,8 +974,7 @@ class LessonPlayer(tk.Frame):
 
     # --- kontrol --------------------------------------------------------------
     def toggle(self):
-        if self._intro is not None:       # klik / spasi saat intro: lewati intro
-            self._finish_intro()
+        if self._intro is not None:       # intro tidak bisa dijeda / dilewati
             return
         if not self.has_video or self.engine is None:
             return
@@ -1598,6 +1603,12 @@ class LessonsPanel(tk.Frame):
         if not self.show_nav:
             return
         last = len(self.items) - 1
+        # Video pertama: tombol Sebelumnya disembunyikan (bukan sekadar abu-abu)
+        if self.index <= 0:
+            if self.prev_btn.winfo_ismapped() or self.prev_btn.winfo_manager():
+                self.prev_btn.pack_forget()
+        elif not self.prev_btn.winfo_manager():
+            self.prev_btn.pack(side="left", pady=(12, 8))
         for btn, enabled, primary in ((self.prev_btn, self.index > 0, False),
                                       (self.next_btn, self.index < last, True)):
             if enabled:

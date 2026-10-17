@@ -414,10 +414,33 @@ class MiniPlayer(tk.Toplevel):
         if not gp:
             return
         dx, dy = e.x_root - gp[0], e.y_root - gp[1]
+        if self._last_geo and self._anchor and int(self._last_geo.split("+")[1]) < self._anchor[0]:
+            dx = -dx                           # mini player di kiri ikon: tarik ke kiri = membesar
         by_x, by_y = dx, -dy * 16 / 9      # tarik ke kanan atau ke atas = membesar
-        self.set_width(gp[2] + (by_x if abs(by_x) >= abs(by_y) else by_y))
+        self._want_w = gp[2] + (by_x if abs(by_x) >= abs(by_y) else by_y)
+        if getattr(self, "_rs_job", None) is None:   # maks. 1 resize per frame (30 fps)
+            self._resize_step()
+
+    def _resize_step(self):
+        self._rs_job = None
+        want = getattr(self, "_want_w", None)
+        if want is None:
+            return
+        self._want_w = None
+        self.set_width(want)
+        # Isi (bilah judul, video, kontrol) digambar ulang SEKARANG, sesuai ukuran baru,
+        # supaya tidak ada blok hitam / kontrol terpotong selama ditarik.
+        self.update_idletasks()
+        self._rs_job = self.after(C.UI_FRAME_MS, self._resize_step)
 
     def _grip_release(self, e):
+        job = getattr(self, "_rs_job", None)
+        if job is not None:
+            self.after_cancel(job)
+            self._rs_job = None
+        if getattr(self, "_want_w", None) is not None:
+            self.set_width(self._want_w)
+            self._want_w = None
         if getattr(self, "_gp", None):
             self.set_width(self.width, save=True)
         self._gp = None
