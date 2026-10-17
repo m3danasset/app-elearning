@@ -1,0 +1,10 @@
+__pycache__/
+build/
+dist/
+*.spec
+app.log
+*.tmp
+# data murid/guru (privat, tidak boleh ikut ke GitHub)
+data/
+# pustaka pemutar video: 103 MB, melebihi batas file GitHub (100 MB); unduh terpisah
+libmpv-2.dll

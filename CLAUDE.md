@@ -1,0 +1,47 @@
+# Blender E-Learning (M3DAN Studios): catatan untuk Claude Code
+
+Aplikasi desktop Tkinter (Windows 11), dikirim sebagai .exe (PyInstaller). Revisi dipasang
+dengan update.bat yang menimpa file .py yang direvisi. Peran: admin, guru, murid (dewasa
+PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
+
+## Cek wajib sebelum setiap build / revisi
+1. Hanya pakai modul yang sudah ikut di .exe. JANGAN pakai: zipfile, xml, socket, glob,
+   tkinter.filedialog, tkinter.messagebox, ImageDraw, ImageFilter. Untuk dialog pakai
+   bawaan Tk (tk_getOpenFile, tk_chooseDirectory). Tes dengan modul-modul itu diblokir;
+   import yang gagal membuat .exe diam-diam kembali ke aplikasi lama.
+2. Tidak boleh ada glitch UI (tombol terpotong, blok hitam) saat pindah windowed/fullscreen,
+   tab, periode, filter, atau tampilan.
+3. Animasi harus mulus, tidak patah-patah: jadwal frame tetap, gerakan berbasis waktu.
+   SEMUA animasi UI maks. 30 fps (pakai config.UI_FPS / UI_FRAME_MS, jangan angka sendiri).
+   Ukur jarak antar frame di layar biasa dan 1920x1080 sebelum dikirim.
+4. Tidak ada yang pecah/pixelated (ikon, panah, switch, centang, lingkaran, bentuk apa pun):
+   pakai gambar antialias (ui/ui_icons.py), bukan garis Tk.
+5. Harus ringan di Ryzen 5 2400G + Vega (tanpa GPU terpisah), juga Ryzen 3 (4 thread), dan
+   tidak boleh mengganggu Blender murid. Kerja berat di thread (Pillow melepas GIL), tapi
+   jumlahnya maks. config.WORKER_THREADS (1 di CPU 4 thread, maks. 2); OpenCV dibatasi
+   setNumThreads. Proses berjalan BelowNormal (config._low_priority). Tk hanya dipanggil
+   dari thread utama. Simulasi spek rendah: cmd /c start "" /affinity F "dist\Blender E-Learning.exe"
+6. Kirim zip kumulatif berisi file .py yang berubah untuk update.bat; folder data harus aman.
+7. UI konsisten dengan layar login & gaya claude.ai: sudut membulat, ikon minimalis.
+   Setiap fitur/tombol baru wajib mengikuti gaya ini.
+
+## Badge / achievement (tahap 1)
+- elearning/achievements.py: 20 badge (sama untuk dewasa & SUPERKIDS, trial tidak dapat),
+  data per murid di data\achievements\<ID>.json. Video dihitung dari bagian yang BENAR-BENAR
+  ditonton (progress.py "seen", min. 80 %), bukan posisi terjauh.
+- ui/badge_art.py (ikon, numpy), ui/badge_ui.py (halaman Badge, notifikasi kiri-bawah di atas
+  sidebar, pelacak di thread). Notifikasi ditahan saat video layar penuh / Blender dipakai.
+- Easter egg diatur di config.py (SECRET_CODE, SPECIAL_DAYS); ganti berkala.
+- Belum: statistik badge di Analytics admin, sertifikat, easter egg khusus trial.
+
+## Status terakhir (layar login)
+- ui/login_screen.py: logo besar (assets\logo.png, dengan bayangan lembut buatan sendiri),
+  kolom "Enter Your ID" transparan (gambar + teks canvas, bukan Entry), kolom PIN tambahan
+  muncul di bawahnya untuk ID guru/admin (Enter/Tab/panah = pindah, Esc = kembali ke ID).
+  Tanpa tombol Masuk (Enter).
+- ui/carousel3d.py: carousel 3D silinder, maks. 10 portfolio murid (bukan assignment /
+  contoh guru), loop, 30 fps dengan jadwal frame tetap, gerak lambat (1 kartu / 9 detik),
+  fade tepi kiri-kanan. Dirender di 2-3 thread.
+- ui/login_bg.py: canvas video latar (opacity rendah) + pita carousel.
+- config.py: LOGIN_CAROUSEL_FPS = 30 (maks. 30).
+- Belum diuji langsung di PC studio (Ryzen 5 2400G): kelancaran carousel & ukuran logo asli.
