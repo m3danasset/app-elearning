@@ -19,6 +19,7 @@
   aplikasi hanya memantau jendela Blender.
 """
 
+import time
 import tkinter as tk
 
 from elearning import blender_icon
@@ -215,6 +216,7 @@ class BlenderFloat:
         self._info = None
         self._job = None
         self._offset = None
+        self._grace = 0.0        # sebentar setelah kembali ke aplikasi: jangan langsung mengambang
         for seq in ("<FocusIn>", "<Map>", "<Unmap>"):   # sembunyikan ikon segera, tanpa menunggu tick
             try:
                 app.bind(seq, self._on_app_event, add="+")
@@ -320,6 +322,10 @@ class BlenderFloat:
         if info and not info.get("minimized"):
             if not self._seen:
                 self._seen = True
+                self._float(info)
+            elif time.time() >= self._grace and not self._app_open()                     and self._blender_in_front():
+                # Murid pindah ke Blender (Alt+Tab / klik taskbar) setelah kembali ke aplikasi:
+                # mengambang lagi. Dulu hanya sekali per jendela Blender -> ikon tidak muncul.
                 self._float(info)
         elif info is None and not BL.window_exists():
             self._seen = False
@@ -564,6 +570,7 @@ class BlenderFloat:
         resume = self.mini.resume_state() if self.mini is not None else None
         self._destroy_icon()
         self._missing = 0
+        self._grace = time.time() + 1.5     # jendela aplikasi butuh waktu untuk muncul di depan
         try:
             self.app.deiconify()
             self.app.state("zoomed")
