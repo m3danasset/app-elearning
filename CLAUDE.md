@@ -73,6 +73,7 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   centang banyak file -> Upload. Guru tetap memakai dialog bawaan Windows.
   Mode "resource": ResourcePage di layar kursus, hanya baca: buka (Enter / klik dua kali),
   centang -> Simpan ke flashdisk; tidak bisa naik di atas folder kursus.
+  File cadangan Blender (.blend1, .blend2, ...) disembunyikan di semua mode.
 - elearning/resources.py: resource di assets\resources\<id kursus atau judul>\ (boleh
   subfolder). Di .exe: dist\assets\resources\ (update.bat tidak menyalinnya).
 - Isi folder & thumbnail di thread (maks. WORKER_THREADS), thumbnail hanya yang terlihat,

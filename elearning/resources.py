@@ -39,7 +39,8 @@ def summary(course, limit=2000):
     for base, dirs, names in os.walk(course_folder(course)):
         dirs[:] = [d for d in dirs if not d.startswith((".", "_"))]
         folders += len(dirs)
-        files += sum(1 for n in names if not n.startswith((".", "~$")))
+        files += sum(1 for n in names if not n.startswith((".", "~$"))
+                     and not re.search(r"\.blend\d+$", n, re.IGNORECASE))   # .blend1 = cadangan
         if files + folders >= limit:
             break
     return files, folders

@@ -47,6 +47,9 @@ _thumbs = collections.OrderedDict()   # (path, mtime) -> gambar PIL (RGB, TW x T
 _thumbs_lock = threading.Lock()
 
 
+_BACKUP_RE = re.compile(r"\.blend\d+$", re.IGNORECASE)
+
+
 def _natural(name):
     return [int(t) if t.isdigit() else t.lower() for t in re.split(r"(\d+)", name)]
 
@@ -122,6 +125,8 @@ def _list_dir(path, exts):
     with os.scandir(path) as it:
         for e in it:
             name = e.name
+            if _BACKUP_RE.search(name):   # cadangan Blender (.blend1, .blend2, ...): sembunyi
+                continue
             if name.startswith((".", "~$", "$")) or name in ("_thumbs", "desktop.ini",
                                                               "thumbs.db", "Thumbs.db"):
                 continue
