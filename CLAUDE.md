@@ -182,7 +182,8 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 ## Panel Admin > Setting; carousel login 3 baris
 - elearning/app_settings.py: pengaturan admin di data\app_settings.json (BUKAN data\settings.json,
   itu milik blender_launcher). ui/settings_panel.py: tab Setting (kartu + switch, simpan langsung).
-- login_carousel_rows3 (default OFF): carousel login + pita kartu kecil DATAR di atas & bawah,
-  bergerak berlawanan arah, total 30 portfolio (10 per baris). Pita = strip kartu yang digeser
-  crop per piksel (bukan kartu silinder: dulu 60+ transform/frame, terlalu berat).
-  Ukur: 1080p 30 fps, 1440p 15 fps (1 baris: 20), PC 4 thread 1366x768 30 fps.
+- login_carousel_rows3 (default OFF): carousel login 3 baris kartu UKURAN SAMA di silinder yang
+  sama (baris atas & bawah = geser vertikal di ruang 3D, rapat, terpotong tepi layar, bergerak
+  berlawanan arah, setengah kartu bergeser), total 30 portfolio (10 per baris). Baris luar
+  di-warp setengah resolusi lalu diperbesar. Berat: 1080p ~20-26 fps, 1440p ~14 fps
+  (1 baris: 30 / 20 fps); keputusan optimasi lanjut masih tertunda.
