@@ -477,10 +477,13 @@ class BlenderFloat:
                                    on_fullscreen=self._mini_fullscreen)
             bounds = (info["x"], info["y"], info["x"] + info["w"], info["y"] + info["h"])
             self.mini.place_beside(x, y, TILE, bounds)
-            self.mini.open(st["path"], st["subs"], st["title"], start=st["pos"],
+            # Dimuat dalam keadaan TERSEMBUNYI (dulu open() menampilkan jendela sekejap lalu
+            # disembunyikan -> mini player berkedip). Klik kanan ikon untuk memunculkan.
+            self.mini.closed = True
+            self.mini.update_idletasks()
+            self.mini.load(st["path"], st["subs"], st["title"], start=st["pos"],
                            play=False, can_prev=st["index"] > 0,
                            can_next=st["index"] < st["count"] - 1)
-            self.mini.close()       # bawaan: tersembunyi + dijeda; klik kanan ikon untuk memunculkan
         except Exception as exc:
             C.log(f"Mini player gagal dibuat: {exc!r}")
             self._destroy_mini()
