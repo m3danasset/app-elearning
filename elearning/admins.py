@@ -49,10 +49,67 @@ def _deleted():
         return set()
 
 
+NAME_MAX = 40
+
+
+def _names_path():
+    return os.path.join(C.DATA_DIR, "admin_names.json")
+
+
+def _names():
+    """Nama admin yang diganti dari jendela Dev {ID: nama}."""
+    try:
+        with open(_names_path(), encoding="utf-8") as f:
+            data = json.load(f)
+        return {str(k): str(v) for k, v in data.items()} if isinstance(data, dict) else {}
+    except (OSError, ValueError, AttributeError):
+        return {}
+
+
+def get_name(user_id):
+    uid = user_id.strip().upper()
+    if uid not in ADMINS:
+        return None
+    return _names().get(uid, ADMINS[uid]["name"])
+
+
+def set_name(user_id, name):
+    """Ganti nama admin (jendela Dev). ValueError (pesan siap tampil) kalau tidak valid."""
+    uid = user_id.strip().upper()
+    if uid not in ADMINS or uid in _deleted():
+        raise ValueError(f"Admin {uid} tidak ditemukan.")
+    name = " ".join(str(name).split())
+    if not name:
+        raise ValueError("Nama admin belum diisi.")
+    if len(name) > NAME_MAX:
+        raise ValueError(f"Nama terlalu panjang (maksimal {NAME_MAX} huruf).")
+    data = _names()
+    data[uid] = name
+    os.makedirs(C.DATA_DIR, exist_ok=True)
+    tmp = _names_path() + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, _names_path())
+    return name
+
+
+def check_pin_text(pin):
+    """ValueError kalau PIN tidak valid (dipakai juga untuk cek sebelum menyimpan)."""
+    pin = str(pin)
+    if len(pin) < PIN_MIN:
+        raise ValueError(f"PIN minimal {PIN_MIN} karakter.")
+    if len(pin) > PIN_MAX:
+        raise ValueError(f"PIN terlalu panjang (maksimal {PIN_MAX} karakter).")
+    if any(ch.isspace() for ch in pin):
+        raise ValueError("PIN tidak boleh mengandung spasi.")
+    return pin
+
+
 def list_admins():
     """[(ID, nama)] admin yang aktif (yang dihapus di Dev tidak ikut)."""
     gone = _deleted()
-    return [(uid, a["name"]) for uid, a in ADMINS.items() if uid not in gone]
+    names = _names()
+    return [(uid, names.get(uid, a["name"])) for uid, a in ADMINS.items() if uid not in gone]
 
 
 def delete_admin(user_id):
@@ -118,4 +175,4 @@ def check_admin(user_id, pin):
         return None
     if not hmac.compare_digest(str(pin).encode("utf-8"), real.encode("utf-8")):
         return None
-    return {"id": uid, "name": data["name"]}
+    return {"id": uid, "name": get_name(uid)}

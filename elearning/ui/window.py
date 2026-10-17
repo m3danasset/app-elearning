@@ -226,6 +226,16 @@ class App(tk.Tk):
         elif self._screen is not None and not isinstance(self._screen, LoginScreen):
             self.rebuild_screen()
 
+    def dev_account_changed(self, kind, uid):
+        """Jendela Dev mengubah nama / PIN guru atau admin: layar dibangun ulang (nama baru
+        langsung tampil di sidebar, daftar guru di Panel Admin ikut baru)."""
+        scr = self._screen
+        if kind == "teacher" and isinstance(scr, TeacherScreen) and scr.teacher.get("id") == uid:
+            from elearning import teachers
+            scr.teacher = dict(scr.teacher, **(teachers.get_teacher(uid) or {}))
+        if scr is not None and not isinstance(scr, LoginScreen):
+            self.rebuild_screen()
+
     def rebuild_screen(self):
         """Bangun ulang layar yang sedang tampil di posisi yang sama (jendela Dev > Apply:
         warna aksen, fitur, tampilan login langsung terlihat)."""
@@ -244,7 +254,9 @@ class App(tk.Tk):
                 self.show_teacher(scr.teacher)
             elif isinstance(scr, AdminScreen):
                 tab = scr.tab
-                self.show_admin({"id": scr.admin_id, "name": "Admin"})
+                from elearning import admins
+                self.show_admin({"id": scr.admin_id,
+                                 "name": admins.get_name(scr.admin_id) or "Admin"})
                 self._screen._set_tab(tab)
         except Exception as exc:
             config.log(f"Dev: layar tidak bisa dibangun ulang: {exc!r}")

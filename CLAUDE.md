@@ -23,6 +23,9 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
    jumlahnya maks. config.WORKER_THREADS (1 di CPU 4 thread, maks. 2); OpenCV dibatasi
    setNumThreads. Proses berjalan BelowNormal (config._low_priority). Tk hanya dipanggil
    dari thread utama. Simulasi spek rendah: cmd /c start "" /affinity F "dist\Blender E-Learning.exe"
+   Tes di salinan data: mengganti C.DATA_DIR saja TIDAK cukup (STUDENTS_FILE, TEACHERS_FILE,
+   SESSIONS_FILE, ... sudah dihitung saat import); ganti semua atribut config yang diawali
+   DATA_DIR lama. Jalan dari sumber, data ada di data\ proyek (contoh), bukan dist\data.
 6. Kirim zip kumulatif berisi file .py yang berubah untuk update.bat; folder data harus aman.
 7. UI konsisten dengan layar login & gaya claude.ai: sudut membulat, ikon minimalis.
    Setiap fitur/tombol baru wajib mengikuti gaya ini.
@@ -198,6 +201,8 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   "Edit murid" (StudentEditor): nama, ID, kategori, status, tgl lahir, kursus buka/tampil.
   "Edit PIN" (PinEditor) untuk guru & admin: guru lewat teachers.update_teacher; admin lewat
   admins.set_pin -> data\admin_pins.json (menimpa PIN di admins.ADMINS; check_admin memakai get_pin).
+  "Edit akun" (AccountEditor) = nama + PIN guru / admin; nama admin di data\admin_names.json
+  (admins.get_name / set_name), lalu App.dev_account_changed membangun ulang layar.
   "Hapus" (DeleteConfirm, fokus awal di Batal) semua akun kecuali trial: murid =
   students.delete_student, guru = teachers.delete_teacher, admin = admins.delete_admin
   (data\admins_deleted.json; admin terakhir ditolak; list_admins dipakai daftar Dev).

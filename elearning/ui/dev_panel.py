@@ -365,7 +365,7 @@ class DevPanel(tk.Toplevel):
         kind = it[0] if it is not None else None
         self.del_btn.config(state="disabled" if kind in (None, "trial") else "normal")
         self.edit_btn.config(state="disabled" if kind in (None, "trial") else "normal",
-                             text="Edit PIN" if kind in ("admin", "teacher")
+                             text="Edit akun" if kind in ("admin", "teacher")
                              else "Edit murid" if kind in ("adult", "kids") else "Edit")
 
     def _move(self, d):
@@ -395,7 +395,7 @@ class DevPanel(tk.Toplevel):
         if it[0] in ("adult", "kids"):
             StudentEditor(self, it[1])
         elif it[0] in ("admin", "teacher"):
-            PinEditor(self, it[0], it[1], it[2])
+            AccountEditor(self, it[0], it[1], it[2])
 
     def _delete(self):
         it = self._selected()
@@ -758,32 +758,43 @@ class DeleteConfirm(tk.Toplevel):
             C.log(f"Dev: setelah hapus {uid}: {exc!r}")
 
 
-class PinEditor(tk.Toplevel):
-    """Ganti PIN guru / admin (jendela Dev). PIN lama terlihat supaya dev tahu yang dipakai."""
+class AccountEditor(tk.Toplevel):
+    """Ubah nama & PIN guru / admin (jendela Dev). PIN lama terlihat supaya dev tahu yang
+    dipakai. Dua-duanya diperiksa dulu; salah satu salah = tidak ada yang disimpan."""
 
     def __init__(self, panel, kind, uid, name):
         super().__init__(panel, bg=BG)
         self.panel, self.kind, self.uid = panel, kind, uid
-        self.title("Edit PIN")
+        self.title("Edit akun")
         self.attributes("-topmost", True)
         self.resizable(False, False)
-        self.geometry(f"280x150+{panel.winfo_rootx() + 30}+{panel.winfo_rooty() + 90}")
+        self.geometry(f"300x186+{panel.winfo_rootx() + 30}+{panel.winfo_rooty() + 90}")
         if kind == "admin":
             from elearning import admins
             pin = admins.get_pin(uid)
+            name = admins.get_name(uid) or name
         else:
             from elearning import teachers
             pin = teachers.get_pin(uid)
-        tk.Label(self, text=f"{'Admin' if kind == 'admin' else 'Guru'}  {uid}  {name}", bg=BG,
-                 fg=FG, font=BOLD, anchor="w").pack(fill="x", padx=14, pady=(12, 4))
-        row = tk.Frame(self, bg=BG)
-        row.pack(fill="x", padx=14)
-        tk.Label(row, text="PIN", bg=BG, fg=MUTED, font=FONT).pack(side="left", padx=(0, 8))
+            name = (teachers.get_teacher(uid) or {}).get("name", name)
+        self._old = (name, pin or "")
+        tk.Label(self, text=f"{'Admin' if kind == 'admin' else 'Guru'}  {uid}", bg=BG, fg=FG,
+                 font=BOLD, anchor="w").pack(fill="x", padx=14, pady=(12, 6))
+        grid = tk.Frame(self, bg=BG)
+        grid.pack(fill="x", padx=14)
+        grid.columnconfigure(1, weight=1)
+        self.name_var = tk.StringVar(value=name)
         self.var = tk.StringVar(value=pin or "")
-        e = tk.Entry(row, textvariable=self.var, font=FONT, bg=FIELD, fg=FG,
-                     insertbackground=FG, relief="flat")
-        e.pack(side="left", fill="x", expand=True, ipady=3)
-        self.msg = tk.Label(self, text="4-10 karakter, tanpa spasi.", bg=BG, fg=MUTED,
+        entries = []
+        for r, (label, var) in enumerate((("Nama", self.name_var), ("PIN", self.var))):
+            tk.Label(grid, text=label, bg=BG, fg=MUTED, font=FONT, anchor="w").grid(
+                row=r, column=0, sticky="w", padx=(0, 8), pady=2)
+            e = tk.Entry(grid, textvariable=var, font=FONT, bg=FIELD, fg=FG,
+                         insertbackground=FG, relief="flat")
+            e.grid(row=r, column=1, sticky="ew", pady=2, ipady=3)
+            e.bind("<Return>", lambda ev: self._save())
+            entries.append(e)
+        self.msg = tk.Label(self, text="PIN 4-10 karakter, tanpa spasi.", bg=BG, fg=MUTED,
                             font=FONT, anchor="w")
         self.msg.pack(fill="x", padx=14, pady=(6, 0))
         btns = tk.Frame(self, bg=BG)
@@ -795,38 +806,49 @@ class PinEditor(tk.Toplevel):
                   activebackground="#3a3a3a", activeforeground=FG,
                   command=self.destroy).pack(side="left", fill="x", expand=True, ipady=2,
                                              padx=(6, 0))
-        e.bind("<Return>", lambda ev: self._save())
         self.bind("<Escape>", lambda ev: self.destroy())
-        e.focus_set()
-        e.select_range(0, "end")
+        entries[0].focus_set()
+        entries[0].select_range(0, "end")
 
     def _save(self):
-        pin = self.var.get()
+        name, pin = " ".join(self.name_var.get().split()), self.var.get()
+        if (name, pin) == self._old:
+            self.destroy()
+            return
         try:
             if self.kind == "admin":
                 from elearning import admins
-                admins.set_pin(self.uid, pin)
+                admins.check_pin_text(pin)                  # periksa dulu, baru simpan
+                if not name:
+                    raise ValueError("Nama admin belum diisi.")
+                if len(name) > admins.NAME_MAX:
+                    raise ValueError(f"Nama terlalu panjang (maksimal {admins.NAME_MAX} huruf).")
+                if name != self._old[0]:
+                    admins.set_name(self.uid, name)
+                if pin != self._old[1]:
+                    admins.set_pin(self.uid, pin)
             else:
                 from elearning import teachers
-                t = teachers.get_teacher(self.uid)
-                if t is None:
+                teachers._clean_pin(pin)        # kosong = salah, bukan "tetap"
+                if teachers.get_teacher(self.uid) is None:
                     raise ValueError(f"Guru {self.uid} tidak ditemukan.")
-                teachers._clean_pin(pin)        # periksa dulu (kosong = salah, bukan "tetap")
-                teachers.update_teacher(self.uid, t["name"], pin)
+                teachers.update_teacher(self.uid, name, pin)
         except ValueError as exc:
             self.msg.config(text=str(exc), fg=C.ERROR)
             return
         except OSError as exc:
-            C.log(f"Dev: PIN {self.uid} gagal disimpan: {exc!r}")
+            C.log(f"Dev: akun {self.uid} gagal disimpan: {exc!r}")
             self.msg.config(text="Gagal menyimpan (folder data?).", fg=C.ERROR)
             return
-        C.log(f"Dev: PIN {self.uid} diganti")
-        panel = self.panel
+        C.log(f"Dev: akun {self.uid} diubah (nama / PIN)")
+        panel, kind, uid = self.panel, self.kind, self.uid
         self.destroy()
         try:
-            panel._note(f"PIN {self.uid} disimpan.")
-        except tk.TclError:
-            pass
+            panel.reload_accounts(uid)
+            panel._note(f"{uid} disimpan.")
+            panel.app.dev_account_changed(kind, uid)
+        except Exception as exc:
+            C.log(f"Dev: setelah ubah {uid}: {exc!r}")
 
 
 class StudentEditor(tk.Toplevel):
