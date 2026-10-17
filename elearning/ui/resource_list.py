@@ -1,6 +1,6 @@
 """Resource kelas trial: daftar file langsung tampil (tanpa file browser), klik = buka.
 
-File .blend dibuka dengan Blender aplikasi (lalu mode mengambang seperti tombol Open Blender);
+File .blend dibuka READ-ONLY (salinan sementara bertanda read-only) dengan Blender aplikasi (lalu mode mengambang seperti tombol Open Blender);
 file lain dengan aplikasi bawaan Windows. Isi folder: resources.course_folder (satu folder
 bersama untuk semua kelas trial), termasuk subfolder; cadangan Blender (.blend1 ...) disembunyikan.
 Tampilan: kartu seperti kartu kursus di halaman utama (ui/course_dock.CourseDock).
@@ -8,6 +8,10 @@ Tampilan: kartu seperti kartu kursus di halaman utama (ui/course_dock.CourseDock
 
 import os
 import re
+import shutil
+import stat
+import threading
+import time
 import tkinter as tk
 
 from elearning import config as C
@@ -35,6 +39,29 @@ def list_files(folder):
             if len(out) >= LIMIT:
                 return out
     return out
+
+
+_COPY_DIR = os.path.join(os.environ.get("TEMP") or os.path.expanduser("~"), "BlenderElearning_trial")
+
+
+def _readonly_copy(src):
+    """Salin src ke folder sementara dan tandai read-only. Salinan lama dihapus dulu."""
+    os.makedirs(_COPY_DIR, exist_ok=True)
+    for n in os.listdir(_COPY_DIR):            # bersihkan salinan sebelumnya
+        old = os.path.join(_COPY_DIR, n)
+        try:
+            os.chmod(old, stat.S_IWRITE | stat.S_IREAD)
+            if os.path.isfile(old):
+                os.remove(old)
+        except OSError:
+            pass                               # mungkin masih dipakai Blender: biarkan
+    dst = os.path.join(_COPY_DIR, os.path.basename(src))
+    if os.path.exists(dst):                    # nama sama masih terkunci: pakai nama lain
+        base, ext = os.path.splitext(dst)
+        dst = f"{base}_{int(time.time())}{ext}"
+    shutil.copyfile(src, dst)
+    os.chmod(dst, stat.S_IREAD)                # read-only
+    return dst
 
 
 class ResourceList(tk.Frame):
@@ -80,6 +107,36 @@ class ResourceList(tk.Frame):
                              "Blender is already open.\n\nSave your work (Ctrl+S), close Blender, "
                              "then click this file again.")
             return
+        if getattr(self, "_copying", False):
+            return
+        # READ-ONLY: Blender membuka SALINAN sementara bertanda read-only; file asli di folder
+        # resources\trial tidak pernah disentuh (Ctrl+S ditolak Blender). Salin di thread
+        # (file .blend bisa besar), hasil diambil thread utama 1x per frame.
+        self._copying = True
+        box = {}
+
+        def work():
+            try:
+                box["path"] = _readonly_copy(path)
+            except Exception as exc:
+                box["error"] = exc
+        threading.Thread(target=work, daemon=True).start()
+
+        def poll():
+            if not box:
+                self.after(C.UI_FRAME_MS, poll)
+                return
+            self._copying = False
+            if "error" in box:
+                C.log(f"Resource trial: salinan read-only gagal {path!r}: {box['error']!r}")
+                BL._show_message(app, "error", "File could not be opened",
+                                 "This Blender file could not be opened. Ask your teacher.")
+                return
+            self._launch(app, box["path"])
+        poll()
+
+    def _launch(self, app, path):
+        from elearning import blender_launcher as BL
         if not BL.open_blender(app, [path]):
             return
         tracker = getattr(app, "badges", None)
