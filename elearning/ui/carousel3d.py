@@ -35,6 +35,10 @@ RADIUS = 0.035           # sudut bulat (proporsi tinggi kartu)
 PAD = 3                  # tepi transparan: sisi miring tetap halus (tidak bergerigi)
 WORKERS = max(1, int(getattr(C, "WORKER_THREADS", 2)))   # dibatasi config (maks. 2)
 FPS = max(10, min(30, int(getattr(C, "LOGIN_CAROUSEL_FPS", 30))))   # maks. 30 fps
+# Jadwal frame di kisi 2x FPS (60): frame dibuat tiap DIVS langkah = 30 / 20 / 15 / 10 fps,
+# selalu rata. Layar besar (2560x1440) yang tidak sanggup 30 tetap mulus di 20 fps.
+GRID = 2 * FPS
+DIVS = (2, 3, 4, 6)
 LEAD = 0.12              # frame disiapkan maks. sekian detik sebelum tampil
 FADE = 0.22              # lebar fade tepi kiri & kanan (proporsi lebar layar)
 PLACEHOLDER = ("#4a5866", "#617d66", "#8d957a", "#83a09a", "#949a7b", "#5d6c7d")
@@ -184,7 +188,7 @@ class Carousel3D:
         self._k_next = 0
         # PC lambat (render > waktu frame): hanya frame kelipatan _div yang dibuat, jadi
         # 30 -> 15 -> 10 fps tapi TETAP rata (lebih mulus daripada frame terlewat acak).
-        self._div = 1
+        self._div = DIVS[0]
         self._cost = 0.0           # rata-rata waktu render satu frame (detik)
         self._paused = False
         self._stop = threading.Event()
@@ -299,7 +303,7 @@ class Carousel3D:
     # Frame dibuat untuk waktu tetap  T_k = t0 + k / FPS  (jadwal rata), beberapa frame di
     # depan waktu sekarang; thread utama menampilkan frame k tepat pada waktunya.
     def _T(self, k):
-        return self._t0 + k / FPS
+        return self._t0 + k / GRID
 
     def _work(self):
         while not self._stop.is_set():
@@ -307,7 +311,7 @@ class Carousel3D:
                 geo, ov, tex = self.geo, self._ov_band, self.tex
                 ready = geo is not None and not self._paused and geo.bh > 0
                 if ready:
-                    now_k = int((time.perf_counter() - self._t0) * FPS)
+                    now_k = int((time.perf_counter() - self._t0) * GRID)
                     d = self._div
                     k = max(self._k_next, now_k + 1)
                     k = -(-k // d) * d                      # kelipatan d berikutnya
@@ -335,13 +339,14 @@ class Carousel3D:
         """Atur _div dari rata-rata waktu render (beberapa worker bergantian membuat frame)."""
         with self._lock:
             self._cost = cost if self._cost == 0 else self._cost * 0.9 + cost * 0.1
-            budget = WORKERS / FPS             # waktu tersedia per frame untuk semua worker
-            d = self._div
-            if self._cost > d * budget * 0.85 and d < 3:
-                self._div = d + 1
-                C.log(f"Carousel 3D: render {self._cost * 1000:.0f} ms -> {FPS // self._div} fps rata")
-            elif d > 1 and self._cost < (d - 1) * budget * 0.6:
-                self._div = d - 1
+            budget = WORKERS / GRID            # waktu per langkah kisi untuk semua worker
+            i = DIVS.index(self._div)
+            if self._cost > self._div * budget * 0.85 and i + 1 < len(DIVS):
+                self._div = DIVS[i + 1]
+                C.log(f"Carousel 3D: render {self._cost * 1000:.0f} ms -> "
+                      f"{GRID // self._div} fps rata")
+            elif i > 0 and self._cost < DIVS[i - 1] * budget * 0.6:
+                self._div = DIVS[i - 1]
 
     # --- thread utama: tempel frame pada waktunya ----------------------------------------
     def _tick(self):
@@ -358,7 +363,7 @@ class Carousel3D:
                     self._frames = {}
                 self._paused = iconic
         now = time.perf_counter()
-        kd = int((now - self._t0) * FPS)
+        kd = int((now - self._t0) * GRID)
         out = None
         with self._lock:
             ready = [k for k in self._frames if k <= kd]
@@ -371,13 +376,16 @@ class Carousel3D:
         if self._paused:
             delay = 200
         else:
-            delay = max(1, int((self._T(kd + 1) - time.perf_counter()) * 1000) + 1)
+            d = self._div                      # bangun tepat di frame berikutnya (kelipatan d)
+            nxt = (kd // d + 1) * d
+            delay = max(1, int((self._T(nxt) - time.perf_counter()) * 1000) + 1)
         self._after = self.bg.after(delay, self._tick)
 
     def _display(self, _t, geo, img, vframe):
         try:
             self.bg.show_band(img, geo.y0)        # kartu dulu, tepat waktu
             if vframe is not None:
-                self.bg.show_video(vframe, now=False)   # video latar menyusul dalam frame ini
+                self.bg.show_video(vframe, now=False,   # video latar menyusul dalam frame ini
+                                   period_ms=1000.0 * self._div / GRID)
         except Exception as exc:       # canvas sudah ditutup
             C.log(f"Carousel 3D: {exc!r}")
