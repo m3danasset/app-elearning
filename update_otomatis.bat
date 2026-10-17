@@ -9,7 +9,7 @@ git checkout claude/search-palette || goto gagal
 git pull || goto gagal
 git log --oneline -1
 echo Memasang update...
-echo.| call update.bat
+call update.bat nopause
 echo Membuka aplikasi...
 start "" "dist\Blender E-Learning.exe"
 exit /b 0
