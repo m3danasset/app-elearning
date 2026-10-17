@@ -217,9 +217,41 @@ class DevPanel(tk.Toplevel):
         self._sel_changed()
 
     # --- Settings ---------------------------------------------------------------------------
-    def _section(self, text):
-        tk.Label(self.body, text=text, bg=BG, fg=MUTED, font=BOLD, anchor="w").pack(
-            fill="x", pady=(8, 2))
+    def _group(self, title):
+        """Grup baru (judul + baris-barisnya); baris ditambah lewat _item()."""
+        head = tk.Label(self.body, text=title, bg=BG, fg=MUTED, font=BOLD, anchor="w")
+        self._groups.append((head, title.lower(), []))
+
+    def _item(self, widget, text):
+        self._groups[-1][2].append((widget, text.lower()))
+
+    def _filter(self):
+        """Tampilkan hanya grup / baris yang cocok dengan kolom cari (judul grup cocok =
+        semua barisnya tampil). Widget tidak dibuat ulang: isian yang belum di-Apply tetap."""
+        words = self._q.get().lower().split()
+        for head, _t, rows in self._groups:
+            head.pack_forget()
+            for w, _x in rows:
+                w.pack_forget()
+        shown = 0
+        for head, title, rows in self._groups:
+            if all(w in title for w in words):
+                hit = rows
+            else:
+                hit = [(w, x) for w, x in rows if all(q in x + " " + title for q in words)]
+            if not hit:
+                continue
+            head.pack(fill="x", pady=(8, 2))
+            for w, _x in hit:
+                w.pack(fill="x", pady=1)
+            shown += len(hit)
+        self._empty.pack_forget()
+        if not shown:
+            self._empty.pack(fill="x", pady=12)
+        self._reset_btn.pack_forget()
+        if not words:
+            self._reset_btn.pack(fill="x", pady=(10, 4), ipady=2)
+        self._scroll_cv.yview_moveto(0)
 
     def _wheel(self, e):
         cv = self._scroll_cv
@@ -231,8 +263,18 @@ class DevPanel(tk.Toplevel):
         self._pending = {}           # perubahan yang belum di-Apply: key -> nilai
         self._pending_feat = {}
         self._val_vars = {}
-        # area gulir (isi panjang) + tombol Apply tetap di bawah
+        self._groups = []            # (judul, teks judul, [(baris, teks cari)])
         outer = self.body
+        # kolom cari (di atas, tidak ikut tergulir)
+        top = tk.Frame(outer, bg=BG)
+        top.pack(fill="x", pady=(0, 4))
+        tk.Label(top, text="Cari", bg=BG, fg=MUTED, font=FONT).pack(side="left", padx=(0, 6))
+        self._q = tk.StringVar()
+        q = tk.Entry(top, textvariable=self._q, font=FONT, bg=FIELD, fg=FG,
+                     insertbackground=FG, relief="flat")
+        q.pack(side="left", fill="x", expand=True, ipady=3)
+        q.bind("<Escape>", lambda e: self._q.set(""))
+        # area gulir (isi panjang) + tombol Apply tetap di bawah
         bottom = tk.Frame(outer, bg=BG)
         bottom.pack(side="bottom", fill="x")
         cv = tk.Canvas(outer, bg=BG, highlightthickness=0, bd=0)
@@ -246,62 +288,67 @@ class DevPanel(tk.Toplevel):
         cv.bind("<Configure>", lambda e: cv.itemconfigure(win, width=e.width))
         self._scroll_cv = cv
         self.body = inner
-        self._section("Tampilan login")
+        self._group("Tampilan login")
         mode = tk.StringVar(value=S.login_mode())
         for key, label in LOGIN_LABELS:
-            tk.Radiobutton(self.body, text=label, value=key, variable=mode, font=FONT,
-                           bg=BG, fg=FG, selectcolor=FIELD, activebackground=BG,
-                           activeforeground=FG, anchor="w",
-                           command=lambda: self._mark("login_mode", mode.get())).pack(fill="x")
-        self._section("Warna aksen")
+            self._item(tk.Radiobutton(self.body, text=label, value=key, variable=mode,
+                                      font=FONT, bg=BG, fg=FG, selectcolor=FIELD,
+                                      activebackground=BG, activeforeground=FG, anchor="w",
+                                      command=lambda: self._mark("login_mode", mode.get())),
+                       f"{label} {key} login mode")
+        self._group("Warna aksen")
         acc = tk.StringVar(value=S.get("accent"))
         row = tk.Frame(self.body, bg=BG)
-        row.pack(fill="x")
         for n, (key, (name, color, _hover)) in enumerate(S.ACCENTS.items()):
             tk.Radiobutton(row, text=name, value=key, variable=acc, font=FONT, bg=BG,
                            fg=color, selectcolor=FIELD, activebackground=BG,
                            activeforeground=color, anchor="w",
                            command=lambda: self._mark("accent", acc.get())
                            ).grid(row=n // 3, column=n % 3, sticky="w", padx=(0, 6))
-        self._section("Fitur")
+        self._item(row, "warna aksen accent color " + " ".join(
+            f"{k} {v[0]}" for k, v in S.ACCENTS.items()))
+        self._group("Fitur")
         for key, label in S.FEATURES:
             v = tk.BooleanVar(value=S.feature(key))
-            tk.Checkbutton(self.body, text=label, variable=v, font=FONT, bg=BG, fg=FG,
-                           selectcolor=FIELD, activebackground=BG, activeforeground=FG,
-                           anchor="w",
-                           command=lambda k=key, var=v: self._mark_feat(k, var.get())
-                           ).pack(fill="x")
-        tk.Label(self.body, text=f"PC kuat (NVIDIA + >=12 thread): "
-                                 f"{'ya' if getattr(C, 'HIGH_END', False) else 'tidak'}",
-                 bg=BG, fg=MUTED, font=FONT, anchor="w").pack(fill="x", pady=(8, 0))
+            self._item(tk.Checkbutton(self.body, text=label, variable=v, font=FONT, bg=BG,
+                                      fg=FG, selectcolor=FIELD, activebackground=BG,
+                                      activeforeground=FG, anchor="w",
+                                      command=lambda k=key, var=v: self._mark_feat(k, var.get())),
+                       f"{label} {key} fitur on off")
+        self._item(tk.Label(self.body, text=f"PC kuat (NVIDIA + >=12 thread): "
+                                            f"{'ya' if getattr(C, 'HIGH_END', False) else 'tidak'}",
+                            bg=BG, fg=MUTED, font=FONT, anchor="w"),
+                   "pc kuat nvidia high end fps60")
         # --- nilai (isi angka / teks) ---
         group = None
-        grid = None
         for key, grp, label, _kind, _t in DV.VALUES:
             if grp != group:
                 group = grp
-                self._section(grp)
-                grid = tk.Frame(self.body, bg=BG)
-                grid.pack(fill="x")
-                grid.columnconfigure(0, weight=1)
-                r = 0
+                self._group(grp)
+            line = tk.Frame(self.body, bg=BG)
+            line.columnconfigure(0, weight=1)
             var = tk.StringVar(value=DV.current_text(key))
             self._val_vars[key] = (var, var.get())
-            tk.Label(grid, text=label, bg=BG, fg=FG, font=FONT, anchor="w").grid(
-                row=r, column=0, sticky="w", pady=1)
-            tk.Entry(grid, textvariable=var, font=FONT, bg=FIELD, fg=FG, insertbackground=FG,
-                     relief="flat", width=14).grid(row=r, column=1, sticky="e", pady=1, ipady=1)
+            tk.Label(line, text=label, bg=BG, fg=FG, font=FONT, anchor="w").grid(
+                row=0, column=0, sticky="w")
+            tk.Entry(line, textvariable=var, font=FONT, bg=FIELD, fg=FG, insertbackground=FG,
+                     relief="flat", width=14).grid(row=0, column=1, sticky="e", ipady=1)
             var.trace_add("write", lambda *a: self._changed())
-            r += 1
-        tk.Button(self.body, text="Reset semua nilai ke bawaan", font=FONT, relief="flat",
-                  bg=FIELD, fg=FG, activebackground="#3a3a3a", activeforeground=FG,
-                  command=self._reset_values).pack(fill="x", pady=(10, 4), ipady=2)
+            self._item(line, f"{label} {key.replace('_', ' ')}")
+        self._empty = tk.Label(self.body, text="Tidak ada setting yang cocok.", bg=BG,
+                               fg=MUTED, font=FONT)
+        self._reset_btn = tk.Button(self.body, text="Reset semua nilai ke bawaan", font=FONT,
+                                    relief="flat", bg=FIELD, fg=FG, activebackground="#3a3a3a",
+                                    activeforeground=FG, command=self._reset_values)
         self.body = outer
         self.apply_btn = tk.Button(bottom, text="Apply", font=BOLD, relief="flat",
                                    bg=C.ACCENT, fg="white", activebackground=C.ACCENT_HOVER,
                                    activeforeground="white", state="disabled",
                                    command=self._apply)
         self.apply_btn.pack(fill="x", ipady=3, pady=(6, 0))
+        self._filter()
+        self._q.trace_add("write", lambda *a: self._filter())
+        q.focus_set()
 
     def _mark(self, key, value):
         self._pending[key] = value
