@@ -15,6 +15,7 @@ dalam sebuah silinder) dan terus berputar pelan tanpa henti (loop).
 """
 
 import math
+import sys
 import threading
 import time
 
@@ -155,6 +156,19 @@ def _texture(img, tw, th):
     return out.convert("RGBa")
 
 
+def _timer_res(on):
+    """Timer Windows 1 ms selama carousel jalan (default ~15,6 ms membuat jarak frame tidak
+    rata: 31 / 47 ms). Dikembalikan saat layar login ditutup."""
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        winmm = ctypes.windll.winmm
+        (winmm.timeBeginPeriod if on else winmm.timeEndPeriod)(1)
+    except Exception as exc:
+        C.log(f"Carousel 3D: timer 1 ms tidak bisa diatur: {exc!r}")
+
+
 class Carousel3D:
     def __init__(self, bg):
         """bg = LoginBackground (canvas dengan item video & item pita)."""
@@ -168,6 +182,10 @@ class Carousel3D:
         self._lock = threading.Lock()
         self._frames = {}          # nomor frame -> (k, geo, gambar, frame video)
         self._k_next = 0
+        # PC lambat (render > waktu frame): hanya frame kelipatan _div yang dibuat, jadi
+        # 30 -> 15 -> 10 fps tapi TETAP rata (lebih mulus daripada frame terlewat acak).
+        self._div = 1
+        self._cost = 0.0           # rata-rata waktu render satu frame (detik)
         self._paused = False
         self._stop = threading.Event()
         self._t0 = time.perf_counter()
@@ -180,6 +198,7 @@ class Carousel3D:
 
     # --- mulai / berhenti ------------------------------------------------------------
     def start(self):
+        _timer_res(True)
         self.items = SC.collect(limit=MAX_ITEMS)
         C.log(f"Carousel 3D login: {len(self.items)} karya")
         for _ in range(WORKERS):
@@ -189,6 +208,8 @@ class Carousel3D:
         self._tick()
 
     def close(self):
+        if not self._stop.is_set():
+            _timer_res(False)
         self._stop.set()
         for t in self._threads:      # frame yang sedang dibuat diselesaikan dulu (maks. sebentar)
             try:
@@ -287,8 +308,10 @@ class Carousel3D:
                 ready = geo is not None and not self._paused and geo.bh > 0
                 if ready:
                     now_k = int((time.perf_counter() - self._t0) * FPS)
+                    d = self._div
                     k = max(self._k_next, now_k + 1)
-                    self._k_next = k + 1
+                    k = -(-k // d) * d                      # kelipatan d berikutnya
+                    self._k_next = k + d
             if not ready:
                 self._stop.wait(0.05)
                 continue
@@ -296,8 +319,10 @@ class Carousel3D:
             if wait > 0 and self._stop.wait(wait):
                 return
             try:
+                t_r = time.perf_counter()
                 vframe = self.bg.video_frame()
                 img = render(geo, tex, self._phase(self._T(k)), self._band_bg(geo, vframe), ov)
+                self._adapt(time.perf_counter() - t_r)
             except Exception as exc:
                 C.log(f"Carousel 3D gagal menggambar: {exc!r}")
                 self._stop.wait(0.5)
@@ -305,6 +330,18 @@ class Carousel3D:
             with self._lock:
                 if geo is self.geo:
                     self._frames[k] = (k, geo, img, vframe)
+
+    def _adapt(self, cost):
+        """Atur _div dari rata-rata waktu render (beberapa worker bergantian membuat frame)."""
+        with self._lock:
+            self._cost = cost if self._cost == 0 else self._cost * 0.9 + cost * 0.1
+            budget = WORKERS / FPS             # waktu tersedia per frame untuk semua worker
+            d = self._div
+            if self._cost > d * budget * 0.85 and d < 3:
+                self._div = d + 1
+                C.log(f"Carousel 3D: render {self._cost * 1000:.0f} ms -> {FPS // self._div} fps rata")
+            elif d > 1 and self._cost < (d - 1) * budget * 0.6:
+                self._div = d - 1
 
     # --- thread utama: tempel frame pada waktunya ----------------------------------------
     def _tick(self):
@@ -339,8 +376,8 @@ class Carousel3D:
 
     def _display(self, _t, geo, img, vframe):
         try:
+            self.bg.show_band(img, geo.y0)        # kartu dulu, tepat waktu
             if vframe is not None:
-                self.bg.show_video(vframe)
-            self.bg.show_band(img, geo.y0)
+                self.bg.show_video(vframe, now=False)   # video latar menyusul dalam frame ini
         except Exception as exc:       # canvas sudah ditutup
             C.log(f"Carousel 3D: {exc!r}")
