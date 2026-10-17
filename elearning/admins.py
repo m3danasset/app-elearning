@@ -35,9 +35,50 @@ def _pins():
         return {}
 
 
+def _deleted_path():
+    return os.path.join(C.DATA_DIR, "admins_deleted.json")
+
+
+def _deleted():
+    """ID admin yang dihapus dari jendela Dev (akun di ADMINS tetap ada di kode)."""
+    try:
+        with open(_deleted_path(), encoding="utf-8") as f:
+            data = json.load(f)
+        return {str(x).upper() for x in data} if isinstance(data, list) else set()
+    except (OSError, ValueError, TypeError):
+        return set()
+
+
+def list_admins():
+    """[(ID, nama)] admin yang aktif (yang dihapus di Dev tidak ikut)."""
+    gone = _deleted()
+    return [(uid, a["name"]) for uid, a in ADMINS.items() if uid not in gone]
+
+
+def delete_admin(user_id):
+    """Hapus akun admin (jendela Dev). Admin terakhir tidak boleh dihapus."""
+    uid = user_id.strip().upper()
+    gone = _deleted()
+    if uid not in ADMINS or uid in gone:
+        raise ValueError(f"Admin {uid} tidak ditemukan.")
+    if len([a for a in ADMINS if a not in gone]) <= 1:
+        raise ValueError("Admin terakhir tidak bisa dihapus (minimal harus ada 1 admin).")
+    gone.add(uid)
+    os.makedirs(C.DATA_DIR, exist_ok=True)
+    tmp = _deleted_path() + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(sorted(gone), f, indent=2)
+    os.replace(tmp, _deleted_path())
+    pins = _pins()
+    if pins.pop(uid, None) is not None:       # PIN gantiannya ikut dibuang
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(pins, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, _pins_path())
+
+
 def get_pin(user_id):
     uid = user_id.strip().upper()
-    if uid not in ADMINS:
+    if uid not in ADMINS or uid in _deleted():
         return None
     return _pins().get(uid, ADMINS[uid]["pin"])
 
@@ -72,8 +113,9 @@ def check_admin(user_id, pin):
     """Kembalikan {'id','name'} kalau ID dan PIN cocok, kalau tidak None."""
     uid = user_id.strip().upper()
     data = ADMINS.get(uid)
-    if data is None:
+    real = get_pin(uid)
+    if data is None or real is None:          # tidak ada / dihapus di Dev
         return None
-    if not hmac.compare_digest(str(pin).encode("utf-8"), get_pin(uid).encode("utf-8")):
+    if not hmac.compare_digest(str(pin).encode("utf-8"), real.encode("utf-8")):
         return None
     return {"id": uid, "name": data["name"]}

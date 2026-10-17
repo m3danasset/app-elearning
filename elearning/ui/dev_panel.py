@@ -320,6 +320,10 @@ class DevPanel(tk.Toplevel):
                                   fg=FG, activebackground="#3a3a3a", activeforeground=FG,
                                   command=self._edit)
         self.edit_btn.pack(side="left", fill="x", expand=True, ipady=3, padx=(6, 0))
+        self.del_btn = tk.Button(btns, text="Hapus", font=BOLD, relief="flat", bg=FIELD,
+                                 fg="#ff6b6b", activebackground="#3a3a3a",
+                                 activeforeground="#ff6b6b", command=self._delete)
+        self.del_btn.pack(side="left", fill="x", expand=True, ipady=3, padx=(6, 0))
         self.q.trace_add("write", lambda *a: self._refill())
         self._refill()
         e.bind("<Return>", lambda ev: self._login())
@@ -359,6 +363,7 @@ class DevPanel(tk.Toplevel):
     def _sel_changed(self):
         it = self._selected()
         kind = it[0] if it is not None else None
+        self.del_btn.config(state="disabled" if kind in (None, "trial") else "normal")
         self.edit_btn.config(state="disabled" if kind in (None, "trial") else "normal",
                              text="Edit PIN" if kind in ("admin", "teacher")
                              else "Edit murid" if kind in ("adult", "kids") else "Edit")
@@ -391,6 +396,12 @@ class DevPanel(tk.Toplevel):
             StudentEditor(self, it[1])
         elif it[0] in ("admin", "teacher"):
             PinEditor(self, it[0], it[1], it[2])
+
+    def _delete(self):
+        it = self._selected()
+        if it is None or it[0] == "trial":
+            return
+        DeleteConfirm(self, it[0], it[1], it[2])
 
     def reload_accounts(self, select_id=None):
         """Setelah murid diedit: muat ulang daftar, pilih murid itu lagi."""
@@ -676,6 +687,75 @@ class DevPanel(tk.Toplevel):
             self.after_cancel(self._save_job)
             self._flush_ui()
         super().destroy()
+
+
+class DeleteConfirm(tk.Toplevel):
+    """Konfirmasi hapus akun (jendela Dev). Tidak bisa dibatalkan setelah Hapus."""
+
+    WHAT = {
+        "adult": "Akun, foto, progres video, badge, portfolio & assignment, riwayat login, "
+                 "jadwal, kuis, dan sertifikat murid ini ikut terhapus.",
+        "kids": "Akun, foto, progres video, badge, portfolio & assignment, riwayat login, "
+                "jadwal, kuis, dan sertifikat murid ini ikut terhapus.",
+        "teacher": "Akun, foto, dan riwayat masuk/keluar guru ini ikut terhapus. Laporan "
+                   "kerjanya tetap tersimpan.",
+        "admin": "Akun admin ini tidak bisa dipakai login lagi.",
+    }
+
+    def __init__(self, panel, kind, uid, name):
+        super().__init__(panel, bg=BG)
+        self.panel, self.kind, self.uid = panel, kind, uid
+        self.title("Hapus akun")
+        self.attributes("-topmost", True)
+        self.resizable(False, False)
+        self.geometry(f"300x190+{panel.winfo_rootx() + 30}+{panel.winfo_rooty() + 90}")
+        tk.Label(self, text=f"Hapus {uid}  {name}?", bg=BG, fg=FG, font=BOLD, anchor="w",
+                 wraplength=272, justify="left").pack(fill="x", padx=14, pady=(12, 4))
+        tk.Label(self, text=self.WHAT.get(kind, "") + " Tidak bisa dikembalikan.", bg=BG,
+                 fg=MUTED, font=FONT, anchor="w", wraplength=272, justify="left").pack(
+            fill="x", padx=14)
+        self.msg = tk.Label(self, text="", bg=BG, fg=C.ERROR, font=FONT, anchor="w",
+                            wraplength=272, justify="left")
+        self.msg.pack(fill="x", padx=14, pady=(6, 0))
+        btns = tk.Frame(self, bg=BG)
+        btns.pack(fill="x", side="bottom", padx=14, pady=(4, 12))
+        tk.Button(btns, text="Hapus", font=BOLD, relief="flat", bg="#c0392b", fg="white",
+                  activebackground="#e04a3a", activeforeground="white",
+                  command=self._do).pack(side="left", fill="x", expand=True, ipady=2)
+        cancel = tk.Button(btns, text="Batal", font=BOLD, relief="flat", bg=FIELD, fg=FG,
+                           activebackground="#3a3a3a", activeforeground=FG,
+                           command=self.destroy)
+        cancel.pack(side="left", fill="x", expand=True, ipady=2, padx=(6, 0))
+        self.bind("<Escape>", lambda ev: self.destroy())
+        cancel.focus_set()                  # Enter tidak langsung menghapus
+
+    def _do(self):
+        try:
+            if self.kind == "admin":
+                from elearning import admins
+                admins.delete_admin(self.uid)
+            elif self.kind == "teacher":
+                from elearning import teachers
+                teachers.delete_teacher(self.uid)
+            else:
+                from elearning import students
+                students.delete_student(self.uid)
+        except ValueError as exc:
+            self.msg.config(text=str(exc))
+            return
+        except OSError as exc:
+            C.log(f"Dev: hapus {self.uid} gagal: {exc!r}")
+            self.msg.config(text="Gagal menghapus (folder data?).")
+            return
+        C.log(f"Dev: akun {self.uid} dihapus")
+        panel, uid = self.panel, self.uid
+        self.destroy()
+        try:
+            panel.reload_accounts()
+            panel._note(f"{uid} dihapus.")
+            panel.app.dev_account_deleted(uid)
+        except Exception as exc:
+            C.log(f"Dev: setelah hapus {uid}: {exc!r}")
 
 
 class PinEditor(tk.Toplevel):

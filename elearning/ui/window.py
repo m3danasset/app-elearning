@@ -176,6 +176,7 @@ class App(tk.Tk):
     def login_student(self, student):
         from elearning import i18n
         i18n.set_role("trial" if is_trial(student) else "student")   # layar murid: English
+        self._account_id = None if is_trial(student) else student["id"]
         if not is_trial(student):   # akun trial dipakai bersama, tidak dicatat
             sessions.start(student["id"])
         from elearning.app_settings import feature
@@ -190,6 +191,7 @@ class App(tk.Tk):
     def login_teacher(self, teacher):
         from elearning import i18n
         i18n.set_role("teacher")
+        self._account_id = teacher["id"]
         sessions.start(teacher["id"])   # aktivitas guru dicatat supaya admin bisa memantau
         self.show_teacher(teacher)
         self._after_login()
@@ -197,6 +199,7 @@ class App(tk.Tk):
     def login_admin(self, admin):
         from elearning import i18n
         i18n.set_role("admin")
+        self._account_id = admin["id"]
         self.show_admin(admin)          # login admin tidak dicatat
         self._after_login()
 
@@ -214,6 +217,14 @@ class App(tk.Tk):
             self.login_teacher(account)
         else:
             self.login_student(account)
+
+    def dev_account_deleted(self, uid):
+        """Jendela Dev menghapus akun: kalau akun itu sedang dipakai -> keluar ke login (tanpa
+        konfirmasi); kalau tidak, layar sekarang dibangun ulang supaya daftarnya ikut baru."""
+        if getattr(self, "_account_id", None) == uid:
+            self._logout()
+        elif self._screen is not None and not isinstance(self._screen, LoginScreen):
+            self.rebuild_screen()
 
     def rebuild_screen(self):
         """Bangun ulang layar yang sedang tampil di posisi yang sama (jendela Dev > Apply:
@@ -265,6 +276,7 @@ class App(tk.Tk):
         self._confirm(L("Keluar dari akun?", "Log out?"), L("Keluar", "Log out"), self._logout)
 
     def _logout(self):
+        self._account_id = None
         self.badges.stop()
         self._student = None
         self.blender_float.stop()

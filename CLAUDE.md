@@ -198,6 +198,10 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   "Edit murid" (StudentEditor): nama, ID, kategori, status, tgl lahir, kursus buka/tampil.
   "Edit PIN" (PinEditor) untuk guru & admin: guru lewat teachers.update_teacher; admin lewat
   admins.set_pin -> data\admin_pins.json (menimpa PIN di admins.ADMINS; check_admin memakai get_pin).
+  "Hapus" (DeleteConfirm, fokus awal di Batal) semua akun kecuali trial: murid =
+  students.delete_student, guru = teachers.delete_teacher, admin = admins.delete_admin
+  (data\admins_deleted.json; admin terakhir ditolak; list_admins dipakai daftar Dev).
+  App.dev_account_deleted: akun yang sedang dipakai -> keluar ke login; lainnya rebuild_screen.
   Ganti ID = students.change_id: pindahkan foto, progres, badge, portfolio & assignment,
   riwayat login (+ arsip), jadwal, kuis, sertifikat, recents; ditolak kalau ID sudah dipakai.
   Ganti kategori = students.set_program (kursus disesuaikan). Settings: 2 tombol.

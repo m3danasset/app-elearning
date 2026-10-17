@@ -11,7 +11,6 @@ import tkinter as tk
 from elearning import config as C
 from elearning import students as S
 from elearning import teachers as T
-from elearning.admins import ADMINS
 from elearning.trial import trial_student
 from elearning.ui import ui_icons as I
 
@@ -28,7 +27,8 @@ KIND = {"admin": ("Admin", C.ACCENT), "teacher": ("Guru", "#4f8f6f"),
 
 def accounts():
     """[(jenis, id, nama, akun)] semua akun yang bisa dipilih."""
-    out = [("admin", uid, a["name"], {"id": uid, "name": a["name"]}) for uid, a in ADMINS.items()]
+    from elearning.admins import list_admins
+    out = [("admin", uid, name, {"id": uid, "name": name}) for uid, name in list_admins()]
     out += [("teacher", t["id"], t["name"], t) for t in T.list_teachers()]
     studs = sorted(S.list_students(), key=lambda s: s["name"].lower())
     out += [("kids" if s["program"] == "kids" else "adult", s["id"], s["name"], s) for s in studs]
