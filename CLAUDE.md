@@ -25,10 +25,14 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 7. UI konsisten dengan layar login & gaya claude.ai: sudut membulat, ikon minimalis.
    Setiap fitur/tombol baru wajib mengikuti gaya ini.
 
-## Badge / achievement (tahap 1)
-- elearning/achievements.py: 20 badge (sama untuk dewasa & SUPERKIDS, trial tidak dapat),
-  data per murid di data\achievements\<ID>.json. Video dihitung dari bagian yang BENAR-BENAR
-  ditonton (progress.py "seen", min. 80 %), bukan posisi terjauh.
+## Badge / achievement (PER KURSUS)
+- elearning/achievements.py: 20 badge PER KURSUS (tiap kursus set sendiri; sama untuk dewasa &
+  SUPERKIDS, trial tidak dapat), data per murid di data\achievements\<ID>.json
+  {"courses": {cid: {"badges", "days"}}}; badge global lama disimpan tapi tidak dipakai.
+  Video dihitung dari bagian yang BENAR-BENAR ditonton (progress.py "seen", min. 80 %).
+- Badge kejadian (buka kursus = Halo, Blender, easter egg) masuk ke kursus yang sedang /
+  terakhir dibuka (BadgeTracker.course_opened). Konsisten = hari membuka kursus itu.
+  Menu Badges hanya di sidebar kursus (tidak di halaman utama); guru memilih kursus.
 - ui/badge_art.py (ikon, numpy), ui/badge_ui.py (halaman Badge, notifikasi kiri-bawah di atas
   sidebar, pelacak di thread). Notifikasi ditahan saat video layar penuh / Blender dipakai.
 - Easter egg diatur di config.py (SECRET_CODE, SPECIAL_DAYS); ganti berkala.
@@ -166,3 +170,11 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   trial; syarat dihitung di thread, diambil thread utama 1x per frame) dan CertificateBoard
   (Panel Admin tab Sertifikat + menu Sertifikat guru; Tandai selesai / Batalkan). Angka di
   menu = permintaan yang menunggu.
+
+## Bahasa: layar murid English
+- elearning/i18n.py: L("Indonesia", "English"); bahasa diatur saat login (window.py):
+  murid & trial = English, login / guru / admin = Indonesia. Komponen bersama (sidebar,
+  search palette, dialog, portfolio, gallery, usb_save, pesan Blender) memakai L();
+  file khusus murid (lesson_view, lesson_extras, course_dock, file_browser, mini_player,
+  halaman sertifikat) langsung English. Badge punya name_en/desc_en, kursus desc_en
+  (courses.visible_for). Fitur murid baru wajib English.
