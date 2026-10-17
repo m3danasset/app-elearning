@@ -15,7 +15,7 @@ import tkinter as tk
 from elearning import brand
 from elearning import config as C
 from elearning import photos
-from elearning.admins import check_admin, is_admin_id
+from elearning.admins import ADMINS, check_admin, is_admin_id
 from elearning.students import STATUS_EXPIRED, lookup_student
 from elearning.teachers import check_teacher, is_teacher_id
 from elearning.trial import is_trial_id, trial_student
@@ -65,6 +65,8 @@ class LoginScreen(tk.Frame):
 
         top = self.winfo_toplevel()
         top.bind("<Key>", self._on_key)
+        top.bind("<KeyRelease>", self._on_key_up)
+        self._mods = set()          # Ctrl / Shift yang sedang ditekan (kiri & kanan terpisah)
         cv.bind("<Button-1>", self._on_click)
         cv.bind("<Motion>", self._on_motion)
         cv.focus_set()
@@ -251,9 +253,32 @@ class LoginScreen(tk.Frame):
         import time
         self.carousel.last_input = time.perf_counter()
 
+    _MODS = ("Control_L", "Control_R", "Shift_L", "Shift_R")
+
+    def _on_key_up(self, e):
+        self._mods.discard(e.keysym)
+
+    def _dev_bypass(self):
+        """Shortcut dev: Ctrl KANAN + Shift KANAN + Backspace = langsung masuk Panel Admin.
+        Ctrl / Shift kiri tidak boleh ikut ditekan."""
+        if self.on_admin is None:
+            return False
+        if not {"Control_R", "Shift_R"} <= self._mods or self._mods & {"Control_L", "Shift_L"}:
+            return False
+        uid = next(iter(ADMINS))
+        C.log("Dev bypass login: masuk sebagai admin")
+        self._mods.clear()
+        self.on_admin({"id": uid, "name": ADMINS[uid]["name"]})
+        return True
+
     def _on_key(self, e):
         self._wake()
         ks = e.keysym
+        if ks in self._MODS:
+            self._mods.add(ks)
+            return
+        if ks == "BackSpace" and self._dev_bypass():
+            return
         ctrl = bool(e.state & 0x4)
         if ks in ("Return", "KP_Enter"):
             self.do_login()
@@ -340,6 +365,7 @@ class LoginScreen(tk.Frame):
                 pass
         try:
             self.winfo_toplevel().unbind("<Key>")
+            self.winfo_toplevel().unbind("<KeyRelease>")
         except Exception:
             pass
         tk.Frame.destroy(self)
