@@ -267,3 +267,17 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   aktif, kehadiran) atau sparkline (jam belajar, portfolio, assignment, badge); Jam belajar =
   grafik area (lengkap & ringkas). Urutan Lengkap: kartu, Jam belajar, "Pendaftar dari trial",
   lalu judul "Aktivitas kelas" (jam ramai, upload, kehadiran, badge, kursus, guru, murid).
+
+## Dashboard admin & guru (halaman pertama setelah login)
+- elearning/dashboard.py items(role, user): kartu notifikasi / tugas {level urgent | todo |
+  info | done, icon, tag, title, body, when, action, target}. Admin: pendaftar menunggu,
+  sertifikat, kelas hari ini (berjalan / berikutnya), murid tanpa jadwal, tidak login >= 14
+  hari, laporan guru hari ini, akun expired, sedang online. Guru: kelas saya, laporan kerja
+  hari ini, sertifikat, karya baru murid (3 hari), murid tidak aktif, online. Dihitung di
+  thread, diperbarui tiap 60 dtk; target = menu yang dibuka (admin _set_tab, guru _set_view).
+- ui/dashboard_view.py DashboardView: satu canvas, video latar beranda (assets\video\home)
+  seperti halaman murid; kartu (bayangan lembut, cahaya warna tingkat dari kiri, ikon bulat,
+  tombol aksi, titik oranye untuk urgent) digambar ke SATU lapisan RGBA yang dicampur ke frame
+  video DI THREAD video (frame bertanda id lapisan). Hover = bingkai warna terpisah (0,1 ms),
+  lapisan tidak digambar ulang. Kanan atas: cincin "x/y beres". 3 kolom >= 1180 px, 2 kolom
+  >= 720. Admin: menu "Dashboard" paling atas (tab default); guru: view "dashboard" default.

@@ -33,7 +33,7 @@ KEYWORDS = {"expired": ("status", "expired"), "active": ("status", "active"),
             "offline": ("online", False), "anak": ("program", "kids"),
             "dewasa": ("program", "adult")}
 
-TAB_TITLE = {"students": "Murid", "teachers": "Guru", "reports": "Laporan Guru",
+TAB_TITLE = {"dashboard": "Dashboard", "students": "Murid", "teachers": "Guru", "reports": "Laporan Guru",
              "analytics": "Analytics", "schedule": "Jadwal", "certificates": "Sertifikat",
              "signups": "Pendaftar"}
 
@@ -42,7 +42,8 @@ class AdminScreen(SidebarLayout):
     def __init__(self, master, admin, on_logout):
         super().__init__(master)
         self.admin_id = admin["id"]
-        self.tab = "analytics"   # Analytics paling atas & dibuka pertama
+        self.tab = "dashboard"   # Dashboard (kartu notifikasi) paling atas & dibuka pertama
+        self.dash = None         # DashboardView (dibuat saat menu Dashboard tampil)
         self._after = None
         self._online = None      # daftar "Sedang online" terakhir
         self._sb_sig = None      # tanda isi sidebar terakhir (lihat _refresh_sidebar)
@@ -61,7 +62,7 @@ class AdminScreen(SidebarLayout):
 
         self.header = PageHeader(self.content, "Panel Admin")
         self.header.pack(fill="x")
-        body = tk.Frame(self.content, bg=C.BG, padx=28, pady=4)
+        body = self.body = tk.Frame(self.content, bg=C.BG, padx=28, pady=4)
         body.pack(fill="both", expand=True)
 
         self.summary = tk.Label(body, text="", bg=C.BG, fg=C.MUTED,
@@ -151,7 +152,7 @@ class AdminScreen(SidebarLayout):
     def _populate(self, sb):
         certs, signs = self._waiting()
         badge = {"certificates": certs, "signups": signs}
-        for key, icon in (("analytics", "activity"), ("students", "users"),
+        for key, icon in (("dashboard", "home"), ("analytics", "activity"), ("students", "users"),
                           ("teachers", "teacher"), ("reports", "report"),
                           ("schedule", "clock"), ("certificates", "check"),
                           ("signups", "user")):
@@ -408,6 +409,22 @@ class AdminScreen(SidebarLayout):
     # --- tab -----------------------------------------------------------------
     def _layout_tab(self):
         """Judul, tombol kepala, baris ringkasan / filter, dan isi yang tampil per menu."""
+        if self.tab == "dashboard":       # halaman penuh (video latar), tanpa judul / filter
+            self.header.pack_forget()
+            self.body.pack_forget()
+            if self.dash is None:
+                from elearning.ui.dashboard_view import DashboardView
+                self.dash = DashboardView(self.content, "admin",
+                                          {"id": self.admin_id, "name": self._admin_name()},
+                                          on_action=self._set_tab)
+            self.dash.pack(fill="both", expand=True)
+            return
+        if self.dash is not None:         # keluar dari Dashboard: video latar ikut berhenti
+            self.dash.destroy()
+            self.dash = None
+        if not self.header.winfo_manager():
+            self.header.pack(fill="x")
+            self.body.pack(fill="both", expand=True)
         self.header.set_title(TAB_TITLE[self.tab], "Panel Admin")
         if self.tab in ("students", "teachers", "schedule"):
             teachers = self.tab == "teachers"
@@ -488,6 +505,13 @@ class AdminScreen(SidebarLayout):
             return
         self.refresh()
 
+    def _admin_name(self):
+        try:
+            from elearning import admins
+            return admins.get_name(self.admin_id) or "Admin"
+        except Exception:
+            return "Admin"
+
     def _set_tab(self, key):
         if key == self.tab:
             return
@@ -567,6 +591,9 @@ class AdminScreen(SidebarLayout):
         if self._after is not None:
             self.after_cancel(self._after)
         self._refresh_sidebar()   # daftar "Sedang online" ikut diperbarui
+        if self.tab == "dashboard":   # Dashboard memperbarui isinya sendiri (tiap 60 detik)
+            self._after = self.after(REFRESH_MS, self.refresh)
+            return
         if self.tab == "analytics":   # dihitung ulang hanya saat dibuka
             return
         if self.tab == "reports":

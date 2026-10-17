@@ -27,7 +27,7 @@ from elearning.ui.widgets import ScrollFrame, Switch, add_hover
 
 PROGRAM_LABEL = {"adult": "Murid dewasa", "kids": "Murid anak"}
 CATEGORIES = ("adult", "kids")  # urutan kategori di sidebar kiri
-VIEW_TITLE = {"students": "Murid & Kursus", "reports": "Laporan Kerja", "quizzes": "Kuis",
+VIEW_TITLE = {"dashboard": "Dashboard", "students": "Murid & Kursus", "reports": "Laporan Kerja", "quizzes": "Kuis",
               "examples": "Bahan dari Guru", "schedule": "Jadwal Murid",
               "certificates": "Sertifikat"}
 
@@ -37,7 +37,7 @@ class TeacherScreen(SidebarLayout):
         super().__init__(master)
         self.teacher = teacher
         self.on_logout = on_logout
-        self.view = "students"   # "students" (murid & kursus) atau "reports" (laporan kerja)
+        self.view = "dashboard"  # halaman pertama: kartu notifikasi / hal yang perlu dikerjakan
         self.students = list_students()
         self.collapsed = set()   # kategori yang sedang dilipat
         self.current_id = self.students[0]["id"] if self.students else None
@@ -52,7 +52,8 @@ class TeacherScreen(SidebarLayout):
 
         # --- Kanan: judul menu + isi ---------------------------------------------
         self.header = PageHeader(self.content, VIEW_TITLE[self.view])
-        self.header.pack(fill="x")
+        if self.view != "dashboard":      # Dashboard: halaman penuh tanpa judul
+            self.header.pack(fill="x")
         self.body = tk.Frame(self.content, bg=C.BG)
         self.body.pack(fill="both", expand=True)
         self._render_body()
@@ -63,12 +64,21 @@ class TeacherScreen(SidebarLayout):
             return
         self.view = view
         self.header.set_title(VIEW_TITLE[view])
+        if view == "dashboard":
+            self.header.pack_forget()
+        elif not self.header.winfo_manager():
+            self.header.pack(fill="x", before=self.body)
         self.sb.refresh()
         self._render_body()
 
     def _render_body(self):
         for w in self.body.winfo_children():
             w.destroy()
+        if self.view == "dashboard":
+            from elearning.ui.dashboard_view import DashboardView
+            DashboardView(self.body, "teacher", self.teacher,
+                          on_action=self._set_view).pack(fill="both", expand=True)
+            return
         if self.view == "reports":
             ReportPanel(self.body, self.teacher).pack(fill="both", expand=True)
             return
@@ -100,6 +110,8 @@ class TeacherScreen(SidebarLayout):
     def _populate(self, sb):
         self._row_widgets = {}
         sb.nav("Tambah murid", "plus", self._add_student, primary=True)
+        sb.nav("Dashboard", "home", lambda: self._set_view("dashboard"),
+               active=self.view == "dashboard")
         sb.nav("Murid & Kursus", "users", lambda: self._set_view("students"),
                active=self.view == "students")
         sb.nav("Kuis", "quiz", lambda: self._set_view("quizzes"),
