@@ -66,11 +66,10 @@ def _solve(src, dst):
 class Geo:
     """Ukuran & posisi untuk satu ukuran jendela (tidak diubah setelah dibuat).
 
-    rows3=True: + pita kartu kecil DATAR di ATAS dan di BAWAH carousel utama, bergerak
-    berlawanan arah. Pita datar = satu strip kartu yang digeser (1 transform per baris per
-    frame), jauh lebih ringan daripada puluhan kartu silinder kecil.
-    self.rows = [(cyb, B, half, step, arah, set)] (silinder: baris utama)
-    self.flat = [(cyb pita, tinggi kartu, arah, set tekstur)]"""
+    rows3=True: + baris kartu di ATAS dan di BAWAH baris utama, di SILINDER YANG SAMA (ukuran
+    kartu sama, digeser vertikal di ruang 3D -> tepinya ikut melengkung oleh perspektif),
+    bergerak berlawanan arah. Sebagian terpotong tepi layar.
+    self.rows = [(cyb, B, half, step, arah, set tekstur, geser vertikal)]"""
 
     def __init__(self, W, H, cy, ch, extra=(), rows3=False):
         self.W, self.H = int(W), int(H)
@@ -87,27 +86,20 @@ class Geo:
                 break
             hmax = max(hmax, self.B / z)
         top, bot = cy - hmax - PAD, cy + hmax + PAD
-        rows = [(cy, self.B, HALF, STEP, 1, 0)]
-        flat = []
-        self.s = 0.0
+        rows = [(cy, self.B, HALF, STEP, 1, 0, 0.0)]
+        self.rows3 = bool(rows3)
         if rows3:
-            space = min(cy - hmax - PAD, H - (cy + hmax + PAD))   # ruang di atas / bawah
-            fh = int(min(space - 16, ch * 0.42))                   # tinggi kartu pita datar
-            if fh >= 60:                                          # cukup ruang: tambah pita
-                self.s = fh / (ch * 1.2)                          # skala tekstur
-                ct = (cy - hmax - PAD) / 2                        # tengah ruang atas
-                cb = H - ct                                       # tengah ruang bawah
-                flat = [(ct, fh, -1, 1), (cb, fh, -1, 2)]
-                top = min(top, ct - fh / 2 - PAD)
-                bot = max(bot, cb + fh / 2 + PAD)
+            off = 2 * self.B * 1.055                     # tinggi kartu + celah (~5.5 %)
+            rows.append((cy, self.B, HALF, STEP, -1, 1, -off))   # baris atas
+            rows.append((cy, self.B, HALF, STEP, -1, 2, off))    # baris bawah
+            top, bot = 0, H                              # tiga baris menutup seluruh layar
         for y0, y1 in extra:                         # logo / kolom login ikut di pita
             top, bot = min(top, y0), max(bot, y1)
         self.y0 = max(0, int(top))
         self.y1 = min(self.H, int(math.ceil(bot)))
         self.cyb = cy - self.y0
         self.bh = self.y1 - self.y0
-        self.rows = [(c - self.y0, b, hf, st, d, t) for c, b, hf, st, d, t in rows]
-        self.flat = [(c - self.y0, fh, d, t) for c, fh, d, t in flat]
+        self.rows = [(c - self.y0, b, hf, st, d, t, o) for c, b, hf, st, d, t, o in rows]
         self.key = (self.W, self.H, int(cy), int(ch), self.y0, self.y1, len(self.rows))
 
 
@@ -118,15 +110,11 @@ def render(geo, texsets, phase, band, overlays):
     if fw > 2:      # latar asli tepi kiri & kanan (untuk fade)
         left = band.crop((0, 0, fw, geo.bh))
         right = band.crop((geo.W - fw, 0, geo.W, geo.bh))
-    for cyb, fh, direction, t in geo.flat:        # pita datar atas & bawah
-        strip = texsets[t] if t < len(texsets) else None
-        if isinstance(strip, tuple):
-            _render_flat(geo, strip, phase * direction, band, cyb)
-    for cyb, B, half, step, direction, t in geo.rows:
+    for cyb, B, half, step, direction, t, off in geo.rows:
         tex = texsets[t] if t < len(texsets) and texsets[t] else (texsets[0] if texsets else [])
-        if tex:
+        if tex:     # baris atas & bawah: berlawanan arah, bergeser setengah kartu
             _render_row(geo, tex, phase * direction + (0.5 if t else 0.0), band, cyb, B, half,
-                        step)
+                        step, off)
     if fw > 2:
         mask = _fade_mask(fw, geo.bh)
         band.paste(left, (0, 0), mask)
@@ -136,37 +124,9 @@ def render(geo, texsets, phase, band, overlays):
     return band
 
 
-def _render_flat(geo, strip, phase, band, cyb):
-    """Pita datar: strip (gambar RGBa berisi kartu berjajar, sudah diulang selebar layar)
-    digeser dengan crop. strip = (gambar, panjang satu putaran,
-    lebar satu kartu + celah)."""
-    img, period, pitch = strip
-    W, sh = geo.W, img.size[1]
-    # Geser per piksel bulat (crop, tanpa resample): pita bergerak lambat (~1/2 px per frame),
-    # transform sub-pixel selebar layar terlalu mahal (~6 ms per pita per frame).
-    x = int((phase * pitch) % period)               # 1 kartu bergeser per satuan phase
-    oy = int(round(cyb - sh / 2))
-    part = img.crop((x, 0, x + W, sh))
-    band.paste(part, (0, oy), part)
-
-
-def _flat_strip(cards, W):
-    """Susun kartu (RGBa, tinggi sama) jadi satu strip yang bisa diputar terus."""
-    Image = photos.Image
-    cw, chh = cards[0].size
-    gap = max(8, int(chh * 0.08))
-    pitch = cw + gap
-    period = pitch * len(cards)
-    reps = max(1, -(-(W + pitch * 2) // period)) + 1        # cukup untuk menutup layar
-    img = Image.new("RGBa", (period * reps, chh), (0, 0, 0, 0))
-    for r in range(reps):
-        for i, c in enumerate(cards):
-            img.paste(c, (r * period + i * pitch, 0))
-    return img, period, pitch
-
-
-def _render_row(geo, tex, phase, band, cyb, B, half, step):
-    """Satu baris kartu di silinder (radius = geo.A, lebar sudut kartu = half)."""
+def _render_row(geo, tex, phase, band, cyb, B, half, step, off=0.0):
+    """Satu baris kartu di silinder (radius = geo.A, lebar sudut kartu = half). off = geser
+    vertikal di ruang 3D (baris atas / bawah): y layar = cyb + (off -+ B) / z."""
     n = len(tex)
     if n:
         W, bh, cx, A = geo.W, geo.bh, geo.cx, geo.A
@@ -182,19 +142,27 @@ def _render_row(geo, tex, phase, band, cyb, B, half, step):
             x1, x2 = cx + A * math.sin(p1) / z1, cx + A * math.sin(p2) / z2
             if x2 - x1 < 3 or x2 < -2 or x1 > W + 2:
                 continue
-            h1, h2 = B / z1, B / z2
+            t1, b1 = cyb + (off - B) / z1, cyb + (off + B) / z1     # atas / bawah tepi kiri
+            t2, b2 = cyb + (off - B) / z2, cyb + (off + B) / z2     # atas / bawah tepi kanan
             ox, ex = max(0, int(x1) - 2), min(W, int(x2) + 3)
-            oy = max(0, int(cyb - max(h1, h2)) - 2)
-            ey = min(bh, int(cyb + max(h1, h2)) + 3)
-            if ex <= ox or ey <= oy:
+            oy = max(0, int(min(t1, t2)) - 2)
+            ey = min(bh, int(max(b1, b2)) + 3)
+            if ex <= ox or ey <= oy:      # di luar layar (baris atas / bawah): lewati
                 continue
             src = tex[g % n]
             sw, sh = src.size
-            dst = [(x1 - ox, cyb - h1 - oy), (x2 - ox, cyb - h2 - oy),
-                   (x2 - ox, cyb + h2 - oy), (x1 - ox, cyb + h1 - oy)]
+            dst = [(x1 - ox, t1 - oy), (x2 - ox, t2 - oy),
+                   (x2 - ox, b2 - oy), (x1 - ox, b1 - oy)]
             s = [(PAD, PAD), (sw - PAD, PAD), (sw - PAD, sh - PAD), (PAD, sh - PAD)]
-            img = src.transform((ex - ox, ey - oy), photos.Image.PERSPECTIVE, _solve(s, dst),
-                                photos.Image.BILINEAR)
+            if off:     # baris atas / bawah: warp setengah resolusi lalu diperbesar (~40 % lebih
+                ow, oh = ex - ox, ey - oy           # ringan; kartu redup & terpotong tepi layar)
+                hw, hh = max(2, ow // 2), max(2, oh // 2)
+                d2 = [(x * hw / ow, y * hh / oh) for x, y in dst]
+                img = src.transform((hw, hh), photos.Image.PERSPECTIVE, _solve(s, d2),
+                                    photos.Image.BILINEAR).resize((ow, oh), photos.Image.BILINEAR)
+            else:
+                img = src.transform((ex - ox, ey - oy), photos.Image.PERSPECTIVE, _solve(s, dst),
+                                    photos.Image.BILINEAR)
             band.paste(img, (ox, oy), img)
 
 
@@ -322,7 +290,7 @@ class Carousel3D:
         # frame pertama ukuran baru dibuat langsung: tidak ada sisa pita ukuran lama.
         # Latar pita = frame video (sementara: frame lama yang diskalakan), sama dengan latar layar.
         vframe = self.bg.video_frame()
-        self._display(time.perf_counter(), geo, render(geo, [t if isinstance(t, tuple) else list(t) for t in self.tex],
+        self._display(time.perf_counter(), geo, render(geo, [list(t) for t in self.tex],
                                                         self._phase(),
                                                         self._band_bg(geo, vframe), ov), vframe)
 
@@ -341,17 +309,16 @@ class Carousel3D:
 
     def _ensure_textures(self, geo):
         """Gambar kartu dibuat ulang hanya kalau ukurannya jauh berbeda. Baris atas & bawah
-        (setting rows3): kartu lebih kecil (skala geo.s), 10 karya lain per baris."""
+        (setting rows3): ukuran kartu sama, 10 karya lain per baris."""
         th = int(geo.ch * 1.2)
-        th2 = int(geo.flat[0][1]) if geo.flat else 0      # tinggi kartu pita datar
+        th2 = th if geo.rows3 else 0                      # baris atas & bawah: ukuran sama
         want_sets = 3 if th2 else 1
-        want = (th, th2, geo.W if th2 else 0)            # strip pita mengikuti lebar layar
+        want = (th, th2, 0)
         if self.tex and len(self.tex) == want_sets and                 0.7 * self._tex_h <= th <= 1.15 * self._tex_h and                 (not th2 or self._tex_key[1:] == want[1:]):
             return
         if self._tex_loading == want:
             return
         self._tex_loading = want
-        W = geo.W
         items = list(self.items)
 
         def groups():
@@ -383,8 +350,7 @@ class Carousel3D:
                 if not out:        # belum ada karya: kartu polos warna lembut
                     out = [_texture(Image.new("RGB", (tw, h), I._rgb(c)), tw, h)
                            for c in PLACEHOLDER]
-                # baris utama: daftar kartu (silinder); pita atas/bawah: strip siap geser
-                sets.append(out if not sets else _flat_strip(out, W))
+                sets.append(out)
             with self._lock:
                 if self._tex_loading == want:
                     self.tex = sets
