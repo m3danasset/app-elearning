@@ -248,6 +248,19 @@ def _emo_capek(x, y):    # mata terpejam, mulut kecil, "z"
                _lines(x, y, (14.0, 3.4), (16.2, 3.4), (14.0, 5.8), (16.2, 5.8), hw=0.6))
 
 
+def _chev_left(x, y):   # kembali (file browser)
+    return _lines(x, y, (11.8, 6.2), (8.0, 10), (11.8, 13.8))
+
+
+def _arrow_up(x, y):    # naik satu folder
+    return min(_seg(x, y, (10, 15.6), (10, 4.6)), _lines(x, y, (5.6, 9.0), (10, 4.6), (14.4, 9.0)))
+
+
+def _list(x, y):        # tampilan Details
+    return min(_seg(x, y, (3.4, 5.4), (16.6, 5.4)), _seg(x, y, (3.4, 10), (16.6, 10)),
+               _seg(x, y, (3.4, 14.6), (16.6, 14.6)))
+
+
 def _clock(x, y):   # jam: "Terakhir dibuka" di search palette
     return min(_ring(x, y, 10, 10, 7.0), _lines(x, y, (10, 5.8), (10, 10), (13.0, 12.0)))
 
@@ -266,7 +279,8 @@ SHAPES = {
     "download": _download, "quiz": _quiz, "award": _award, "copy": _copy, "play_fill": _play_fill, "check": _check, "check_bold": _check_bold,
     "emo_seru": _emo_seru, "emo_paham": _emo_paham, "emo_bingung": _emo_bingung,
     "emo_keren": _emo_keren, "emo_capek": _emo_capek, "emo_bosan": _emo_bosan,
-    "clock": _clock, "enter": _enter,
+    "clock": _clock, "enter": _enter, "chev_left": _chev_left, "arrow_up": _arrow_up,
+    "list": _list,
 }
 
 

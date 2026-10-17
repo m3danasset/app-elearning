@@ -61,3 +61,18 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   panel dibuat tersembunyi lalu ditampilkan utuh. Dialog konfirmasi menutup palette dulu.
 - students.list_students membaca data sekali (dulu O(n^2) deepcopy): buka palette admin
   300 murid ~50 ms di 1 core (sebelumnya ~600 ms).
+
+## File browser murid (Resource, Portfolio, Assignment)
+- ui/file_browser.py: FileBrowser (overlay yang sama dengan search palette: OverlayPanel di
+  search_palette.py). Tampilan Details / Small thumbnails (diingat selama aplikasi terbuka).
+  Mode "pick": tombol Upload murid (Portfolio / Assignment) memilih gambar & video dari PC
+  (tab: Desktop, Dokumen, Unduhan, Gambar, Video, Render Blender C:\tmp, flashdisk, Drive),
+  centang banyak file -> Upload. Guru tetap memakai dialog bawaan Windows.
+  Mode "resource": ResourcePage di layar kursus, hanya baca: buka (Enter / klik dua kali),
+  centang -> Simpan ke flashdisk; tidak bisa naik di atas folder kursus.
+- elearning/resources.py: resource di assets\resources\<id kursus atau judul>\ (boleh
+  subfolder). Di .exe: dist\assets\resources\ (update.bat tidak menyalinnya).
+- Isi folder & thumbnail di thread (maks. WORKER_THREADS), thumbnail hanya yang terlihat,
+  cache 400 gambar; hasil diambil 1x per frame. Ukur (1 core): buka ~50 ms, aksi main
+  thread maks. ~11 ms, 24 thumbnail render Full HD ~0,9 dtk (bertahap).
+

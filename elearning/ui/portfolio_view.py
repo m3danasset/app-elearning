@@ -275,8 +275,21 @@ class PortfolioPanel(tk.Frame):
     def _upload(self):
         if self._busy:
             return
-        paths = self._pick_files()
-        if not paths:   # dibatalkan
+        if not self.teacher:     # murid: file browser gaya aplikasi (Details / thumbnail)
+            from elearning.ui.file_browser import open_file_browser
+            what = "render assignment" if self.section == portfolio.ASSIGNMENT else "karya"
+            if open_file_browser(self, mode="pick", exts=portfolio.IMAGE_EXT + portfolio.VIDEO_EXT,
+                                 title=f"Pilih {what}", on_pick=self._upload_paths) is not None:
+                return
+        self._upload_paths(self._pick_files())   # guru / cadangan: dialog bawaan Windows
+
+    def _upload_paths(self, paths):
+        if self._busy or not paths:   # dibatalkan
+            return
+        try:
+            if not self.winfo_exists():
+                return
+        except tk.TclError:
             return
         self._busy = True
         self.upload_btn.config(state="disabled")

@@ -103,12 +103,7 @@ def open_palette(screen, tab="all"):
         return None
     if not sources:
         return None
-    try:
-        _open["pal"] = SearchPalette(screen.winfo_toplevel(), sources, tab)
-    except Exception as exc:
-        C.log(f"Search palette gagal dibuka: {exc!r}")
-        return None
-    return _open["pal"]
+    return open_overlay(SearchPalette, screen.winfo_toplevel(), sources, tab)
 
 
 def close_palette():
@@ -166,54 +161,38 @@ class SearchBar(tk.Canvas):
                          text=_fit(self._f, self.placeholder, w - 42 - kw - 28))
 
 
-# --- palette ------------------------------------------------------------------------------
-class SearchPalette(tk.Toplevel):
-    def __init__(self, top, sources, tab="all"):
+# --- jendela overlay (dipakai search palette & file browser) ------------------------------
+class OverlayPanel(tk.Toplevel):
+    """Panel bersudut bulat di tengah jendela utama + latar redup (Windows).
+
+    Subkelas mengisi _build(): panggil _make_window(...), buat isi di self.cv, lalu
+    _reveal(). Hanya satu overlay terbuka sekaligus (close_palette menutup yang mana pun).
+    Ditutup otomatis saat jendela utama dipindah / berubah ukuran / diperkecil.
+    """
+
+    def __init__(self, top, *args):
         super().__init__(top)
+        self.top = top
         self.dim = None
         self._closed = False
         self._job = self._watch_job = self._type_job = None
+        self._fade_t0 = None
         try:
-            self._build(top, sources, tab)
+            self._build(top, *args)
         except Exception:
             self.close()      # jangan tinggalkan panel setengah jadi di layar
             raise
 
-    def _build(self, top, sources, tab):
-        self.top = top
-        self.src = sources
-        self.tabs = list(sources.get("tabs") or [("all", "Semua")])
-        keys = [k for k, _ in self.tabs]
-        self.tab = tab if tab in keys else keys[0]
-        self.items = list(sources.get("items") or [])
-        self.actions = [dict(a, kind="actions") for a in (sources.get("actions") or [])]
-        self.by_key = {it["key"]: it for it in self.items if it.get("key")}
-        self.user = sources.get("user")
-        self.persist = sources.get("persist", True)
-        self.rows = []           # [(jenis, data)] jenis = "head" / "row"
-        self.ys = []             # posisi y tiap baris (virtual)
-        self.sel = -1            # indeks di self.rows (baris yang bisa dipilih)
-        self.offset = 0          # gulir daftar (px)
-        self._hover_tab = None
-        self._hover_close = False
-        self._closed = False
-        self._fade_t0 = None
-        self._job = None
-        self._watch_job = None
-        self._imgs = []
-        self._f_in = tkfont.Font(font=_font(12))
-        self._f_tab = tkfont.Font(font=_font(10))
-        self._f_tab_b = tkfont.Font(font=_font(10, "bold"))
-        self._f_row = tkfont.Font(font=_font(10))
-        self._f_sub = tkfont.Font(font=_font(9))
-        self._f_head = tkfont.Font(font=_font(9))
-        self._f_key = tkfont.Font(font=_font(8))
+    def _build(self, top, *args):
+        raise NotImplementedError
 
-        # --- latar redup (Windows: jendela hitam semi-transparan di atas jendela utama)
-        self.dim = None
+    def _focus_target(self):
+        return self
+
+    def _make_window(self, top, want_w, want_h, min_w=420, min_h=320):
         rx, ry = top.winfo_rootx(), top.winfo_rooty()
         tw, th = top.winfo_width(), top.winfo_height()
-        if WIN:
+        if WIN:   # latar redup: jendela hitam semi-transparan di atas jendela utama
             try:
                 d = self.dim = tk.Toplevel(top)
                 d.withdraw()      # disiapkan tersembunyi: tidak berkedip hitam penuh
@@ -223,12 +202,10 @@ class SearchPalette(tk.Toplevel):
                 d.geometry(f"{tw}x{th}+{rx}+{ry}")
                 d.bind("<Button-1>", lambda e: self.close())
             except Exception as exc:
-                C.log(f"Search palette: latar redup gagal: {exc!r}")
+                C.log(f"Overlay: latar redup gagal: {exc!r}")
                 self.dim = None
-
-        # --- panel
-        self.W = max(420, min(PANEL_W, tw - 80))
-        self.H = max(320, min(PANEL_H, th - 80))
+        self.W = max(min_w, min(want_w, tw - 80))
+        self.H = max(min_h, min(want_h, th - 80))
         self.withdraw()           # isi panel dibuat dulu, baru ditampilkan utuh
         self.overrideredirect(True)
         self.configure(bg=KEY)
@@ -243,33 +220,12 @@ class SearchPalette(tk.Toplevel):
         y = ry + max(24, int((th - self.H) / 2 - th * 0.04))
         self.geometry(f"{self.W}x{self.H}+{x}+{y}")
         self._where = (rx, ry, tw, th)
-
         self.cv = tk.Canvas(self, width=self.W, height=self.H, bg=KEY, highlightthickness=0,
                             bd=0)
         self.cv.place(x=0, y=0)
         self.cv._imgs = []
-        self.var = tk.StringVar()
-        e = self.entry = tk.Entry(self.cv, textvariable=self.var, bg=C.CARD, fg=C.TEXT,
-                                  insertbackground=C.TEXT, relief="flat", bd=0,
-                                  highlightthickness=0, font=self._f_in)
-        self.ph = tk.Label(e, text=sources.get("placeholder", "Cari"), bg=C.CARD, fg=C.MUTED,
-                           font=self._f_in, bd=0, padx=0, cursor="xterm")
-        self.ph.bind("<Button-1>", lambda ev: e.focus_set())
-        self.cv.create_window(24, 34, anchor="w", window=e, width=self.W - 84, height=28)
 
-        lw, lh = self.W - 24, self.H - LIST_TOP - FOOT_H - 4
-        self.lw, self.lh = lw, lh
-        self.list = tk.Canvas(self.cv, width=lw, height=lh, bg=C.CARD, highlightthickness=0,
-                              bd=0)
-        self.list._imgs = []
-        self.cv.create_window(12, LIST_TOP, anchor="nw", window=self.list)
-
-        self._draw_frame()
-        self._bind_keys()
-        self.var.trace_add("write", lambda *a: self._changed())
-        self._placeholder()
-        self._rebuild()
-
+    def _reveal(self):
         # (tanpa update_idletasks: itu ikut menggambar ulang seluruh layar di belakang)
         if self.dim is not None:
             self.dim.deiconify()
@@ -277,39 +233,13 @@ class SearchPalette(tk.Toplevel):
         self.lift()
         self.after(10, self._start)
 
-    # --- pasang / lepas -----------------------------------------------------------------
-    def _bind_keys(self):
-        e = self.entry
-        e.bind("<Escape>", lambda ev: self._key_escape())
-        e.bind("<Return>", lambda ev: self._run_sel())
-        e.bind("<KP_Enter>", lambda ev: self._run_sel())
-        e.bind("<Down>", lambda ev: self._move(1))
-        e.bind("<Up>", lambda ev: self._move(-1))
-        e.bind("<Next>", lambda ev: self._move(6))
-        e.bind("<Prior>", lambda ev: self._move(-6))
-        e.bind("<Tab>", lambda ev: self._switch_tab(1))
-        e.bind("<Shift-Tab>", lambda ev: self._switch_tab(-1))
-        e.bind("<ISO_Left_Tab>", lambda ev: self._switch_tab(-1))
-        e.bind("<Left>", lambda ev: self._arrow_tab(-1))
-        e.bind("<Right>", lambda ev: self._arrow_tab(1))
-        self.bind("<Button-1>", self._click_any, add="+")
-        self.cv.bind("<Motion>", self._frame_motion)
-        self.cv.bind("<Leave>", lambda ev: self._frame_motion(None))
-        self.list.bind("<Motion>", self._list_motion)
-        self.list.bind("<Leave>", lambda ev: self._select(-1, keep=True))
-        self.list.bind("<Button-1>", self._list_click)
-        for w in (self.list, self.cv, self.entry):
-            w.bind("<MouseWheel>", self._wheel)
-            w.bind("<Button-4>", lambda ev: self._scroll(-ROW_H * 2))
-            w.bind("<Button-5>", lambda ev: self._scroll(ROW_H * 2))
-
     def _start(self):
         if self._closed:
             return
         try:
             self.lift()
             self.focus_force()
-            self.entry.focus_set()
+            self._focus_target().focus_set()
             self.grab_set()
         except Exception:
             pass
@@ -342,7 +272,7 @@ class SearchPalette(tk.Toplevel):
                                    self._fade)
 
     def _watch(self):
-        """Jendela utama dipindah / berubah ukuran / diperkecil: palette ditutup."""
+        """Jendela utama dipindah / berubah ukuran / diperkecil: overlay ditutup."""
         if self._closed:
             return
         try:
@@ -359,9 +289,12 @@ class SearchPalette(tk.Toplevel):
     def focus_entry(self):
         try:
             self.lift()
-            self.entry.focus_set()
+            self._focus_target().focus_set()
         except Exception:
             pass
+
+    def _on_close(self):
+        """Dipanggil sekali saat ditutup (subkelas: hentikan thread, dll.)."""
 
     def close(self):
         if self._closed:
@@ -369,6 +302,10 @@ class SearchPalette(tk.Toplevel):
         self._closed = True
         if _open["pal"] is self:
             _open["pal"] = None
+        try:
+            self._on_close()
+        except Exception as exc:
+            C.log(f"Overlay: {exc!r}")
         for job in (self._job, self._watch_job, self._type_job):
             if job is not None:
                 try:
@@ -390,28 +327,128 @@ class SearchPalette(tk.Toplevel):
         except Exception:
             pass
 
-    # --- kerangka: latar panel, ikon tutup, tab, garis, petunjuk tombol -------------------
-    def _draw_frame(self):
-        cv, W, H = self.cv, self.W, self.H
-        cv.delete("frame")
-        cv._imgs = []
+    # --- bagian gambar bersama --------------------------------------------------------
+    def _draw_panel_bg(self, cv, hover_close):
+        """Latar panel bulat + tombol tutup (x) di kanan atas (tag "frame")."""
+        W, H = self.W, self.H
         p = I.pill(W, H, C.CARD, KEY, r=RADIUS, border=C.BORDER)
         if p is not None:
             cv._imgs.append(p)
             cv.create_image(0, 0, image=p, anchor="nw", tags="frame")
         else:
             cv.create_rectangle(0, 0, W, H, fill=C.CARD, outline=C.BORDER, tags="frame")
-        # tombol tutup (x)
-        if self._hover_close:
+        if hover_close:
             p = I.pill(30, 30, C.CARD_HOVER, C.CARD, r=8)
             if p is not None:
                 cv._imgs.append(p)
                 cv.create_image(W - 46, 19, image=p, anchor="nw", tags="frame")
-        x = I.icon("close", C.TEXT if self._hover_close else C.MUTED,
-                   C.CARD_HOVER if self._hover_close else C.CARD, 16)
+        x = I.icon("close", C.TEXT if hover_close else C.MUTED,
+                   C.CARD_HOVER if hover_close else C.CARD, 16)
         if x is not None:
             cv._imgs.append(x)
             cv.create_image(W - 31, 34, image=x, tags="frame")
+
+    def _on_close_button(self, x, y):
+        return self.W - 48 <= x < self.W - 14 and 18 <= y < 50
+
+
+def open_overlay(cls, top, *args):
+    """Buka overlay baru (yang lama ditutup dulu). None kalau gagal."""
+    close_palette()
+    try:
+        _open["pal"] = cls(top, *args)
+    except Exception as exc:
+        C.log(f"Overlay {cls.__name__} gagal dibuka: {exc!r}")
+        return None
+    return _open["pal"]
+
+
+# --- palette ------------------------------------------------------------------------------
+class SearchPalette(OverlayPanel):
+    def _focus_target(self):
+        return self.entry
+
+    def _build(self, top, sources, tab="all"):
+        self.src = sources
+        self.tabs = list(sources.get("tabs") or [("all", "Semua")])
+        keys = [k for k, _ in self.tabs]
+        self.tab = tab if tab in keys else keys[0]
+        self.items = list(sources.get("items") or [])
+        self.actions = [dict(a, kind="actions") for a in (sources.get("actions") or [])]
+        self.by_key = {it["key"]: it for it in self.items if it.get("key")}
+        self.user = sources.get("user")
+        self.persist = sources.get("persist", True)
+        self.rows = []           # [(jenis, data)] jenis = "head" / "row"
+        self.ys = []             # posisi y tiap baris (virtual)
+        self.sel = -1            # indeks di self.rows (baris yang bisa dipilih)
+        self.offset = 0          # gulir daftar (px)
+        self._hover_tab = None
+        self._hover_close = False
+        self._imgs = []
+        self._f_in = tkfont.Font(font=_font(12))
+        self._f_tab = tkfont.Font(font=_font(10))
+        self._f_tab_b = tkfont.Font(font=_font(10, "bold"))
+        self._f_row = tkfont.Font(font=_font(10))
+        self._f_sub = tkfont.Font(font=_font(9))
+        self._f_head = tkfont.Font(font=_font(9))
+        self._f_key = tkfont.Font(font=_font(8))
+
+        self._make_window(top, PANEL_W, PANEL_H)
+        self.var = tk.StringVar()
+        e = self.entry = tk.Entry(self.cv, textvariable=self.var, bg=C.CARD, fg=C.TEXT,
+                                  insertbackground=C.TEXT, relief="flat", bd=0,
+                                  highlightthickness=0, font=self._f_in)
+        self.ph = tk.Label(e, text=sources.get("placeholder", "Cari"), bg=C.CARD, fg=C.MUTED,
+                           font=self._f_in, bd=0, padx=0, cursor="xterm")
+        self.ph.bind("<Button-1>", lambda ev: e.focus_set())
+        self.cv.create_window(24, 34, anchor="w", window=e, width=self.W - 84, height=28)
+
+        lw, lh = self.W - 24, self.H - LIST_TOP - FOOT_H - 4
+        self.lw, self.lh = lw, lh
+        self.list = tk.Canvas(self.cv, width=lw, height=lh, bg=C.CARD, highlightthickness=0,
+                              bd=0)
+        self.list._imgs = []
+        self.cv.create_window(12, LIST_TOP, anchor="nw", window=self.list)
+
+        self._draw_frame()
+        self._bind_keys()
+        self.var.trace_add("write", lambda *a: self._changed())
+        self._placeholder()
+        self._rebuild()
+        self._reveal()
+
+    # --- pasang / lepas -----------------------------------------------------------------
+    def _bind_keys(self):
+        e = self.entry
+        e.bind("<Escape>", lambda ev: self._key_escape())
+        e.bind("<Return>", lambda ev: self._run_sel())
+        e.bind("<KP_Enter>", lambda ev: self._run_sel())
+        e.bind("<Down>", lambda ev: self._move(1))
+        e.bind("<Up>", lambda ev: self._move(-1))
+        e.bind("<Next>", lambda ev: self._move(6))
+        e.bind("<Prior>", lambda ev: self._move(-6))
+        e.bind("<Tab>", lambda ev: self._switch_tab(1))
+        e.bind("<Shift-Tab>", lambda ev: self._switch_tab(-1))
+        e.bind("<ISO_Left_Tab>", lambda ev: self._switch_tab(-1))
+        e.bind("<Left>", lambda ev: self._arrow_tab(-1))
+        e.bind("<Right>", lambda ev: self._arrow_tab(1))
+        self.bind("<Button-1>", self._click_any, add="+")
+        self.cv.bind("<Motion>", self._frame_motion)
+        self.cv.bind("<Leave>", lambda ev: self._frame_motion(None))
+        self.list.bind("<Motion>", self._list_motion)
+        self.list.bind("<Leave>", lambda ev: self._select(-1, keep=True))
+        self.list.bind("<Button-1>", self._list_click)
+        for w in (self.list, self.cv, self.entry):
+            w.bind("<MouseWheel>", self._wheel)
+            w.bind("<Button-4>", lambda ev: self._scroll(-ROW_H * 2))
+            w.bind("<Button-5>", lambda ev: self._scroll(ROW_H * 2))
+
+    # --- kerangka: latar panel, ikon tutup, tab, garis, petunjuk tombol -------------------
+    def _draw_frame(self):
+        cv, W, H = self.cv, self.W, self.H
+        cv.delete("frame")
+        cv._imgs = []
+        self._draw_panel_bg(cv, self._hover_close)
         # tab tipe
         self._tab_boxes = []
         tx = 16

@@ -126,14 +126,8 @@ class CourseScreen(SidebarLayout):
             return
         if self.view == "resource":
             self.header.set_title(course["title"], "Resource")
-            msg = tk.Frame(self.body, bg=C.BG)
-            msg.place(relx=0.5, rely=0.5, anchor="center")
-            tk.Label(msg, text="Resource", bg=C.BG, fg=C.MUTED,
-                     font=(C.FONT, 10, "bold")).pack()
-            tk.Label(msg, text=course["title"], bg=C.BG, fg=C.TEXT,
-                     font=(C.FONT, 24, "bold")).pack(pady=(2, 8))
-            tk.Label(msg, text="File resource kursus akan tampil di sini.",
-                     bg=C.BG, fg=C.MUTED, font=(C.FONT, 11)).pack()
+            from elearning.ui.file_browser import ResourcePage
+            ResourcePage(self.body, course).pack(fill="both", expand=True)
             return
         self.header.set_title(course["title"], "Materi")
         if not self.video:         # AI CHARACTER / AI INTERIOR: halaman kosong
