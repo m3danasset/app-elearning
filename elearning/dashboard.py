@@ -275,7 +275,70 @@ def _teacher(now, teacher):
     return out
 
 
-def info(role, user):
+# --- widget atas (dipilih sendiri per akun; maks. 6 x 2) -----------------------------------
+# (id, nama di menu tambah, peran yang boleh, menu yang dibuka saat diklik)
+WIDGETS = (
+    ("clock", "Jam & kelas berikutnya", ("admin", "teacher"), "schedule"),
+    ("done", "Progres beres", ("admin", "teacher"), None),
+    ("online", "Sedang online", ("admin", "teacher"), "students"),
+    ("date", "Kalender", ("admin", "teacher"), "schedule"),
+    ("signups", "Pendaftar menunggu", ("admin",), "signups"),
+    ("certs", "Sertifikat menunggu", ("admin", "teacher"), "certificates"),
+    ("classes", "Kelas hari ini", ("admin", "teacher"), "schedule"),
+    ("students", "Murid aktif", ("admin", "teacher"), "students"),
+    ("idle", "Murid tidak aktif", ("admin", "teacher"), "students"),
+    ("unscheduled", "Murid tanpa jadwal", ("admin",), "schedule"),
+    ("reports", "Laporan hari ini", ("admin", "teacher"), "reports"),
+    ("work", "Karya baru murid", ("admin", "teacher"), "students"),
+)
+WIDGET_BY_ID = {w[0]: w for w in WIDGETS}
+DEFAULT_WIDGETS = ("clock", "done", "online")
+MAX_WIDGETS = 12          # 6 per baris x 2 baris
+
+
+def widget_choices(role):
+    return [w for w in WIDGETS if role in w[2]]
+
+
+def _widgets_path():
+    import os
+    return os.path.join(C.DATA_DIR, "dashboard_widgets.json")
+
+
+def load_widgets(uid, role):
+    """Widget pilihan akun ini (urut), bawaan kalau belum pernah diatur."""
+    import json
+    ok = {w[0] for w in widget_choices(role)}
+    try:
+        with open(_widgets_path(), encoding="utf-8") as f:
+            data = json.load(f)
+        ids = data.get(str(uid)) if isinstance(data, dict) else None
+        if isinstance(ids, list):
+            return [i for i in ids if i in ok][:MAX_WIDGETS]
+    except (OSError, ValueError):
+        pass
+    return [i for i in DEFAULT_WIDGETS if i in ok]
+
+
+def save_widgets(uid, ids):
+    import json
+    import os
+    try:
+        with open(_widgets_path(), encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            data = {}
+    except (OSError, ValueError):
+        data = {}
+    data[str(uid)] = list(ids)[:MAX_WIDGETS]
+    os.makedirs(C.DATA_DIR, exist_ok=True)
+    tmp = _widgets_path() + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=1)
+    os.replace(tmp, _widgets_path())
+
+
+def info(role, user, widgets=()):
     """Isi widget atas: jumlah online dan kelas berikutnya hari ini (guru: kelas sendiri)."""
     from elearning import schedule as SCH
     from elearning import sessions
@@ -299,9 +362,58 @@ def info(role, user):
                                "now": SCH.to_min(s["start"]) <= mins,
                                "students": len(s["students"])}
                 break
+        _widget_counts(out, role, user, set(widgets), now, studs, st)
     except Exception as exc:
         C.log(f"Dashboard: widget gagal dihitung: {exc!r}")
     return out
+
+
+def _widget_counts(out, role, user, want, now, studs, stats):
+    """Angka untuk widget yang dipilih saja (yang berat, mis. karya baru, hanya kalau perlu)."""
+    from elearning.students import STATUS_EXPIRED, list_students
+    students = list_students()
+    if want & {"students", "idle", "unscheduled", "work"}:
+        out["active"] = sum(1 for s in students if s.get("status") != STATUS_EXPIRED)
+        out["expired"] = len(students) - out["active"]
+    if "idle" in want:
+        out["idle"] = sum(1 for s in students if s.get("status") != STATUS_EXPIRED and (
+            (stats.get(s["id"]) or {}).get("last_seen") is None
+            or (now - stats[s["id"]]["last_seen"]).days >= INACTIVE_DAYS))
+    if "signups" in want:
+        from elearning import signups
+        out["signups"] = signups.pending_count()
+    if "certs" in want:
+        from elearning import certificates
+        out["certs"] = certificates.pending_count()
+    if want & {"classes", "unscheduled"}:
+        from elearning import schedule as SCH
+        slots = SCH.list_slots()
+        today = [s for s in slots if s["day"] == now.weekday()
+                 and (role == "admin" or s.get("teacher") == (user or {}).get("id"))]
+        out["classes_students"] = len({x for s in today for x in s["students"]})
+        placed = {x for s in slots for x in s["students"]}
+        out["unscheduled"] = sum(1 for s in students if s.get("status") != STATUS_EXPIRED
+                                 and s["id"] not in placed)
+    if "reports" in want:
+        from elearning import reports
+        tid = None if role == "admin" else (user or {}).get("id")
+        out["reports"] = len(reports.list_reports(tid, now.date(), now.date()))
+    if "work" in want:
+        from elearning import portfolio
+        from elearning.courses import courses_for
+        since = now - timedelta(days=NEW_WORK_DAYS)
+        n = 0
+        for s in students:
+            for c in courses_for(s["program"]):
+                for sec in (None, portfolio.ASSIGNMENT):
+                    try:
+                        for it in portfolio.list_items(s["id"], c["id"], sec):
+                            if it["added"] < since:
+                                break
+                            n += 1
+                    except Exception:
+                        pass
+        out["work"] = n
 
 
 def items(role, user):
