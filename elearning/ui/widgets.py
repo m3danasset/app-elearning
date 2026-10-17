@@ -237,7 +237,9 @@ class ScrollFrame(tk.Frame):
         super().__init__(master, bg=bg)
         self.canvas = tk.Canvas(self, bg=bg, highlightthickness=0, bd=0,
                                 height=60, yscrollincrement=24)
-        self.vsb = DarkScrollbar(self, command=self.canvas.yview, bg=bg)
+        self._pending = None   # perintah gulir slider terakhir, dijalankan 1x per frame
+        self._job = None
+        self.vsb = DarkScrollbar(self, command=self._yview, bg=bg)
         self.canvas.configure(yscrollcommand=self.vsb.set)
         self.canvas.pack(side="left", fill="both", expand=True)
 
@@ -248,6 +250,27 @@ class ScrollFrame(tk.Frame):
         if not ScrollFrame._live:   # binding roda hanya dipasang sekali
             self.bind_all("<MouseWheel>", ScrollFrame._on_wheel_all)
         ScrollFrame._live.append(self)
+
+    def _yview(self, *args):
+        """Slider digeser: gabung gerakan mouse jadi 1 gulir per frame (maks. 30 fps)."""
+        self._pending = args
+        if self._job is None:
+            self._apply_scroll()
+
+    def _apply_scroll(self):
+        self._job = None
+        args, self._pending = self._pending, None
+        if args is None:
+            return
+        self.canvas.yview(*args)
+        # Windows menggeser piksel lama dulu; gambar ulang isinya SEKARANG supaya baris
+        # lama tidak tertinggal / menumpuk saat slider diseret cepat.
+        self.canvas.update_idletasks()
+        self._job = self.after(C.UI_FRAME_MS, self._apply_scroll)
+
+    def _scroll_units(self, n):
+        self.canvas.yview_scroll(n, "units")
+        self.canvas.update_idletasks()
 
     def _needs_scroll(self):
         return self.inner.winfo_reqheight() > self.canvas.winfo_height()
@@ -284,7 +307,7 @@ class ScrollFrame(tk.Frame):
             return False
         while w is not None:  # hanya kalau kursor ada di dalam area ini
             if w is self:
-                self.canvas.yview_scroll(int(-event.delta / 120) or (-1 if event.delta > 0 else 1), "units")
+                self._scroll_units(int(-event.delta / 120) or (-1 if event.delta > 0 else 1))
                 return True
             w = w.master
         return False
@@ -297,6 +320,12 @@ class ScrollFrame(tk.Frame):
         # dilepas kalau sudah tidak ada ScrollFrame yang hidup.
         if self in ScrollFrame._live:
             ScrollFrame._live.remove(self)
+        if self._job is not None:
+            try:
+                self.after_cancel(self._job)
+            except Exception:
+                pass
+            self._job = None
         if not ScrollFrame._live:
             try:
                 self.unbind_all("<MouseWheel>")
