@@ -70,6 +70,59 @@ def _pin_hash(text):
 _pin = {"win": None, "fails": 0, "locked_until": 0.0}
 
 
+# --- posisi jendela Dev (tab, cari, gulir Settings): diingat sampai PC di-reboot ------------
+def _boot_time():
+    """Waktu PC menyala (detik epoch). GetTickCount64 ikut menghitung sleep / hibernate."""
+    try:
+        import ctypes
+        k = ctypes.windll.kernel32
+        k.GetTickCount64.restype = ctypes.c_ulonglong
+        return time.time() - k.GetTickCount64() / 1000.0
+    except Exception:
+        return 0.0
+
+
+def _ui_path():
+    import os
+    return os.path.join(C.DATA_DIR, "dev_ui.json")
+
+
+_ui = None     # isi dev_ui.json di memori
+
+
+def _ui_state():
+    """{"tab", "query", "scroll"} dari sesi PC ini; kosong kalau PC sudah reboot sejak disimpan."""
+    global _ui
+    if _ui is None:
+        import json
+        _ui = {}
+        try:
+            with open(_ui_path(), encoding="utf-8") as f:
+                data = json.load(f)
+            boot = _boot_time()
+            if isinstance(data, dict) and boot and abs(float(data.get("boot", 0)) - boot) < 120:
+                _ui = data
+        except (OSError, ValueError, TypeError):
+            pass
+    return _ui
+
+
+def _ui_save(**kv):
+    import json
+    import os
+    st = _ui_state()
+    st.update(kv)
+    st["boot"] = _boot_time()
+    try:
+        os.makedirs(C.DATA_DIR, exist_ok=True)
+        tmp = _ui_path() + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(st, f)
+        os.replace(tmp, _ui_path())
+    except OSError as exc:
+        C.log(f"Dev: posisi jendela tidak tersimpan: {exc!r}")
+
+
 class DevPinDialog(tk.Toplevel):
     """Minta PIN sebelum jendela Dev dibuka. Enter = cek, Esc / tutup = batal."""
 
@@ -213,9 +266,14 @@ class DevPanel(tk.Toplevel):
         self.status = tk.Label(self, text="", bg=BG, fg=MUTED, font=FONT, anchor="w")
         self.status.pack(fill="x", padx=8, pady=(0, 6))
         self.bind("<Escape>", lambda e: self.destroy())
-        self.show("login")
+        self._save_job = None
+        self._restoring = False
+        self.show("settings" if _ui_state().get("tab") == "settings" else "login")
 
     def show(self, key):
+        self._restoring = True        # kanvas lama dibuang: jangan simpan gulir "0" sementara
+        if _ui_state().get("tab") != key:
+            _ui_save(tab=key)
         for k, b in self._tab_btns.items():
             b.config(bg="#3a3a3a" if k == key else FIELD)
         for w in self.body.winfo_children():
@@ -376,6 +434,35 @@ class DevPanel(tk.Toplevel):
         if not words:
             self._reset_btn.pack(fill="x", pady=(10, 4), ipady=2)
         self._scroll_cv.yview_moveto(0)
+        if not self._restoring:
+            self._remember(query=self._q.get(), scroll=0.0)
+
+    def _remember(self, **kv):
+        """Simpan posisi (digabung: tulis file maks. sekali per 400 ms)."""
+        self._ui_pending = {**getattr(self, "_ui_pending", {}), **kv}
+        if self._save_job is None:
+            self._save_job = self.after(400, self._flush_ui)
+
+    def _flush_ui(self):
+        self._save_job = None
+        kv, self._ui_pending = getattr(self, "_ui_pending", {}), {}
+        if kv:
+            _ui_save(**kv)
+
+    def _on_scroll(self, sb, first, last):
+        sb.set(first, last)
+        if not self._restoring:
+            self._remember(scroll=round(float(first), 4))
+
+    def _restore_scroll(self, frac):
+        try:
+            cv = self._scroll_cv
+            self.update_idletasks()
+            cv.configure(scrollregion=cv.bbox("all"))
+            cv.yview_moveto(frac)
+        except tk.TclError:
+            pass
+        self._restoring = False
 
     def _wheel(self, e):
         cv = self._scroll_cv
@@ -403,7 +490,7 @@ class DevPanel(tk.Toplevel):
         bottom.pack(side="bottom", fill="x")
         cv = tk.Canvas(outer, bg=BG, highlightthickness=0, bd=0)
         sb = tk.Scrollbar(outer, command=cv.yview)
-        cv.configure(yscrollcommand=sb.set)
+        cv.configure(yscrollcommand=lambda a, b, sb=sb: self._on_scroll(sb, a, b))
         sb.pack(side="right", fill="y")
         cv.pack(fill="both", expand=True)
         inner = tk.Frame(cv, bg=BG)
@@ -478,8 +565,13 @@ class DevPanel(tk.Toplevel):
                                      activeforeground=FG, state="disabled",
                                      command=lambda: self._apply(True))
         self.default_btn.pack(side="left", fill="x", expand=True, ipady=3, padx=(6, 0))
+        # posisi terakhir (juga setelah Apply / Reset / app dibuka ulang, sampai PC reboot)
+        st = _ui_state()
+        self._restoring = True
+        self._q.set(st.get("query", ""))
         self._filter()
         self._q.trace_add("write", lambda *a: self._filter())
+        self.after_idle(lambda f=float(st.get("scroll", 0.0) or 0.0): self._restore_scroll(f))
         self._changed()                   # status tombol (ada setting sementara?)
         q.focus_set()
 
@@ -573,6 +665,9 @@ class DevPanel(tk.Toplevel):
 
     def destroy(self):
         _open["win"] = None
+        if self._save_job is not None:
+            self.after_cancel(self._save_job)
+            self._flush_ui()
         super().destroy()
 
 
