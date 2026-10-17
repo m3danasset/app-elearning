@@ -146,6 +146,10 @@ class CourseScreen(SidebarLayout):
             return
         if self.view == "resource":
             self.header.set_title(course["title"], "Resources")
+            if self.trial:     # trial: daftar file langsung, klik = buka (tanpa file browser)
+                from elearning.ui.resource_list import ResourceList
+                ResourceList(self.body, course).pack(fill="both", expand=True)
+                return
             from elearning.ui.file_browser import ResourcePage
             ResourcePage(self.body, course).pack(fill="both", expand=True)
             return

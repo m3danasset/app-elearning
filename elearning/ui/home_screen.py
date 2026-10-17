@@ -62,10 +62,11 @@ class HomeScreen(SidebarLayout):
             w.destroy()
         self.dock = None
         if self.view == "resource":
-            from elearning.ui.file_browser import ResourcePage
+            from elearning.ui.resource_list import ResourceList
             from elearning.ui.sidebar import PageHeader
             PageHeader(self.content, "Resources", "Trial class").pack(fill="x")
-            ResourcePage(self.content, {"id": "trial", "title": "Trial", "program": "trial"}
+            # trial: daftar file langsung (klik = buka, .blend di Blender), tanpa file browser
+            ResourceList(self.content, {"id": "trial", "title": "Trial", "program": "trial"}
                          ).pack(fill="both", expand=True)
             return
         hello = ("Welcome! Pick a class to try learning."
