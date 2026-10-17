@@ -28,7 +28,7 @@ from elearning.ui.widgets import ScrollFrame, Switch, add_hover
 PROGRAM_LABEL = {"adult": "Murid dewasa", "kids": "Murid anak"}
 CATEGORIES = ("adult", "kids")  # urutan kategori di sidebar kiri
 VIEW_TITLE = {"students": "Murid & Kursus", "reports": "Laporan Kerja", "quizzes": "Kuis",
-              "examples": "Bahan dari Guru"}
+              "examples": "Bahan dari Guru", "schedule": "Jadwal Murid"}
 
 
 class TeacherScreen(SidebarLayout):
@@ -74,6 +74,10 @@ class TeacherScreen(SidebarLayout):
         if self.view == "examples":
             ExamplesPanel(self.body).pack(fill="both", expand=True)
             return
+        if self.view == "schedule":     # guru: hanya lihat, per hari
+            from elearning.ui.schedule_view import TeacherSchedule
+            TeacherSchedule(self.body).pack(fill="both", expand=True)
+            return
         if self.view == "quizzes":
             QuizPanel(self.body, self.teacher).pack(fill="both", expand=True)
             return
@@ -91,6 +95,8 @@ class TeacherScreen(SidebarLayout):
                active=self.view == "examples")
         sb.nav("Laporan Kerja", "report", lambda: self._set_view("reports"),
                active=self.view == "reports")
+        sb.nav("Jadwal Murid", "clock", lambda: self._set_view("schedule"),
+               active=self.view == "schedule")
 
         if not self.students:
             sb.section("Murid")
@@ -253,8 +259,11 @@ class TeacherScreen(SidebarLayout):
         self.avatar.set_student(student["id"], student["name"])
         self._update_photo_buttons()
         self.name_lbl.config(text=student["name"])
+        from elearning.students import age_text   # umur saja (tanggal lahir diatur admin)
+        age = age_text(student)
         self.sub_lbl.config(text=f"{student['id']}  ·  "
-                                 f"{PROGRAM_LABEL.get(student['program'], '')}")
+                                 f"{PROGRAM_LABEL.get(student['program'], '')}"
+                                 + (f"  ·  {age}" if age else ""))
         self._paint_status(student)
         self._render_tab()
 

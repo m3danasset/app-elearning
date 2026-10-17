@@ -112,3 +112,12 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   Assignment; "Perlu diperhatikan" + hadir jadwal < 50 % / belum punya jadwal; "Paling
   rajin" + jumlah badge. compute() tetap di thread.
 
+## Tanggal lahir & umur; jadwal untuk guru
+- students.json: "birth" (YYYY-MM-DD, opsional). Hanya admin yang mengisi: tombol "Tgl lahir"
+  di daftar Murid (BirthDialog: tanggal/bulan/tahun, Kosongkan). students.age_of/age_text:
+  umur dihitung dari tanggal HARI INI setiap kali tampil (otomatis naik saat ulang tahun).
+  Guru hanya melihat umur (detail murid, Jadwal Murid), tidak pernah tanggal lahirnya.
+- Guru: menu "Jadwal Murid" (schedule_view.TeacherSchedule) = ScheduleBoard day_only:
+  hanya tampilan Hari, panah + Hari ini, hanya lihat (tidak bisa tambah/ubah), nama murid
+  + umur, diperbarui tiap 60 detik.
+

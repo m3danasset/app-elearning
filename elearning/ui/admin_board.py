@@ -139,9 +139,10 @@ class PeopleBoard(_Board):
 
     ROW_H, GAP, HEAD_H = 60, 6, 24
 
-    def __init__(self, master, on_status=None, on_edit=None, on_delete=None):
+    def __init__(self, master, on_status=None, on_edit=None, on_delete=None, on_birth=None):
         super().__init__(master)
         self.on_status, self.on_edit, self.on_delete = on_status, on_edit, on_delete
+        self.on_birth = on_birth   # admin: isi tanggal lahir murid
         self.people, self.stats, self.empty = [], {}, ""
         self._avatars = {}
 
@@ -231,8 +232,10 @@ class PeopleBoard(_Board):
                 if self.on_status:
                     from elearning.students import STATUS_ACTIVE
                     new = STATUS_ACTIVE if expired else STATUS_EXPIRED
-                    self._button(bx, cy, "Set Active" if expired else "Set Expired",
-                                 lambda p=p, n=new: self.on_status(p["id"], n))
+                    bx = self._button(bx, cy, "Set Active" if expired else "Set Expired",
+                                      lambda p=p, n=new: self.on_status(p["id"], n)) + 6
+                if self.on_birth:
+                    self._button(bx, cy, "Tgl lahir", lambda p=p: self.on_birth(p))
             else:
                 self._text(ax, cy, "-", "cell", C.MUTED)
             y += self.ROW_H + self.GAP

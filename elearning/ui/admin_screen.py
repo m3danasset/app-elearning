@@ -114,7 +114,8 @@ class AdminScreen(SidebarLayout):
         # Isi tiap menu dibuat SEKALI (satu canvas per menu); pindah menu = tukar saja
         self.people_board = PeopleBoard(self.scroll.inner, on_status=self._set_status,
                                         on_edit=self._edit_teacher,
-                                        on_delete=self._delete_teacher)
+                                        on_delete=self._delete_teacher,
+                                        on_birth=self._edit_birth)
         self.reports_board = ReportsBoard(self.scroll.inner)
         self.analytics = None
         self.schedule_board = None
@@ -308,6 +309,23 @@ class AdminScreen(SidebarLayout):
             text=f"Murid {created['id']} ({created['name']}) ditambahkan. Semua kursusnya "
                  "masih terkunci: guru membukanya di menu Murid & Kursus.", fg=C.ON)
 
+    def _edit_birth(self, person):
+        """Admin mengisi / mengubah tanggal lahir murid (guru hanya melihat umurnya)."""
+        from elearning.students import set_birth
+        from elearning.ui.dialogs import BirthDialog
+
+        def submit(birth):
+            try:
+                set_birth(person["id"], birth)
+            except ValueError as exc:
+                return str(exc)
+            except OSError as exc:
+                C.log(f"Tanggal lahir gagal disimpan: {exc!r}")
+                return "Gagal menyimpan. Pastikan folder data bisa ditulis."
+            return None
+        BirthDialog(self, person["name"], person.get("birth", ""), submit).wait_window()
+        self.refresh()
+
     def _add_teacher_from_nav(self):
         self._set_tab("teachers")
         self._add_teacher()
@@ -403,8 +421,11 @@ class AdminScreen(SidebarLayout):
             people = [{"id": t["id"], "name": t["name"], "sub": "Guru", "teacher": True}
                       for t in T.list_teachers()]
         else:
+            from elearning.students import age_text
             people = [{"id": s["id"], "name": s["name"], "status": s["status"],
-                       "program": s["program"], "sub": PROGRAM_LABEL.get(s["program"], "")}
+                       "program": s["program"], "birth": s.get("birth", ""),
+                       "sub": "  ·  ".join(t for t in (PROGRAM_LABEL.get(s["program"], ""),
+                                                        age_text(s)) if t)}
                       for s in list_students()]
         stats = sessions.overview([p["id"] for p in people])
         flags, _text = self._query_parts()

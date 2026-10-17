@@ -103,6 +103,8 @@ def teacher_sources(screen):
          "action": lambda: screen._set_view("examples")},
         {"title": "Laporan Kerja", "icon": "report",
          "action": lambda: screen._set_view("reports")},
+        {"title": "Jadwal Murid", "icon": "clock", "sub": "Jadwal hari ini (diatur admin)",
+         "action": lambda: screen._set_view("schedule")},
         {"title": "Keluar", "icon": "logout", "action": app.logout},
     ]
     return {"user": screen.teacher["id"], "tabs": [("all", "Semua"), ("students", "Murid"),

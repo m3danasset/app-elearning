@@ -643,3 +643,119 @@ class TeacherDialog(tk.Toplevel):
             self.error.config(text=err)
         else:
             self.destroy()
+
+
+class BirthDialog(tk.Toplevel):
+    """Admin mengisi tanggal lahir murid: Tanggal / Bulan / Tahun (pilihan, tanpa ketik).
+    on_submit("YYYY-MM-DD" atau "") -> teks error atau None. Umur dihitung otomatis."""
+
+    MONTHS = ("Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus",
+              "September", "Oktober", "November", "Desember")
+
+    def __init__(self, master, name, birth, on_submit):
+        super().__init__(master, bg=C.CARD, highlightthickness=1, highlightbackground=C.BORDER)
+        self.title("Tanggal lahir")
+        self.resizable(False, False)
+        self.transient(master.winfo_toplevel())
+        dark_titlebar(self)
+        try:
+            self.iconbitmap(C.ICON_PATH)
+        except Exception:
+            pass
+        self.on_submit = on_submit
+        today = date.today()
+        try:
+            b = date.fromisoformat(birth) if birth else None
+        except ValueError:
+            b = None
+        body = tk.Frame(self, bg=C.CARD, padx=28, pady=22)
+        body.pack(fill="both", expand=True)
+        tk.Label(body, text="Tanggal lahir", bg=C.CARD, fg=C.TEXT, font=(C.FONT, 14, "bold"),
+                 anchor="w").pack(fill="x")
+        tk.Label(body, text=name, bg=C.CARD, fg=C.MUTED, font=(C.FONT, 10),
+                 anchor="w").pack(fill="x", pady=(2, 14))
+        row = tk.Frame(body, bg=C.CARD)
+        row.pack(fill="x")
+        self.d_var = tk.StringVar(value=str(b.day) if b else "1")
+        self.m_var = tk.StringVar(value=self.MONTHS[b.month - 1] if b else self.MONTHS[0])
+        self.y_var = tk.StringVar(value=str(b.year) if b else str(today.year - 10))
+        years = [str(y) for y in range(today.year, today.year - 81, -1)]
+        for label, var, values in (("Tanggal", self.d_var, [str(i) for i in range(1, 32)]),
+                                   ("Bulan", self.m_var, self.MONTHS),
+                                   ("Tahun", self.y_var, years)):
+            col = tk.Frame(row, bg=C.CARD)
+            col.pack(side="left", padx=(0, 12))
+            tk.Label(col, text=label, bg=C.CARD, fg=C.MUTED, font=(C.FONT, 10),
+                     anchor="w").pack(fill="x")
+            RoundSelect(col, var, *values, bg=C.BG).pack(anchor="w", pady=(6, 0))
+            var.trace_add("write", lambda *a: self._preview())
+        self.age = tk.Label(body, text="", bg=C.CARD, fg=C.TEXT, font=(C.FONT, 11, "bold"),
+                            anchor="w")
+        self.age.pack(fill="x", pady=(14, 0))
+        tk.Label(body, text="Umur diperbarui otomatis setiap hari. Guru hanya melihat umur.",
+                 bg=C.CARD, fg=C.MUTED, font=(C.FONT, 9), anchor="w").pack(fill="x")
+        self.error = tk.Label(body, text="", bg=C.CARD, fg=C.ERROR, font=(C.FONT, 10),
+                              anchor="w")
+        self.error.pack(fill="x", pady=(8, 0))
+        btns = tk.Frame(body, bg=C.CARD)
+        btns.pack(fill="x", pady=(8, 0))
+        ok = RoundButton(btns, text="Simpan", command=self._submit, bg=C.ACCENT, fg="white",
+                         activebackground=C.ACCENT_HOVER, activeforeground="white",
+                         font=(C.FONT, 11, "bold"), padx=22, pady=7)
+        ok.pack(side="right")
+        add_hover(ok, C.ACCENT, C.ACCENT_HOVER)
+        cancel = RoundButton(btns, text="Batal", command=self.destroy, bg=C.CARD, fg=C.MUTED,
+                             activebackground=C.BORDER, activeforeground=C.TEXT,
+                             font=(C.FONT, 11), padx=18, pady=7)
+        cancel.pack(side="right", padx=(0, 8))
+        add_hover(cancel, C.CARD, C.BORDER)
+        if b:
+            rm = RoundButton(btns, text="Kosongkan", command=lambda: self._send(""),
+                             bg=C.CARD, fg=C.ERROR, activebackground=C.BORDER,
+                             activeforeground=C.ERROR, font=(C.FONT, 10), padx=14, pady=7)
+            rm.pack(side="left")
+            add_hover(rm, C.CARD, C.BORDER)
+        self._preview()
+        self.bind("<Return>", lambda e: self._submit())
+        self.bind("<Escape>", lambda e: self.destroy())
+        self.update_idletasks()
+        top = master.winfo_toplevel()
+        x = top.winfo_rootx() + (top.winfo_width() - self.winfo_reqwidth()) // 2
+        y = top.winfo_rooty() + (top.winfo_height() - self.winfo_reqheight()) // 2
+        self.geometry(f"+{max(0, x)}+{max(0, y)}")
+        try:
+            self.wait_visibility()
+            self.grab_set()
+        except tk.TclError:
+            pass
+
+    def _value(self):
+        try:
+            return date(int(self.y_var.get()), self.MONTHS.index(self.m_var.get()) + 1,
+                        int(self.d_var.get()))
+        except ValueError:
+            return None
+
+    def _preview(self):
+        d = self._value()
+        if d is None:
+            self.age.config(text="Tanggal tidak ada (mis. 31 Februari).", fg=C.ERROR)
+        elif d > date.today():
+            self.age.config(text="Tanggal lahir belum terjadi.", fg=C.ERROR)
+        else:
+            from elearning.students import age_of
+            self.age.config(text=f"Umur sekarang: {age_of(d.isoformat())} tahun", fg=C.TEXT)
+
+    def _submit(self):
+        d = self._value()
+        if d is None or d > date.today():
+            self.error.config(text="Periksa lagi tanggal lahirnya.")
+            return
+        self._send(d.isoformat())
+
+    def _send(self, value):
+        err = self.on_submit(value)
+        if err:
+            self.error.config(text=err)
+        else:
+            self.destroy()

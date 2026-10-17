@@ -74,6 +74,8 @@ def _valid(data):
                 "courses": [c for c in d["courses"] if isinstance(c, str)],
                 "status": (d.get("status") if d.get("status") in STATUSES
                            else STATUS_ACTIVE)}
+            if _birth_ok(d.get("birth")):      # tanggal lahir (diisi admin), boleh kosong
+                clean[str(sid).strip().upper()]["birth"] = d["birth"]
     return clean
 
 
@@ -146,7 +148,52 @@ def _entry(sid, data):
     return {"id": sid, "name": data["name"], "program": data["program"],
             "courses": list(data["courses"]),
             "status": data.get("status") if data.get("status") in STATUSES
-            else STATUS_ACTIVE}
+            else STATUS_ACTIVE,
+            "birth": data.get("birth") or ""}
+
+
+# --- tanggal lahir & umur -------------------------------------------------------------
+def _birth_ok(text):
+    from datetime import date
+    if not isinstance(text, str) or not text:
+        return False
+    try:
+        d = date.fromisoformat(text)
+    except ValueError:
+        return False
+    return date(1900, 1, 1) <= d <= date.today()
+
+
+def age_of(birth, today=None):
+    """Umur (tahun) dari 'YYYY-MM-DD', dihitung dari tanggal hari ini (selalu terbaru).
+    None kalau tanggal lahir belum diisi."""
+    from datetime import date
+    if not _birth_ok(birth):
+        return None
+    b = date.fromisoformat(birth)
+    t = today or date.today()
+    return t.year - b.year - ((t.month, t.day) < (b.month, b.day))
+
+
+def age_text(student):
+    a = age_of(student.get("birth"))
+    return f"{a} tahun" if a is not None else ""
+
+
+def set_birth(student_id, birth):
+    """Admin mengisi tanggal lahir ('YYYY-MM-DD') atau mengosongkannya (None / "")."""
+    sid = student_id.strip().upper()
+    data = _load()
+    if sid not in data:
+        raise ValueError(f"Murid {sid} tidak ditemukan.")
+    if birth:
+        if not _birth_ok(birth):
+            raise ValueError("Tanggal lahir tidak benar.")
+        data[sid]["birth"] = birth
+    else:
+        data[sid].pop("birth", None)
+    _write(data)
+    return lookup_student(sid)
 
 
 def list_students():

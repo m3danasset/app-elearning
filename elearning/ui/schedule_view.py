@@ -46,7 +46,7 @@ def _fit(font, text, avail):
 
 
 class ScheduleBoard(tk.Canvas):
-    def __init__(self, master, on_add=None, on_edit=None):
+    def __init__(self, master, on_add=None, on_edit=None, day_only=False):
         super().__init__(master, bg=C.BG, highlightthickness=0, bd=0,
                          height=TOP + (HOURS[1] - HOURS[0]) * HOUR_H + 12)
         self.on_add, self.on_edit = on_add, on_edit
@@ -56,7 +56,9 @@ class ScheduleBoard(tk.Canvas):
         self.boxes = []            # (x0, y0, x1, y1, slot)
         self._imgs = []
         self._width = 0
-        self.mode = _view["mode"]   # "week" / "day"
+        self.day_only = day_only    # guru: hanya tampilan Hari, hanya lihat
+        self.on_nav = None          # dipanggil setelah pindah hari / minggu
+        self.mode = "day" if day_only else _view["mode"]   # "week" / "day"
         self.anchor = date.today()  # hari yang tampil (Hari) / minggu yang tampil (Minggu)
         self.tools = []            # (x0, y0, x1, y1, nama) tombol baris atas
         self.f = {"day": tkfont.Font(font=(C.FONT, 10, "bold")),
@@ -113,10 +115,14 @@ class ScheduleBoard(tk.Canvas):
         self.anchor += timedelta(days=step * (7 if self.mode == "week" else 1))
         self.hover = None
         self.redraw()
+        if self.on_nav:
+            self.on_nav()
 
     def go_today(self):
         self.anchor = date.today()
         self.redraw()
+        if self.on_nav:
+            self.on_nav()
 
     def _range_text(self):
         if self.mode == "day":
@@ -151,13 +157,13 @@ class ScheduleBoard(tk.Canvas):
         self.tools = []
         y, h = 6, 30
         x = GUTTER
-        for mode, label in (("day", "Hari"), ("week", "Minggu")):
+        for mode, label in (() if self.day_only else (("day", "Hari"), ("week", "Minggu"))):
             on = self.mode == mode
             f = self.f["tool_b"] if on else self.f["tool"]
             w = f.measure(label) + 28
             self._tool(x, y, w, h, mode, text=label, on=on, font=f)
             x += w + 4
-        x += 14
+        x += 0 if self.day_only else 14
         self._tool(x, y, 30, h, "prev", icon="chev_left")
         x += 34
         self._tool(x, y, 30, h, "next", icon="chev_right")
@@ -229,7 +235,7 @@ class ScheduleBoard(tk.Canvas):
             self.create_text((x0 + x1) / 2, TOOL_H + 37, text=num, font=self.f["date"],
                              fill="#ffffff" if is_today else C.MUTED)
             # sel yang disorot (tambah jadwal)
-            if self.hover and self.hover[0] == "cell" and self.hover[1] == d:
+            if self.on_add and self.hover and self.hover[0] == "cell" and self.hover[1] == d:
                 h = self.hover[2]
                 y0, y1 = self._y(h * 60), self._y((h + 1) * 60)
                 p = I.pill(int(x1 - x0 - 6), int(y1 - y0 - 4), C.CARD_HOVER,
@@ -287,7 +293,7 @@ class ScheduleBoard(tk.Canvas):
         if w < 6 or h < 6:
             return
         base = PROGRAM_COLOR[self._program(s)]
-        hover = self.hover == ("slot", s["id"])
+        hover = self.hover == ("slot", s["id"]) and self.on_edit is not None
         match = self._matches(s)
         fill = _mix(base, "#ffffff", 0.12) if hover else base
         if not match:
@@ -365,6 +371,9 @@ class ScheduleBoard(tk.Canvas):
         self._set_hover(key)
 
     def _set_hover(self, key):
+        if key is not None and ((key[0] == "cell" and not self.on_add)
+                                or (key[0] == "slot" and not self.on_edit)):
+            key = None              # hanya lihat: kotak & blok tidak bisa diklik
         if key != self.hover:
             self.hover = key
             self.config(cursor="hand2" if key else "")
@@ -571,3 +580,55 @@ class ScheduleDialog(tk.Toplevel):
             self.destroy()
         finally:
             self.on_done()
+
+
+class TeacherSchedule(tk.Frame):
+    """Layar guru, menu Jadwal Murid: kalender per HARI saja, hanya lihat (diatur admin)."""
+
+    REFRESH_MS = 60_000      # garis jam sekarang & perubahan dari admin ikut diperbarui
+
+    def __init__(self, master):
+        super().__init__(master, bg=C.BG)
+        from elearning import teachers as T
+        from elearning.students import age_text, list_students
+        self._T, self._age, self._list = T, age_text, list_students
+        self.info = tk.Label(self, text="", bg=C.BG, fg=C.MUTED, font=(C.FONT, 10),
+                             anchor="w")
+        self.info.pack(fill="x", padx=28, pady=(4, 6))
+        self.scroll = ScrollFrame(self, bg=C.BG)
+        self.scroll.pack(fill="both", expand=True, padx=(28, 12), pady=(0, 12))
+        self.board = ScheduleBoard(self.scroll.inner, day_only=True)
+        self.board.on_nav = self.refresh       # ringkasan ikut hari yang dipilih
+        self.board.pack(fill="x")
+        self._job = None
+        self.refresh()
+
+    def refresh(self):
+        if self._job is not None:
+            self.after_cancel(self._job)
+            self._job = None
+        studs = self._list()
+        # umur ikut tampil di nama (guru tidak melihat tanggal lahir)
+        by_id = {}
+        for s in studs:
+            age = self._age(s)
+            by_id[s["id"]] = dict(s, name=f"{s['name']} ({age})" if age else s["name"])
+        teachers = {t["id"]: t["name"] for t in self._T.list_teachers()}
+        slots = SCH.list_slots()
+        day = self.board.anchor.weekday()
+        today_slots = [s for s in slots if s["day"] == day]
+        n = len({m for s in today_slots for m in s["students"] if m in by_id})
+        when = "hari ini" if self.board.anchor == date.today() else SCH.DAYS[day]
+        self.info.config(text=f"{len(today_slots)} jadwal  ·  {n} murid {when}  ·  "
+                              "jadwal diatur admin")
+        self.board.set_data(slots, by_id, teachers)
+        self._job = self.after(self.REFRESH_MS, self.refresh)
+
+    def destroy(self):
+        if self._job is not None:
+            try:
+                self.after_cancel(self._job)
+            except Exception:
+                pass
+        super().destroy()
+
