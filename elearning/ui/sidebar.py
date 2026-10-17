@@ -1,4 +1,4 @@
-"""Sidebar kiri gaya claude.ai, dipakai SEMUA peran: admin, guru, murid, dan trial.
+﻿"""Sidebar kiri gaya claude.ai, dipakai SEMUA peran: admin, guru, murid, dan trial.
 
 Susunan (atas -> bawah):
   1. Logo brand (assets\\logo.png; cadangan: logo M3DAN bawaan) + tombol lipat sidebar
@@ -1280,7 +1280,7 @@ class SidebarLayout(tk.Frame):
 
 
 # --- bagian yang dipakai beberapa layar ------------------------------------------------
-PROGRAM_LABEL = {"adult": "Adult student", "kids": "Kids student", "trial": "Trial class"}
+PROGRAM_LABEL = {"adult": "Student", "kids": "Kids student", "trial": "Trial class"}
 
 
 def student_subtitle(student):
