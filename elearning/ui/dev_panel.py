@@ -1,10 +1,12 @@
 """Jendela Dev (Ctrl KANAN + Shift KANAN + Backspace, di layar mana pun).
 
+Dibuka setelah PIN Dev benar (DevPinDialog; yang disimpan hanya hash-nya, DEV_PIN_HASH).
 Sengaja sederhana: widget Tk biasa, selalu di atas (topmost). Dua tab:
 - Login    : cari akun (admin, guru, murid, trial) lalu masuk tanpa PIN.
 - Settings : tampilan login, warna aksen, dan fitur aplikasi on/off (data\\app_settings.json).
 """
 
+import time
 import tkinter as tk
 
 from elearning import app_settings as S
@@ -49,8 +51,130 @@ def install_shortcut(app):
     app.bind_all("<KeyPress-BackSpace>", on_backspace, add="+")
 
 
+# PIN Dev: hanya hash yang disimpan (bukan teks PIN). Ganti PIN: hitung _pin_hash("pinbaru").
+DEV_PIN_HASH = "2c241116be877d65"
+PIN_TRIES = 5          # salah sekian kali berturut-turut -> dikunci sebentar
+PIN_LOCK_S = 60
+
+
+def _pin_hash(text):
+    """FNV-1a 64 bit bergaram, 2000 putaran (tanpa hashlib: hanya modul yang pasti ada di .exe)."""
+    h = 0xCBF29CE484222325
+    data = ("m3dan-dev:" + text).encode("utf-8")
+    for _ in range(2000):
+        for b in data:
+            h = ((h ^ b) * 0x100000001B3) & 0xFFFFFFFFFFFFFFFF
+    return f"{h:016x}"
+
+
+_pin = {"win": None, "fails": 0, "locked_until": 0.0}
+
+
+class DevPinDialog(tk.Toplevel):
+    """Minta PIN sebelum jendela Dev dibuka. Enter = cek, Esc / tutup = batal."""
+
+    def __init__(self, app):
+        super().__init__(app, bg=BG)
+        self.app = app
+        self.title("Dev")
+        self.attributes("-topmost", True)
+        self.resizable(False, False)
+        self.geometry(f"260x128+{app.winfo_rootx() + 40}+{app.winfo_rooty() + 60}")
+        tk.Label(self, text="PIN Dev", bg=BG, fg=FG, font=BOLD, anchor="w").pack(
+            fill="x", padx=14, pady=(12, 4))
+        self.var = tk.StringVar()
+        self.entry = tk.Entry(self, textvariable=self.var, show="\u2022", font=FONT, bg=FIELD,
+                              fg=FG, insertbackground=FG, relief="flat")
+        self.entry.pack(fill="x", padx=14, ipady=4)
+        self.msg = tk.Label(self, text="", bg=BG, fg=C.ERROR, font=FONT, anchor="w")
+        self.msg.pack(fill="x", padx=14, pady=(6, 0))
+        tk.Button(self, text="Buka", font=BOLD, relief="flat", bg=C.ACCENT, fg="white",
+                  activebackground=C.ACCENT_HOVER, activeforeground="white",
+                  command=self._check).pack(fill="x", padx=14, pady=(4, 10), ipady=1)
+        self.entry.bind("<Return>", lambda e: self._check())
+        self.bind("<Escape>", lambda e: self.destroy())
+        self.var.trace_add("write", lambda *a: self._limit())
+        self._locked_tick()
+        self.after(10, self._focus)
+
+    def _focus(self):
+        try:
+            self.lift()
+            self.focus_force()
+            self.entry.focus_set()
+        except tk.TclError:
+            pass
+
+    def _limit(self):
+        v = self.var.get()
+        if len(v) > 32:
+            self.var.set(v[:32])
+
+    def _left(self):
+        return max(0, int(_pin["locked_until"] - time.monotonic() + 0.999))
+
+    def _locked_tick(self):
+        """Selama dikunci: kolom mati + hitung mundur; sesudahnya kolom aktif lagi."""
+        left = self._left()
+        if left:
+            self.entry.config(state="disabled")
+            self.msg.config(text=f"Terlalu banyak salah. Coba lagi {left} dtk.")
+            self.after(1000, self._locked_tick)
+        else:
+            self.entry.config(state="normal")
+            if _pin["fails"] >= PIN_TRIES:
+                _pin["fails"] = 0
+                self.msg.config(text="")
+
+    def _check(self):
+        if self._left():
+            return
+        if _pin_hash(self.var.get()) == DEV_PIN_HASH:
+            _pin["fails"] = 0
+            app = self.app
+            self.destroy()
+            _show_dev(app)
+            return
+        _pin["fails"] += 1
+        self.var.set("")
+        C.log(f"Dev: PIN salah ({_pin['fails']}x)")
+        if _pin["fails"] >= PIN_TRIES:
+            _pin["locked_until"] = time.monotonic() + PIN_LOCK_S
+            self._locked_tick()
+        else:
+            self.msg.config(text=f"PIN salah ({PIN_TRIES - _pin['fails']} kali lagi).")
+
+    def destroy(self):
+        _pin["win"] = None
+        super().destroy()
+
+
 def open_dev(app):
-    """Buka jendela Dev (atau munculkan lagi kalau sudah terbuka)."""
+    """Shortcut Dev: kalau jendela Dev sudah terbuka, munculkan; kalau belum, minta PIN dulu."""
+    w = _open["win"]
+    if w is not None:
+        try:
+            if w.winfo_exists():
+                w.deiconify()
+                w.lift()
+                w.focus_force()
+                return w
+        except tk.TclError:
+            pass
+    d = _pin["win"]
+    if d is not None:
+        try:
+            if d.winfo_exists():
+                d._focus()
+                return d
+        except tk.TclError:
+            pass
+    _pin["win"] = DevPinDialog(app)
+    return _pin["win"]
+
+
+def _show_dev(app):
+    """Buka jendela Dev (setelah PIN benar)."""
     w = _open["win"]
     if w is not None:
         try:

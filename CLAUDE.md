@@ -182,6 +182,9 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   (courses.visible_for). Fitur murid baru wajib English.
 
 ## Jendela Dev (Ctrl kanan + Shift kanan + Backspace, semua layar)
+- Dikunci PIN: shortcut membuka DevPinDialog dulu (Enter = cek, Esc = batal). Di kode hanya
+  hash (dev_panel.DEV_PIN_HASH = _pin_hash(pin), FNV-1a bergaram, tanpa hashlib), bukan teks
+  PIN. 5x salah -> dikunci 60 dtk. Tiap jendela Dev ditutup, PIN diminta lagi.
 - ui/dev_panel.py: jendela sederhana (widget Tk biasa), selalu di atas. Tab Login (cari akun,
   masuk tanpa PIN; App.dev_login keluar dulu tanpa konfirmasi) dan Settings: tampilan login,
   warna aksen (app_settings.ACCENTS, berlaku setelah app dibuka ulang: apply_theme di App),
