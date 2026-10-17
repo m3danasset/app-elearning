@@ -316,7 +316,7 @@ class DevPanel(tk.Toplevel):
         tk.Button(btns, text="Masuk", font=BOLD, relief="flat", bg=C.ACCENT, fg="white",
                   activebackground=C.ACCENT_HOVER, activeforeground="white",
                   command=self._login).pack(side="left", fill="x", expand=True, ipady=3)
-        self.edit_btn = tk.Button(btns, text="Edit murid", font=BOLD, relief="flat", bg=FIELD,
+        self.edit_btn = tk.Button(btns, text="Edit", font=BOLD, relief="flat", bg=FIELD,
                                   fg=FG, activebackground="#3a3a3a", activeforeground=FG,
                                   command=self._edit)
         self.edit_btn.pack(side="left", fill="x", expand=True, ipady=3, padx=(6, 0))
@@ -358,8 +358,10 @@ class DevPanel(tk.Toplevel):
 
     def _sel_changed(self):
         it = self._selected()
-        ok = it is not None and it[0] in ("adult", "kids")
-        self.edit_btn.config(state="normal" if ok else "disabled")
+        kind = it[0] if it is not None else None
+        self.edit_btn.config(state="disabled" if kind in (None, "trial") else "normal",
+                             text="Edit PIN" if kind in ("admin", "teacher")
+                             else "Edit murid" if kind in ("adult", "kids") else "Edit")
 
     def _move(self, d):
         sel = self.lb.curselection()
@@ -383,9 +385,12 @@ class DevPanel(tk.Toplevel):
 
     def _edit(self):
         it = self._selected()
-        if it is None or it[0] not in ("adult", "kids"):
+        if it is None:
             return
-        StudentEditor(self, it[1])
+        if it[0] in ("adult", "kids"):
+            StudentEditor(self, it[1])
+        elif it[0] in ("admin", "teacher"):
+            PinEditor(self, it[0], it[1], it[2])
 
     def reload_accounts(self, select_id=None):
         """Setelah murid diedit: muat ulang daftar, pilih murid itu lagi."""
@@ -671,6 +676,77 @@ class DevPanel(tk.Toplevel):
             self.after_cancel(self._save_job)
             self._flush_ui()
         super().destroy()
+
+
+class PinEditor(tk.Toplevel):
+    """Ganti PIN guru / admin (jendela Dev). PIN lama terlihat supaya dev tahu yang dipakai."""
+
+    def __init__(self, panel, kind, uid, name):
+        super().__init__(panel, bg=BG)
+        self.panel, self.kind, self.uid = panel, kind, uid
+        self.title("Edit PIN")
+        self.attributes("-topmost", True)
+        self.resizable(False, False)
+        self.geometry(f"280x150+{panel.winfo_rootx() + 30}+{panel.winfo_rooty() + 90}")
+        if kind == "admin":
+            from elearning import admins
+            pin = admins.get_pin(uid)
+        else:
+            from elearning import teachers
+            pin = teachers.get_pin(uid)
+        tk.Label(self, text=f"{'Admin' if kind == 'admin' else 'Guru'}  {uid}  {name}", bg=BG,
+                 fg=FG, font=BOLD, anchor="w").pack(fill="x", padx=14, pady=(12, 4))
+        row = tk.Frame(self, bg=BG)
+        row.pack(fill="x", padx=14)
+        tk.Label(row, text="PIN", bg=BG, fg=MUTED, font=FONT).pack(side="left", padx=(0, 8))
+        self.var = tk.StringVar(value=pin or "")
+        e = tk.Entry(row, textvariable=self.var, font=FONT, bg=FIELD, fg=FG,
+                     insertbackground=FG, relief="flat")
+        e.pack(side="left", fill="x", expand=True, ipady=3)
+        self.msg = tk.Label(self, text="4-10 karakter, tanpa spasi.", bg=BG, fg=MUTED,
+                            font=FONT, anchor="w")
+        self.msg.pack(fill="x", padx=14, pady=(6, 0))
+        btns = tk.Frame(self, bg=BG)
+        btns.pack(fill="x", padx=14, pady=(6, 10))
+        tk.Button(btns, text="Simpan", font=BOLD, relief="flat", bg=C.ACCENT, fg="white",
+                  activebackground=C.ACCENT_HOVER, activeforeground="white",
+                  command=self._save).pack(side="left", fill="x", expand=True, ipady=2)
+        tk.Button(btns, text="Batal", font=BOLD, relief="flat", bg=FIELD, fg=FG,
+                  activebackground="#3a3a3a", activeforeground=FG,
+                  command=self.destroy).pack(side="left", fill="x", expand=True, ipady=2,
+                                             padx=(6, 0))
+        e.bind("<Return>", lambda ev: self._save())
+        self.bind("<Escape>", lambda ev: self.destroy())
+        e.focus_set()
+        e.select_range(0, "end")
+
+    def _save(self):
+        pin = self.var.get()
+        try:
+            if self.kind == "admin":
+                from elearning import admins
+                admins.set_pin(self.uid, pin)
+            else:
+                from elearning import teachers
+                t = teachers.get_teacher(self.uid)
+                if t is None:
+                    raise ValueError(f"Guru {self.uid} tidak ditemukan.")
+                teachers._clean_pin(pin)        # periksa dulu (kosong = salah, bukan "tetap")
+                teachers.update_teacher(self.uid, t["name"], pin)
+        except ValueError as exc:
+            self.msg.config(text=str(exc), fg=C.ERROR)
+            return
+        except OSError as exc:
+            C.log(f"Dev: PIN {self.uid} gagal disimpan: {exc!r}")
+            self.msg.config(text="Gagal menyimpan (folder data?).", fg=C.ERROR)
+            return
+        C.log(f"Dev: PIN {self.uid} diganti")
+        panel = self.panel
+        self.destroy()
+        try:
+            panel._note(f"PIN {self.uid} disimpan.")
+        except tk.TclError:
+            pass
 
 
 class StudentEditor(tk.Toplevel):

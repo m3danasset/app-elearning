@@ -196,6 +196,8 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   ke FEATURES + cek feature() di kodenya. Tab Setting di Panel Admin sudah dihapus.
 - Tab Login: 3 kolom (Jenis | ID | Nama, huruf Consolas), filter jenis; urutan utama selalu admin, guru, trial, dewasa, SUPERKIDS, lalu Nama / ID.
   "Edit murid" (StudentEditor): nama, ID, kategori, status, tgl lahir, kursus buka/tampil.
+  "Edit PIN" (PinEditor) untuk guru & admin: guru lewat teachers.update_teacher; admin lewat
+  admins.set_pin -> data\admin_pins.json (menimpa PIN di admins.ADMINS; check_admin memakai get_pin).
   Ganti ID = students.change_id: pindahkan foto, progres, badge, portfolio & assignment,
   riwayat login (+ arsip), jadwal, kuis, sertifikat, recents; ditolak kalau ID sudah dipakai.
   Ganti kategori = students.set_program (kursus disesuaikan). Settings: 2 tombol.

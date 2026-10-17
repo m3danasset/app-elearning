@@ -168,6 +168,12 @@ def add_teacher(name, pin):
     return {"id": tid, "name": name}
 
 
+def get_pin(teacher_id):
+    """PIN guru saat ini (hanya untuk jendela Dev), None kalau guru tidak ada."""
+    data = _load().get(teacher_id.strip().upper())
+    return None if data is None else data["pin"]
+
+
 def update_teacher(teacher_id, name, pin=None):
     """Ganti nama guru; kalau pin diisi, PIN-nya ikut diganti (None / kosong = tidak berubah)."""
     name = _clean_name(name)
