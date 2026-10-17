@@ -143,6 +143,8 @@ class App(tk.Tk):
         """Popup konfirmasi mini (gaya aplikasi). Hanya satu yang terbuka sekaligus."""
         if self._confirming:
             return
+        from elearning.ui.search_palette import close_palette
+        close_palette()      # mis. tombol X jendela saat palette terbuka: tidak bertumpuk
         from elearning.ui.dialogs import MiniConfirm
         self._confirming = True
         try:

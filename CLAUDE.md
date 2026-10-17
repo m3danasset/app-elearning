@@ -56,3 +56,8 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   aksi; admin: murid, guru, laporan, aksi). Layar cukup punya search_sources().
 - elearning/recents.py: riwayat "Terakhir dibuka" per akun di data\recents.json
   (trial hanya di memori). Layar kursus: tanpa kolom bawah (pemutar video), Ctrl+K tetap.
+- Low-end (config.WORKER_THREADS == 1, mis. Ryzen 3 2200G): palette tampil langsung tanpa
+  fade alpha. PC lain: fade 120 ms, 30 fps jadwal tetap. Ketikan digabung 1x per frame;
+  panel dibuat tersembunyi lalu ditampilkan utuh. Dialog konfirmasi menutup palette dulu.
+- students.list_students membaca data sekali (dulu O(n^2) deepcopy): buka palette admin
+  300 murid ~50 ms di 1 core (sebelumnya ~600 ms).

@@ -34,7 +34,11 @@ WIN = sys.platform == "win32"
 KEY = "#0d0c0c"          # warna "tembus" sudut panel (= kira-kira latar yang diredupkan)
 DIM_ALPHA = 0.55         # gelap latar di belakang palette (Windows)
 FADE_S = 0.12            # lama muncul (detik), berbasis waktu
-FRAME_MS = 16            # maks. 60 fps untuk transisi kecil
+FRAME_MS = C.UI_FRAME_MS  # semua animasi UI maks. 30 fps (config)
+# PC 4 thread (mis. Ryzen 3 2200G): palette langsung tampil tanpa animasi alpha, jadi
+# tidak ada kerja menggambar ulang DWM selama Blender murid berjalan.
+LOW_END = getattr(C, "WORKER_THREADS", 2) <= 1
+TYPE_MS = C.UI_FRAME_MS  # ketikan beruntun digabung: daftar disusun ulang maks. 1x / frame
 HIGHLIGHT = "#6b3d0c"    # latar kata yang cocok (sama dengan saran sidebar)
 
 PANEL_W, PANEL_H = 680, 540
@@ -133,7 +137,7 @@ class SearchBar(tk.Canvas):
         self._draw()
 
     def set_width(self, w):
-        w = int(w)
+        w = int(w) // 8 * 8      # kelipatan 8 px: lebih sedikit gambar saat jendela di-resize
         if w != int(self["width"]):
             self.configure(width=w)
             self._draw()
@@ -168,7 +172,7 @@ class SearchPalette(tk.Toplevel):
         super().__init__(top)
         self.dim = None
         self._closed = False
-        self._job = self._watch_job = None
+        self._job = self._watch_job = self._type_job = None
         try:
             self._build(top, sources, tab)
         except Exception:
@@ -212,9 +216,10 @@ class SearchPalette(tk.Toplevel):
         if WIN:
             try:
                 d = self.dim = tk.Toplevel(top)
+                d.withdraw()      # disiapkan tersembunyi: tidak berkedip hitam penuh
                 d.overrideredirect(True)
                 d.configure(bg="#000000")
-                d.attributes("-alpha", 0.0)
+                d.attributes("-alpha", DIM_ALPHA if LOW_END else 0.0)
                 d.geometry(f"{tw}x{th}+{rx}+{ry}")
                 d.bind("<Button-1>", lambda e: self.close())
             except Exception as exc:
@@ -224,11 +229,13 @@ class SearchPalette(tk.Toplevel):
         # --- panel
         self.W = max(420, min(PANEL_W, tw - 80))
         self.H = max(320, min(PANEL_H, th - 80))
+        self.withdraw()           # isi panel dibuat dulu, baru ditampilkan utuh
         self.overrideredirect(True)
         self.configure(bg=KEY)
         if WIN:
             try:
-                self.attributes("-alpha", 0.0)
+                if not LOW_END:
+                    self.attributes("-alpha", 0.0)
                 self.attributes("-transparentcolor", KEY)   # sudut bulat benar-benar bulat
             except Exception:
                 pass
@@ -263,6 +270,10 @@ class SearchPalette(tk.Toplevel):
         self._placeholder()
         self._rebuild()
 
+        # (tanpa update_idletasks: itu ikut menggambar ulang seluruh layar di belakang)
+        if self.dim is not None:
+            self.dim.deiconify()
+        self.deiconify()
         self.lift()
         self.after(10, self._start)
 
@@ -303,14 +314,17 @@ class SearchPalette(tk.Toplevel):
         except Exception:
             pass
         self._fade_t0 = time.perf_counter()
+        self._fade_k = 0
         self._fade()
         self._watch_job = self.after(250, self._watch)
 
     def _fade(self):
-        """Muncul halus: alpha naik berbasis waktu (bukan per frame), maks. 60 fps."""
-        if self._closed or not WIN:
+        """Muncul halus: alpha dari waktu nyata, jadwal frame tetap (t0 + k x frame),
+        maks. 30 fps. PC low-end: tanpa animasi (langsung tampil)."""
+        if self._closed or not WIN or LOW_END:
             return
-        t = min(1.0, (time.perf_counter() - self._fade_t0) / FADE_S)
+        now = time.perf_counter()
+        t = min(1.0, (now - self._fade_t0) / FADE_S)
         k = 1 - (1 - t) ** 3
         try:
             self.attributes("-alpha", k)
@@ -319,7 +333,13 @@ class SearchPalette(tk.Toplevel):
         except Exception:
             return
         if t < 1.0:
-            self._job = self.after(FRAME_MS, self._fade)
+            self._fade_k += 1
+            due = self._fade_t0 + self._fade_k * FRAME_MS / 1000.0
+            while due <= now:        # frame terlewat (PC sibuk): lompat, jangan menumpuk
+                self._fade_k += 1
+                due += FRAME_MS / 1000.0
+            self._job = self.after(max(1, int((due - time.perf_counter()) * 1000)),
+                                   self._fade)
 
     def _watch(self):
         """Jendela utama dipindah / berubah ukuran / diperkecil: palette ditutup."""
@@ -349,7 +369,7 @@ class SearchPalette(tk.Toplevel):
         self._closed = True
         if _open["pal"] is self:
             _open["pal"] = None
-        for job in (self._job, self._watch_job):
+        for job in (self._job, self._watch_job, self._type_job):
             if job is not None:
                 try:
                     self.after_cancel(job)
@@ -489,7 +509,19 @@ class SearchPalette(tk.Toplevel):
 
     def _changed(self):
         self._placeholder()
-        self._rebuild()
+        if self._type_job is None:    # ketik cepat: susun ulang sekali per frame
+            self._type_job = self.after(TYPE_MS, self._typed)
+
+    def _flush(self):
+        """Ada ketikan yang belum diproses (Enter / panah sangat cepat): proses sekarang."""
+        if self._type_job is not None:
+            self.after_cancel(self._type_job)
+            self._typed()
+
+    def _typed(self):
+        self._type_job = None
+        if not self._closed:
+            self._rebuild()
 
     def _label(self, kind):
         for k, label in self.tabs:
@@ -703,6 +735,7 @@ class SearchPalette(tk.Toplevel):
             self._run_sel()
 
     def _move(self, step):
+        self._flush()
         idx = [i for i, (k, _d) in enumerate(self.rows) if k == "row"]
         if not idx:
             return "break"
@@ -740,6 +773,7 @@ class SearchPalette(tk.Toplevel):
         return self._scroll(-ROW_H * 2 if e.delta > 0 else ROW_H * 2)
 
     def _run_sel(self):
+        self._flush()
         if not (0 <= self.sel < len(self.rows)) or self.rows[self.sel][0] != "row":
             return "break"
         it = self.rows[self.sel][1]

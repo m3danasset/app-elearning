@@ -139,6 +139,10 @@ def lookup_student(student_id):
     data = _load().get(sid)
     if data is None:
         return None
+    return _entry(sid, data)
+
+
+def _entry(sid, data):
     return {"id": sid, "name": data["name"], "program": data["program"],
             "courses": list(data["courses"]),
             "status": data.get("status") if data.get("status") in STATUSES
@@ -146,9 +150,10 @@ def lookup_student(student_id):
 
 
 def list_students():
-    """Semua murid, urut berdasarkan ID."""
+    """Semua murid, urut berdasarkan ID. Data dibaca SEKALI (dulu sekali per murid,
+    berat di PC low-end kalau murid ratusan)."""
     data = _load()
-    return [lookup_student(sid) for sid in sorted(data)]
+    return [_entry(sid, data[sid]) for sid in sorted(data)]
 
 
 def set_course_access(student_id, course_id, allowed):
