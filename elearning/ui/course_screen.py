@@ -11,7 +11,7 @@ from elearning import achievements
 from elearning import config as C
 from elearning import portfolio, progress
 from elearning import lessons as lessons_mod
-from elearning.courses import courses_for, has_video
+from elearning.courses import has_video, visible_for
 from elearning.trial import is_trial
 from elearning.ui.lesson_view import LessonsPanel
 from elearning.ui.portfolio_view import PortfolioPanel
@@ -88,7 +88,7 @@ class CourseScreen(SidebarLayout):
                        active=self.view == "assignment", right=str(na) if na else None)
 
             if not self.video:     # kursus tanpa video: tanpa daftar pelajaran
-                course_items(sb, courses_for(self.student["program"]),
+                course_items(sb, visible_for(self.student),
                              set(self.student["courses"]), self.course["id"],
                              self.on_open_course)
                 blender_footer(sb)
@@ -104,7 +104,7 @@ class CourseScreen(SidebarLayout):
                 sb.note(f"Tidak ada pelajaran yang cocok dengan “{sb.query.strip()}”.")
 
         allowed = set(self.student["courses"])
-        course_items(sb, courses_for(self.student["program"]), allowed, self.course["id"],
+        course_items(sb, visible_for(self.student), allowed, self.course["id"],
                      self.on_open_course)
         blender_footer(sb)
 

@@ -76,6 +76,10 @@ def _valid(data):
                            else STATUS_ACTIVE)}
             if _birth_ok(d.get("birth")):      # tanggal lahir (diisi admin), boleh kosong
                 clean[str(sid).strip().upper()]["birth"] = d["birth"]
+            hidden = d.get("hidden")           # kursus yang disembunyikan admin dari murid
+            if isinstance(hidden, list) and hidden:
+                clean[str(sid).strip().upper()]["hidden"] = [c for c in hidden
+                                                             if isinstance(c, str)]
     return clean
 
 
@@ -149,7 +153,8 @@ def _entry(sid, data):
             "courses": list(data["courses"]),
             "status": data.get("status") if data.get("status") in STATUSES
             else STATUS_ACTIVE,
-            "birth": data.get("birth") or ""}
+            "birth": data.get("birth") or "",
+            "hidden": list(data.get("hidden") or [])}
 
 
 # --- tanggal lahir & umur -------------------------------------------------------------
@@ -220,6 +225,27 @@ def set_course_access(student_id, course_id, allowed):
         courses, key=lambda c: _COURSE_ORDER.get(c, 999))
     _write(data)
     return list(data[sid]["courses"])
+
+
+def set_course_hidden(student_id, course_id, hidden):
+    """Sembunyikan (True) / tampilkan (False) satu kursus di halaman murid ini. Langsung
+    disimpan. Terpisah dari kunci: kursus tersembunyi tidak tampil sama sekali (terbuka
+    maupun terkunci); progres & portfolio murid tetap aman."""
+    sid = student_id.strip().upper()
+    data = _load()
+    if sid not in data:
+        raise KeyError(f"Murid {sid} tidak ditemukan")
+    hide = set(data[sid].get("hidden") or [])
+    if hidden:
+        hide.add(course_id)
+    else:
+        hide.discard(course_id)
+    if hide:
+        data[sid]["hidden"] = sorted(hide, key=lambda c: _COURSE_ORDER.get(c, 999))
+    else:
+        data[sid].pop("hidden", None)
+    _write(data)
+    return list(data[sid].get("hidden") or [])
 
 
 def set_status(student_id, status):

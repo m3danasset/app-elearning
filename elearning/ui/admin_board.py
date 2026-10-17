@@ -21,8 +21,12 @@ from elearning.ui.avatar import PALETTE, initials
 from elearning.ui.report_widgets import KIND_COLOR, PORTFOLIO_COLUMNS, PROGRAM_LABEL
 from elearning.ui.sidebar import HIGHLIGHT
 
-PEOPLE_COLUMNS = (("Nama", 8), ("Aktivitas", 4), ("Terakhir aktif", 7),
-                  ("Masuk", 2), ("Total waktu", 3), ("Status akun", 7))
+PEOPLE_COLUMNS = (("Nama", 8), ("Aktivitas", 4), ("Terakhir aktif", 6),
+                  ("Masuk", 2), ("Total waktu", 3), ("Status akun", 9))
+# Tabel sempit (jendela kecil): kolom angka disembunyikan (lebar 0), tombol tetap utuh
+PEOPLE_NARROW = (("Nama", 8), ("Aktivitas", 5), ("Terakhir aktif", 0),
+                 ("Masuk", 0), ("Total waktu", 0), ("Status akun", 12))
+NARROW_W = 820
 
 
 class _Board(tk.Canvas):
@@ -139,10 +143,12 @@ class PeopleBoard(_Board):
 
     ROW_H, GAP, HEAD_H = 60, 6, 24
 
-    def __init__(self, master, on_status=None, on_edit=None, on_delete=None, on_birth=None):
+    def __init__(self, master, on_status=None, on_edit=None, on_delete=None, on_birth=None,
+                 on_courses=None):
         super().__init__(master)
         self.on_status, self.on_edit, self.on_delete = on_status, on_edit, on_delete
         self.on_birth = on_birth   # admin: isi tanggal lahir murid
+        self.on_courses = on_courses   # admin: kursus terbuka / terkunci, tampil / disembunyikan
         self.people, self.stats, self.empty = [], {}, ""
         self._avatars = {}
 
@@ -180,9 +186,12 @@ class PeopleBoard(_Board):
 
     def _draw(self, W):
         teachers = bool(self.people) and self.people[0].get("teacher")
-        xs = self._cols(PEOPLE_COLUMNS, 14, W - 28)
-        for i, (title, _w) in enumerate(PEOPLE_COLUMNS):
-            if i == len(PEOPLE_COLUMNS) - 1 and teachers:
+        cols = PEOPLE_NARROW if W < NARROW_W else PEOPLE_COLUMNS
+        xs = self._cols(cols, 14, W - 28)
+        for i, (title, wt) in enumerate(cols):
+            if not wt:
+                continue
+            if i == len(cols) - 1 and teachers:
                 title = "Kelola"
             self._text(xs[i], self.HEAD_H / 2, title, "head", C.MUTED)
         y = self.HEAD_H
@@ -217,7 +226,8 @@ class PeopleBoard(_Board):
                 total = sessions.format_duration(st["total"])
             for col, (text, fg) in enumerate(((status, color), (last, C.TEXT),
                                               (count, C.TEXT), (total, C.TEXT)), start=1):
-                self._text(xs[col], cy, text, "cell", fg, width=xs[col + 1] - xs[col] - 8)
+                if xs[col + 1] - xs[col] > 12:          # kolom tersembunyi (tabel sempit)
+                    self._text(xs[col], cy, text, "cell", fg, width=xs[col + 1] - xs[col] - 8)
             ax = xs[5]
             if p.get("teacher"):
                 if self.on_edit:
@@ -226,16 +236,30 @@ class PeopleBoard(_Board):
                     self._button(ax, cy, "Hapus", lambda p=p: self.on_delete(p), fg=C.ERROR)
             elif p.get("status") is not None:
                 expired = p["status"] == STATUS_EXPIRED
-                t = self._text(ax, cy, "●  " + STATUS_LABEL[p["status"]], "cellb",
-                               C.ERROR if expired else C.ON)
-                bx = max(self.bbox(t)[2] + 10, ax + 86)
+                # Tabel sempit: status cukup titik warna supaya semua tombol tetap utuh
+                # (tabel lebih sempit lagi: label tombol dipendekkan)
+                fb = self.f["btn"]
+                names = {"status": "Set Active" if expired else "Set Expired",
+                         "birth": "Tgl lahir", "courses": "Kursus"}
+                used = [k for k, on in (("status", self.on_status), ("birth", self.on_birth),
+                                        ("courses", self.on_courses)) if on]
+                need = sum(fb.measure(names[k]) + 26 for k in used)
+                compact = ax + 86 + need > W - 8
+                if compact and ax + 24 + need > W - 8:
+                    names = {"status": "Active" if expired else "Expired", "birth": "Lahir",
+                             "courses": "Kursus"}
+                t = self._text(ax, cy, "●" if compact else "●  " + STATUS_LABEL[p["status"]],
+                               "cellb", C.ERROR if expired else C.ON)
+                bx = self.bbox(t)[2] + 10 if compact else max(self.bbox(t)[2] + 10, ax + 86)
                 if self.on_status:
                     from elearning.students import STATUS_ACTIVE
                     new = STATUS_ACTIVE if expired else STATUS_EXPIRED
-                    bx = self._button(bx, cy, "Set Active" if expired else "Set Expired",
+                    bx = self._button(bx, cy, names["status"],
                                       lambda p=p, n=new: self.on_status(p["id"], n)) + 6
                 if self.on_birth:
-                    self._button(bx, cy, "Tgl lahir", lambda p=p: self.on_birth(p))
+                    bx = self._button(bx, cy, names["birth"], lambda p=p: self.on_birth(p)) + 6
+                if self.on_courses:
+                    self._button(bx, cy, names["courses"], lambda p=p: self.on_courses(p))
             else:
                 self._text(ax, cy, "-", "cell", C.MUTED)
             y += self.ROW_H + self.GAP

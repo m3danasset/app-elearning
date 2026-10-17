@@ -77,3 +77,18 @@ def has_video(course):
 def courses_for(program):
     """Kursus yang tampil untuk program tertentu ("adult" atau "kids")."""
     return [c for c in COURSES if c["program"] == program]
+
+
+def visible_for(student):
+    """Kursus yang TAMPIL di halaman murid ini: kursus programnya, minus yang disembunyikan
+    admin (students.json "hidden"). Dibaca ulang dari file supaya perubahan admin langsung
+    berlaku tanpa login ulang."""
+    hidden = set(student.get("hidden") or ())
+    try:
+        from elearning.students import lookup_student
+        fresh = lookup_student(student["id"]) if student.get("id") else None
+        if fresh is not None:
+            hidden = set(fresh.get("hidden") or ())
+    except Exception:
+        pass
+    return [c for c in courses_for(student["program"]) if c["id"] not in hidden]

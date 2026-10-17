@@ -9,7 +9,7 @@ import os
 
 from elearning import config as C
 from elearning import lessons as L
-from elearning.courses import courses_for, has_video
+from elearning.courses import has_video, visible_for
 from elearning.trial import is_trial
 
 PROGRAM_LABEL = {"adult": "Murid dewasa", "kids": "Murid anak"}
@@ -46,7 +46,7 @@ def student_sources(screen, student):
     app = screen.winfo_toplevel()
     trial = is_trial(student)
     allowed = set(student.get("courses", []))
-    courses = courses_for(student["program"])
+    courses = visible_for(student)       # kursus yang disembunyikan admin tidak dicari
     items = []
     for c in courses:
         ok = c["id"] in allowed

@@ -759,3 +759,120 @@ class BirthDialog(tk.Toplevel):
             self.error.config(text=err)
         else:
             self.destroy()
+
+
+class CourseAccessDialog(tk.Toplevel):
+    """Admin: per kursus program murid ini ada dua switch.
+    Terbuka = murid bisa membuka kursus (mati = terkunci, tetap terlihat dengan gembok).
+    Tampil  = kursus muncul di halaman murid (mati = disembunyikan sama sekali).
+    Setiap switch langsung disimpan (seperti layar guru)."""
+
+    def __init__(self, master, student_id):
+        from elearning.courses import courses_for
+        from elearning.ui import ui_icons as I
+        from elearning.ui.widgets import Switch
+        super().__init__(master, bg=C.CARD, highlightthickness=1, highlightbackground=C.BORDER)
+        self.title("Kursus murid")
+        self.resizable(False, False)
+        self.transient(master.winfo_toplevel())
+        dark_titlebar(self)
+        try:
+            self.iconbitmap(C.ICON_PATH)
+        except Exception:
+            pass
+        self.sid = student_id
+        st = S.lookup_student(student_id) or {"name": student_id, "program": "adult",
+                                              "courses": [], "hidden": []}
+        opened, hidden = set(st["courses"]), set(st.get("hidden") or ())
+        self._imgs = []
+        body = tk.Frame(self, bg=C.CARD, padx=28, pady=22)
+        body.pack(fill="both", expand=True)
+        tk.Label(body, text="Kursus", bg=C.CARD, fg=C.TEXT, font=(C.FONT, 14, "bold"),
+                 anchor="w").pack(fill="x")
+        tk.Label(body, text=f"{st['name']}  ·  {student_id}", bg=C.CARD, fg=C.MUTED,
+                 font=(C.FONT, 10), anchor="w").pack(fill="x", pady=(2, 14))
+        tk.Frame(body, bg=C.CARD, width=520, height=1).pack()   # lebar tetap: switch tidak terpotong
+        head = tk.Frame(body, bg=C.CARD)
+        head.pack(fill="x")
+        for text in ("Tampil", "Terbuka"):      # judul kolom (kanan ke kiri)
+            tk.Label(head, text=text, bg=C.CARD, fg=C.MUTED, font=(C.FONT, 9, "bold"),
+                     width=8).pack(side="right", padx=(6, 0))
+        for course in courses_for(st["program"]):
+            panel = RoundPanel(body, padx=4, pady=2)
+            panel.pack(fill="x", pady=4)
+            row = panel.inner
+            # switch dipasang lebih dulu (kanan) supaya selalu utuh; judul mengisi sisanya
+            sw_box = tk.Frame(row, bg=C.CARD)
+            sw_box.pack(side="right", padx=(0, 6))
+            info = tk.Frame(row, bg=C.CARD, padx=14, pady=8)
+            info.pack(side="left", fill="x", expand=True)
+            line = tk.Frame(info, bg=C.CARD)
+            line.pack(fill="x")
+            dot = I.dot(course["color"], C.CARD, 10)
+            if dot is not None:
+                self._imgs.append(dot)
+                tk.Label(line, image=dot, bg=C.CARD, bd=0).pack(side="left", padx=(0, 8))
+            title = tk.Label(line, text=course["title"], bg=C.CARD, fg=C.TEXT,
+                             font=(C.FONT, 11, "bold"), anchor="w")
+            title.pack(side="left")
+            state = tk.Label(info, bg=C.CARD, font=(C.FONT, 9), anchor="w")
+            state.pack(fill="x")
+            cell = dict(open=course["id"] in opened, show=course["id"] not in hidden)
+            self._paint(state, title, cell)
+            show_sw = Switch(sw_box, value=cell["show"], bg=C.CARD,
+                             command=lambda v, c=course, k=cell, s=state, t=title:
+                             self._save(c, "show", v, k, s, t))
+            show_sw.pack(side="right", padx=(10, 14))
+            open_sw = Switch(sw_box, value=cell["open"], bg=C.CARD,
+                             command=lambda v, c=course, k=cell, s=state, t=title:
+                             self._save(c, "open", v, k, s, t))
+            open_sw.pack(side="right", padx=(10, 0))
+        self.msg = tk.Label(body, text="Perubahan langsung tersimpan.", bg=C.CARD, fg=C.MUTED,
+                            font=(C.FONT, 9), anchor="w")
+        self.msg.pack(fill="x", pady=(10, 0))
+        btns = tk.Frame(body, bg=C.CARD)
+        btns.pack(fill="x", pady=(8, 0))
+        ok = RoundButton(btns, text="Selesai", command=self.destroy, bg=C.ACCENT, fg="white",
+                         activebackground=C.ACCENT_HOVER, activeforeground="white",
+                         font=(C.FONT, 11, "bold"), padx=22, pady=7)
+        ok.pack(side="right")
+        add_hover(ok, C.ACCENT, C.ACCENT_HOVER)
+        self.bind("<Return>", lambda e: self.destroy())
+        self.bind("<Escape>", lambda e: self.destroy())
+        self.update_idletasks()
+        top = master.winfo_toplevel()
+        x = top.winfo_rootx() + (top.winfo_width() - self.winfo_reqwidth()) // 2
+        y = top.winfo_rooty() + (top.winfo_height() - self.winfo_reqheight()) // 2
+        self.geometry(f"+{max(0, x)}+{max(0, y)}")
+        try:
+            self.wait_visibility()
+            self.grab_set()
+        except tk.TclError:
+            pass
+
+    @staticmethod
+    def _paint(state, title, cell):
+        if not cell["show"]:
+            text, fg = "Disembunyikan dari murid", C.LOCKED
+        elif cell["open"]:
+            text, fg = "Terbuka", C.ON
+        else:
+            text, fg = "Terkunci (terlihat dengan gembok)", C.MUTED
+        state.config(text=text, fg=fg)
+        title.config(fg=C.TEXT if cell["show"] else C.MUTED)
+
+    def _save(self, course, what, value, cell, state, title):
+        try:
+            if what == "open":
+                S.set_course_access(self.sid, course["id"], value)
+            else:
+                S.set_course_hidden(self.sid, course["id"], not value)
+        except Exception as exc:
+            C.log(f"Kursus {self.sid}/{course['id']} ({what}) gagal disimpan: {exc!r}")
+            self.msg.config(text="Gagal menyimpan. Pastikan folder data bisa ditulis.",
+                            fg=C.ERROR)
+            return False
+        cell[what] = value
+        self._paint(state, title, cell)
+        self.msg.config(text=f"Tersimpan: {course['title']}.", fg=C.MUTED)
+        return True

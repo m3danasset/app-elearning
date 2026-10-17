@@ -4,7 +4,7 @@ import tkinter as tk
 
 from elearning import achievements
 from elearning import config as C
-from elearning.courses import courses_for
+from elearning.courses import visible_for
 from elearning.trial import is_trial
 from elearning.ui.course_dock import CourseDock
 from elearning.ui.sidebar import (AppSidebar, PageHeader, SidebarLayout, blender_footer,
@@ -18,7 +18,7 @@ class HomeScreen(SidebarLayout):
         self.student = student
         self.on_open_course = on_open_course
         self.trial = is_trial(student)
-        self.courses = courses_for(student["program"])   # dewasa / anak / trial
+        self.courses = visible_for(student)   # dewasa / anak / trial, minus yang disembunyikan
         self.allowed = set(student["courses"])
         self.view = "courses" if self.trial else view    # "courses" atau "badges"
         self.dock = None

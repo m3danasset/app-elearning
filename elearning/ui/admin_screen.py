@@ -115,7 +115,8 @@ class AdminScreen(SidebarLayout):
         self.people_board = PeopleBoard(self.scroll.inner, on_status=self._set_status,
                                         on_edit=self._edit_teacher,
                                         on_delete=self._delete_teacher,
-                                        on_birth=self._edit_birth)
+                                        on_birth=self._edit_birth,
+                                        on_courses=self._edit_courses)
         self.reports_board = ReportsBoard(self.scroll.inner)
         self.analytics = None
         self.schedule_board = None
@@ -372,6 +373,12 @@ class AdminScreen(SidebarLayout):
                 return "Gagal menyimpan. Pastikan folder data bisa ditulis."
             return None
         BirthDialog(self, person["name"], person.get("birth", ""), submit).wait_window()
+        self.refresh()
+
+    def _edit_courses(self, person):
+        """Admin: kursus mana yang terbuka / terkunci dan tampil / disembunyikan untuk murid."""
+        from elearning.ui.dialogs import CourseAccessDialog
+        CourseAccessDialog(self, person["id"]).wait_window()
         self.refresh()
 
     def _add_teacher_from_nav(self):
