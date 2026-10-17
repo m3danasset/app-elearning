@@ -62,7 +62,7 @@ SHEETS = (("logins", "Riwayat login"), ("summary", "Ringkasan per orang"),
           ("reports", "Laporan guru"), ("teachers", "Aktivitas guru"),
           ("daily", "Rekap harian"), ("progress", "Progres, catatan & kuis"),
           ("schedule", "Jadwal kelas (daftar + sesi)"), ("attendance", "Kehadiran jadwal"),
-          ("badges", "Badge murid"))
+          ("badges", "Badge murid"), ("signups", "Pendaftar dari trial"))
 SHEETS_FILE = os.path.join(C.DATA_DIR, "export_sheets.txt")   # pilihan terakhir
 
 FOLDER_FILE = os.path.join(C.DATA_DIR, "export_folder.txt")   # folder terakhir yang dipilih
@@ -881,6 +881,29 @@ def export(path, label, start, end, who="all", sheets=None):
             ["No", "Didapat", "ID", "Nama", "Label", "Kursus", "Badge", "Kategori",
              "Cara mendapat"],
             [6, 18, 10, 26, 8, 18, 24, 13, 50], bg_rows, [0, 4, 0, 0, 0, 0, 0, 0, 8])))
+
+    if "signups" in chosen:
+        from elearning import signups as SU
+        st_text = {SU.PENDING: "Menunggu", SU.APPROVED: "Jadi murid", SU.REJECTED: "Ditolak"}
+        su_rows = []
+        for r in sorted(SU.list_all(), key=lambda r: r.get("at", "")):
+            try:
+                when = datetime.strptime(r.get("at", ""), SU.FMT)
+            except Exception:
+                when = None
+            if when is not None and not _in(when, start, end):
+                continue
+            su_rows.append([len(su_rows) + 1, when, r["id"]]
+                           + [r.get(k, "") for k in SU.KEYS]
+                           + [st_text.get(r.get("status"), r.get("status", "")),
+                              r.get("student", "")])
+        waiting = sum(1 for x in su_rows if x[-2] == "Menunggu")
+        out.append(("Pendaftar", _sheet(
+            "Pendaftar dari Trial (survey)",
+            f"{sub}   ·   {len(su_rows)} pendaftar   ·   {waiting} menunggu",
+            ["No", "Masuk", "Kode"] + [f[2] for f in SU.FIELDS] + ["Status", "ID murid"],
+            [6, 18, 8, 24, 16, 7, 24, 26, 18, 24, 16, 36, 18, 30, 12, 10], su_rows,
+            [0, 4, 0] + [8 if f[4] else 0 for f in SU.FIELDS] + [0, 0])))
 
     if not out:
         raise ValueError("tidak ada sheet yang dipilih")

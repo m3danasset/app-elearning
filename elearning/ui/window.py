@@ -138,7 +138,8 @@ class App(tk.Tk):
         if isinstance(self._screen, LoginScreen):
             self._quit()
             return
-        self._confirm(L("Tutup aplikasi?", "Close the app?"), L("Tutup", "Close"), self._quit)
+        self._confirm(L("Tutup aplikasi?", "Close the app?"), L("Tutup", "Close"),
+                      lambda: self._after_trial(self._quit))
 
     def _quit(self):
         self.badges.stop()
@@ -177,6 +178,7 @@ class App(tk.Tk):
         from elearning import i18n
         i18n.set_role("trial" if is_trial(student) else "student")   # layar murid: English
         self._account_id = None if is_trial(student) else student["id"]
+        self._survey_done = False             # survey trial: sekali per sesi trial
         if not is_trial(student):   # akun trial dipakai bersama, tidak dicatat
             sessions.start(student["id"])
         from elearning.app_settings import feature
@@ -285,7 +287,27 @@ class App(tk.Tk):
         self.rebuild_screen()
 
     def logout(self):
-        self._confirm(L("Keluar dari akun?", "Log out?"), L("Keluar", "Log out"), self._logout)
+        self._confirm(L("Keluar dari akun?", "Log out?"), L("Keluar", "Log out"),
+                      lambda: self._after_trial(self._logout))
+
+    def _after_trial(self, then):
+        """Akun trial selesai (keluar / tutup aplikasi): popup survey calon murid dulu, lalu
+        then(). Survey sekali per sesi trial; bisa dimatikan di jendela Dev (fitur survey)."""
+        from elearning.app_settings import feature
+        st = self._student
+        if not (st is not None and is_trial(st) and feature("survey")
+                and not getattr(self, "_survey_done", False)):
+            then()
+            return
+        self._survey_done = True
+        try:
+            from elearning.ui.play_overlay import PlayOverlay
+            PlayOverlay.hide_all()
+            from elearning.ui.signup_view import SurveyDialog
+            SurveyDialog(self, on_done=lambda: self.after_idle(then))
+        except Exception as exc:
+            config.log(f"Survey trial tidak bisa dibuka: {exc!r}")
+            then()
 
     def _logout(self):
         self._account_id = None

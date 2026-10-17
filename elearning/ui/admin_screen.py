@@ -34,7 +34,8 @@ KEYWORDS = {"expired": ("status", "expired"), "active": ("status", "active"),
             "dewasa": ("program", "adult")}
 
 TAB_TITLE = {"students": "Murid", "teachers": "Guru", "reports": "Laporan Guru",
-             "analytics": "Analytics", "schedule": "Jadwal", "certificates": "Sertifikat"}
+             "analytics": "Analytics", "schedule": "Jadwal", "certificates": "Sertifikat",
+             "signups": "Pendaftar"}
 
 
 class AdminScreen(SidebarLayout):
@@ -121,6 +122,7 @@ class AdminScreen(SidebarLayout):
         self.analytics = None
         self.schedule_board = None
         self.cert_board = None
+        self.signup_board = None
         self._shown = None
 
         # Tombol di kepala halaman dibuat sekali; teks/fungsinya saja yang diganti per menu
@@ -134,18 +136,28 @@ class AdminScreen(SidebarLayout):
         self.after(400, self._auto_import)   # impor murid dari sheet (sekali saja)
 
     # --- sidebar -------------------------------------------------------------------
+    @staticmethod
+    def _waiting():
+        """(permintaan sertifikat menunggu, pendaftar trial menunggu) untuk angka di menu."""
+        out = []
+        for mod in ("certificates", "signups"):
+            try:
+                import importlib
+                out.append(importlib.import_module(f"elearning.{mod}").pending_count())
+            except Exception:
+                out.append(0)
+        return tuple(out)
+
     def _populate(self, sb):
-        try:
-            from elearning import certificates
-            waiting = certificates.pending_count()
-        except Exception:
-            waiting = 0
+        certs, signs = self._waiting()
+        badge = {"certificates": certs, "signups": signs}
         for key, icon in (("analytics", "activity"), ("students", "users"),
                           ("teachers", "teacher"), ("reports", "report"),
-                          ("schedule", "clock"), ("certificates", "check")):
+                          ("schedule", "clock"), ("certificates", "check"),
+                          ("signups", "user")):
             sb.nav(TAB_TITLE[key], icon, lambda k=key: self._set_tab(k),
                    active=self.tab == key,
-                   right=str(waiting) if key == "certificates" and waiting else None)
+                   right=str(badge[key]) if badge.get(key) else None)
 
         # Siapa yang sedang online (klik = tampilkan orang itu di daftar)
         if self._online is None:
@@ -177,11 +189,7 @@ class AdminScreen(SidebarLayout):
     def _refresh_sidebar(self):
         """Sidebar dibuat ulang hanya kalau menu aktif / daftar online benar-benar berubah."""
         self._online = self._compute_online()
-        try:          # jumlah permintaan sertifikat yang menunggu (angka di menu Sertifikat)
-            from elearning import certificates
-            waiting = certificates.pending_count()
-        except Exception:
-            waiting = 0
+        waiting = self._waiting()   # angka di menu Sertifikat & Pendaftar
         sig = (self.tab, tuple((p["id"], p["name"]) for p in self._online), waiting)
         if sig != self._sb_sig:
             self._sb_sig = sig
@@ -446,9 +454,14 @@ class AdminScreen(SidebarLayout):
         if self.tab == "certificates" and self.cert_board is None:
             from elearning.ui.certificate_view import CertificateBoard
             self.cert_board = CertificateBoard(self.scroll.inner, by=self.admin_id)
+        if self.tab == "signups" and self.signup_board is None:
+            from elearning.ui.signup_view import SignupBoard
+            self.signup_board = SignupBoard(self.scroll.inner, by=self.admin_id,
+                                            on_change=self.refresh)
         want = {"students": self.people_board, "teachers": self.people_board,
                 "reports": self.reports_board, "analytics": self.analytics,
-                "schedule": self.schedule_board, "certificates": self.cert_board}[self.tab]
+                "schedule": self.schedule_board, "certificates": self.cert_board,
+                "signups": self.signup_board}[self.tab]
         if self._shown is not want:
             if self._shown is not None:
                 self._shown.pack_forget()
@@ -562,6 +575,8 @@ class AdminScreen(SidebarLayout):
             self._refresh_schedule()
         elif self.tab == "certificates":
             self._refresh_certificates()
+        elif self.tab == "signups":
+            self._refresh_signups()
         else:
             self._refresh_people()
         self._after = self.after(REFRESH_MS, self.refresh)
@@ -619,6 +634,21 @@ class AdminScreen(SidebarLayout):
         self.sb.set_count(len(people) if self.sb.query.strip() else None)
 
     # --- tab Laporan Guru -------------------------------------------------------
+    def _refresh_signups(self):
+        from elearning import signups as SU
+        rows = SU.list_all()
+        q = self.sb.query.strip().lower()
+        if q:
+            rows = [r for r in rows if any(q in str(r.get(k, "")).lower() for k in
+                                           ("id", "name", "phone", "school", "parent",
+                                            "interest", "student"))]
+        waiting = sum(1 for r in rows if r.get("status") == SU.PENDING)
+        self.summary.config(fg=C.MUTED, text=(
+            f"{len(rows)} pendaftar dari trial  ·  {waiting} menunggu  ·  "
+            "Setujui = buat akun murid & pilih kursus yang dibuka"))
+        self.signup_board.show(rows)
+        self.sb.set_count(len(rows) if q else None)
+
     def _refresh_certificates(self):
         from elearning import certificates
         rows = certificates.list_requests()

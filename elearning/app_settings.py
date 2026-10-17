@@ -24,6 +24,7 @@ FEATURES = (
     ("mini_player", "Mini player"),
     ("palette", "Search Ctrl+K"),
     ("fps60", "60 fps (PC kuat)"),
+    ("survey", "Survey trial"),
 )
 # Warna aksen UI (tombol utama, sorotan). Berlaku penuh setelah aplikasi dibuka ulang.
 ACCENTS = {

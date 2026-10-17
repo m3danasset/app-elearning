@@ -243,3 +243,16 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   dengan jeda (turun >= 0,5 dtk, naik setelah stabil 3 dtk). Ukur PC ini (HIGH_END, 4 thread):
   carousel 1080p 60 fps, 1440p 30; rows3 1080p 40, 1440p 20; video 1080p 60, 1440p ~58.
   Batas di layar besar = tempel PhotoImage di thread utama Tk (tidak bisa GPU).
+
+## Survey trial -> pendaftar -> murid
+- elearning/signups.py: data\trial_signups.json (S0001, ...; pending / approved / rejected).
+  FIELDS = (kunci, label English, label admin, wajib, lebar penuh): nama*, telepon/WA*, umur*,
+  email, sekolah, minat kelas, nama & telepon orang tua, alamat, tahu dari mana, catatan.
+  clean() memeriksa (pesan English).
+- ui/signup_view.py SurveyDialog: popup English saat akun TRIAL keluar / menutup app
+  (App._after_trial dipanggil dari logout() & _close(), BUKAN dari _logout yang dipakai Dev).
+  Sekali per sesi trial (_survey_done), Submit / Skip -> lanjut keluar. Fitur "survey" di Dev.
+- Panel Admin tab "Pendaftar" (SignupBoard, angka menunggu di menu): Detail, Tolak, Setujui
+  (ApproveDialog: nama, kategori -- saran SUPERKIDS kalau umur <= 12 --, ID otomatis,
+  switch kursus yang dibuka; add_student + set_course_access + signups.approve). Ditolak:
+  Buka lagi / Hapus. Export Excel: sheet "Pendaftar".
