@@ -217,6 +217,7 @@ class BlenderFloat:
         self._job = None
         self._offset = None
         self._grace = 0.0        # sebentar setelah kembali ke aplikasi: jangan langsung mengambang
+        self._hidden = False     # ikon sedang disembunyikan karena aplikasi / jendela lain di depan
         for seq in ("<FocusIn>", "<Map>", "<Unmap>"):   # sembunyikan ikon segera, tanpa menunggu tick
             try:
                 app.bind(seq, self._on_app_event, add="+")
@@ -350,12 +351,16 @@ class BlenderFloat:
 
     # --- ikon + mini player tampil / sembunyi bersama ------------------------
     def _hide_float(self):
+        self._hidden = True
         if self.icon is not None:
             self.icon.hide()
         if self.mini is not None:
             self.mini.hide()        # video dijeda saat disembunyikan
 
     def _show_float(self, info):
+        if self._hidden:
+            self._hidden = False
+            self._sync_from_app(info)
         if self.icon.dragging:      # sedang digeser: ikuti posisi nyata ikon
             x, y = self.icon.winfo_x(), self.icon.winfo_y()
         else:
@@ -363,6 +368,30 @@ class BlenderFloat:
             self.icon.move_to(x, y)
         self.icon.show()
         self._place_mini(info, x, y)
+
+    def _sync_from_app(self, info):
+        """Kembali ke Blender setelah Alt+Tab ke aplikasi (mode mengambang tetap aktif): video di
+        aplikasi mungkin diputar lagi di sana. Jeda video aplikasi (dulu tetap berbunyi di
+        belakang walau mini player pause) dan samakan mini player dengan posisinya."""
+        p = getattr(self.app, "_lesson_player", None)
+        try:
+            if p is None or not p.winfo_exists() or not p.has_video:
+                return
+            was_playing = p.playing
+            p._pause()
+            st = self._lesson_state()
+            if st is None or st["player"] is None:
+                return
+            m = self.mini
+            if m is not None and m._path == st["path"] and not was_playing                     and abs((m.pos or 0) - st["pos"]) < 1.0:
+                return                        # tidak berubah: mini player dibiarkan
+            was_open = m is not None and not m.closed
+            x, y = self.icon.winfo_x(), self.icon.winfo_y()
+            self._open_mini(info, x, y)       # mini player baru dari posisi video aplikasi
+            if was_open and self.mini is not None:
+                self.mini.reopen()
+        except Exception as exc:
+            C.log(f"Mode mengambang: gagal menyamakan video: {exc!r}")
 
     def _place_mini(self, info, x, y, raise_=True):
         if self.mini is None or not info or info.get("minimized"):
