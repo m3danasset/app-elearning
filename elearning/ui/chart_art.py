@@ -106,13 +106,17 @@ def area(w, h, series, bg, top, pad=0, line_w=2.0, top_margin=6, grid=(), grid_c
 
 
 def donut(size, parts, bg, thick, track, gap_px=3.0):
-    """Cincin terbagi per bagian (searah jarum jam dari atas), celah kecil antar bagian."""
+    """Cincin terbagi per bagian (searah jarum jam dari atas), celah kecil antar bagian.
+    bg=None: hasil RGBA transparan (untuk ditaruh di atas gradasi / video)."""
     if np is None or size < 8:
         return None
     from PIL import Image
     size = int(size)
-    img = np.empty((size, size, 3), dtype=np.float32)
-    img[:] = _rgb(bg)
+    clear = bg is None
+    img = np.zeros((size, size, 3), dtype=np.float32)
+    alpha = np.zeros((size, size), dtype=np.float32)
+    if not clear:
+        img[:] = _rgb(bg)
     c = size / 2.0
     g = np.arange(size, dtype=np.float64) + 0.5
     dx, dy = g[None, :] - c, g[:, None] - c
@@ -125,6 +129,7 @@ def donut(size, parts, bg, thick, track, gap_px=3.0):
     if total <= 0:
         a = radial
         img = img * (1 - a[..., None]) + _rgb(track) * a[..., None]
+        alpha = alpha + a * (1 - alpha)
     else:
         live = [(v, col) for v, col in parts if v > 0]
         hg = 0.0 if len(live) == 1 else gap_px / 2.0 / max(1.0, (r0 + r1) / 2.0)
@@ -139,5 +144,10 @@ def donut(size, parts, bg, thick, track, gap_px=3.0):
                 cov_a = np.clip(d * R + 0.5, 0.0, 1.0)
             a = radial * cov_a
             img = img * (1 - a[..., None]) + _rgb(color) * a[..., None]
+            alpha = alpha + a * (1 - alpha)
             a0 += span
+    if clear:       # warna dicampur dengan hitam di atas -> bagi alpha (tanpa pinggir gelap)
+        rgb = np.where(alpha[..., None] > 1e-4, img / np.maximum(alpha[..., None], 1e-4), 0)
+        out = np.dstack([np.clip(rgb + 0.5, 0, 255), np.clip(alpha * 255 + 0.5, 0, 255)])
+        return Image.fromarray(out.astype(np.uint8), "RGBA")
     return Image.fromarray(np.clip(img + 0.5, 0, 255).astype(np.uint8), "RGB")

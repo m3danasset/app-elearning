@@ -46,12 +46,16 @@ class TeacherScreen(SidebarLayout):
 
         self.sb = AppSidebar(self, teacher, f"Guru  ·  {teacher['id']}", on_logout,
                              self._populate, placeholder="Cari murid (nama / ID)",
-                             on_search=self._on_search)
-        self.attach(self.sb)
-        self.enable_search("Cari murid (nama / ID) atau aksi")
+                             on_search=self._on_search, palette=True)
+        self.attach(self.sb)   # cari: kolom sidebar membuka search palette (seperti murid)
 
         # --- Kanan: judul menu + isi ---------------------------------------------
         self.header = PageHeader(self.content, VIEW_TITLE[self.view])
+        # Tambah murid: tombol di kepala halaman Murid & Kursus (juga aksi di Ctrl+K)
+        self.add_btn = self.header.button("Tambah murid", self._add_student, primary=True,
+                                          icon="plus")
+        if self.view != "students":
+            self.add_btn.pack_forget()
         if self.view != "dashboard":      # Dashboard: halaman penuh tanpa judul
             self.header.pack(fill="x")
         self.body = tk.Frame(self.content, bg=C.BG)
@@ -68,6 +72,11 @@ class TeacherScreen(SidebarLayout):
             self.header.pack_forget()
         elif not self.header.winfo_manager():
             self.header.pack(fill="x", before=self.body)
+        if view == "students":
+            if not self.add_btn.winfo_manager():
+                self.add_btn.pack(side="right", padx=(8, 0))
+        else:
+            self.add_btn.pack_forget()
         self.sb.refresh()
         self._render_body()
 
@@ -109,7 +118,6 @@ class TeacherScreen(SidebarLayout):
     # --- sidebar kiri ------------------------------------------------------------
     def _populate(self, sb):
         self._row_widgets = {}
-        sb.nav("Tambah murid", "plus", self._add_student, primary=True)
         sb.nav("Dashboard", "home", lambda: self._set_view("dashboard"),
                active=self.view == "dashboard")
         sb.nav("Murid & Kursus", "users", lambda: self._set_view("students"),

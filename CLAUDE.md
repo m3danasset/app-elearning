@@ -281,3 +281,9 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   video DI THREAD video (frame bertanda id lapisan). Hover = bingkai warna terpisah (0,1 ms),
   lapisan tidak digambar ulang. Kanan atas: cincin "x/y beres". 3 kolom >= 1180 px, 2 kolom
   >= 720. Admin: menu "Dashboard" paling atas (tab default); guru: view "dashboard" default.
+- Layout (mockup): 3 widget di tengah atas (jam + kelas berikutnya, cincin "x/y beres",
+  jumlah online; dashboard.info), sapaan besar di tengah, kartu di bawah. Layar tinggi:
+  ruang atas melebar (shift); tidak muat: rapat + gulir. Jam widget diperbarui tiap 15 dtk.
+- Admin & guru TANPA kolom cari bawah: kolom cari sidebar membuka search palette (palette=True,
+  seperti murid). Guru: "Tambah murid" tidak di sidebar lagi -> tombol di kepala halaman
+  Murid & Kursus + aksi Ctrl+K.

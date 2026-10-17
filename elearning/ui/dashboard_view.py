@@ -28,7 +28,8 @@ CARD_ALPHA = 0.93
 CARD_H = 152
 GAP = 18
 PAD = 40
-TOP_H = 132                 # sapaan + ringkasan
+TOP_H = 300                 # widget + sapaan (kartu mulai di bawahnya)
+WIDGET_Y, WIDGET_H, WIDGET_W, WIDGET_GAP = 28, 96, 270, 22
 ICON = 38
 BLUE = "#7cc8ff"
 INFO = "#8f8b82"
@@ -115,9 +116,12 @@ class DashboardView(tk.Canvas):
         super().__init__(master, bg=C.BG, highlightthickness=0, bd=0)
         self.role, self.user, self.on_action = role, user, on_action
         self.items = None              # None = masih memuat
+        self.info = {}                 # isi widget atas (online, kelas berikutnya)
+        self._clock_job = None
         self.rects = []                # (x0, y0, x1, y1) kartu (koordinat konten)
         self.hover = None
         self.scroll = 0
+        self.shift = 0                 # ruang tambahan di atas (layar tinggi)
         self._size = (0, 0)
         self._layer = None
         self._photo = None
@@ -137,6 +141,8 @@ class DashboardView(tk.Canvas):
             "btn": tkfont.Font(family=C.FONT, size=9, weight="bold"),
             "big": tkfont.Font(family=C.FONT, size=16, weight="bold"),
             "small": tkfont.Font(family=C.FONT, size=9),
+            "hero": tkfont.Font(family=C.FONT, size=30, weight="bold"),
+            "clock": tkfont.Font(family=C.FONT, size=28, weight="bold"),
         }
         path = None
         try:
@@ -162,6 +168,7 @@ class DashboardView(tk.Canvas):
         box = {}
 
         def work():
+            box["info"] = D.info(self.role, self.user)
             box["items"] = D.items(self.role, self.user)
 
         threading.Thread(target=work, daemon=True).start()
@@ -176,6 +183,7 @@ class DashboardView(tk.Canvas):
         self._job = None
         self._loading = False
         self.items = box["items"]
+        self.info = box.get("info") or {}
         self._layout()
         self._refresh_job = self.after(REFRESH_MS, self.load)
 
@@ -197,12 +205,16 @@ class DashboardView(tk.Canvas):
         W = self._size[0]
         n = len(self.items or [])
         rows = -(-n // self._cols(W)) if n else 1
-        return TOP_H + rows * (CARD_H + GAP) + PAD
+        return TOP_H + rows * (CARD_H + GAP) + PAD     # tanpa ruang tambahan (shift)
 
     def _layout(self):
         W, H = self._size
         if W < 100 or H < 100:
             return
+        # layar tinggi & kartu muat: bagian atas (widget + sapaan) diberi ruang lega seperti
+        # mockup (sapaan sekitar tengah, kartu di bawah); tidak muat -> rapat + bisa digulir
+        free = H - self._content_h()
+        self.shift = max(0, min(free * 0.6, H * 0.22))
         self.scroll = max(0, min(self.scroll, self._content_h() - H))
         cols = self._cols(W)
         cw = (W - 2 * PAD - (cols - 1) * GAP) / cols
@@ -210,16 +222,24 @@ class DashboardView(tk.Canvas):
         for i in range(len(self.items or [])):
             r, c = divmod(i, cols)
             x0 = PAD + c * (cw + GAP)
-            y0 = TOP_H + r * (CARD_H + GAP)
+            y0 = TOP_H + self.shift + r * (CARD_H + GAP)
             self.rects.append((x0, y0, x0 + cw, y0 + CARD_H))
         self.hover = None
         self.itemconfigure(self._hover_item, state="hidden")
         self._build_layer()
         self._draw_text()
 
-    def _summary_rect(self):
+    def _widget_rects(self):
+        """Tiga widget di tengah atas (jam & kelas, cincin beres, online). Sempit: lebih kecil;
+        sangat sempit: tidak ditampilkan."""
         W = self._size[0]
-        return (W - PAD - 300, 34, W - PAD, 34 + 76)
+        ww = min(WIDGET_W, (W - 2 * PAD - 2 * WIDGET_GAP) / 3)
+        if ww < 180:
+            return []
+        x = (W - (3 * ww + 2 * WIDGET_GAP)) / 2
+        y = WIDGET_Y + self.shift * 0.35
+        return [(x + i * (ww + WIDGET_GAP), y, x + i * (ww + WIDGET_GAP) + ww,
+                 y + WIDGET_H) for i in range(3)]
 
     def _build_layer(self):
         """Semua kartu (bayangan + badan + ikon + tombol) ke SATU gambar RGBA."""
@@ -247,19 +267,22 @@ class DashboardView(tk.Canvas):
             if sx1 > sx0 and sy1 > sy0:
                 layer.alpha_composite(img.crop((sx0, sy0, sx1, sy1)), (x + sx0, y + sy0))
 
-        # ringkasan kanan atas: cincin "beres"
-        if self.items is not None and W >= 760:
-            x0, y0, x1, y1 = self._summary_rect()
+        # widget atas (gaya widget: kartu kecil membulat, isi besar)
+        for k, (x0, y0, x1, y1) in enumerate(self._widget_rects()):
             w, h = int(x1 - x0), int(y1 - y0)
-            sh, pad = _shadow(w, h, 16, 12, 80)
-            place(sh, x0 - pad, y0 + dy - pad + 5)
+            sh, pad = _shadow(w, h, 18, 12, 90)
+            place(sh, x0 - pad, y0 + dy - pad + 6)
             place(body(w, h, C.BORDER), x0, y0 + dy)
-            done = sum(1 for it in self.items if it["level"] == "done")
-            from elearning.ui import chart_art as CA
-            ring = CA.donut(56, [(done, C.ON), (len(self.items) - done, C.SIDEBAR_ACTIVE)]
-                            if self.items else [], C.CARD, 7, C.SIDEBAR_ACTIVE, gap_px=0)
-            if ring is not None:
-                place(ring.convert("RGBA"), x0 + 12, y0 + dy + 10)
+            accent = (BLUE, C.ON, C.ACCENT)[k]
+            place(self._tint(w, h, accent, "todo"), x0, y0 + dy)
+            if k == 1 and self.items is not None:           # cincin "beres"
+                done = sum(1 for it in self.items if it["level"] == "done")
+                from elearning.ui import chart_art as CA
+                ring = _cached(("ring60", done, len(self.items)), lambda: CA.donut(
+                    60, [(done, C.ON), (len(self.items) - done, C.BORDER)]
+                    if self.items else [], None, 8, C.BORDER, gap_px=0))
+                if ring is not None:
+                    place(ring.convert("RGBA"), x0 + 18, y0 + dy + (h - 60) / 2)
         for i, (x0, y0, x1, y1) in enumerate(self.rects):
             if y1 + dy < -40 or y0 + dy > H + 40:
                 continue
@@ -300,6 +323,70 @@ class DashboardView(tk.Canvas):
         self._layer = layer
         self.video.layer = layer if self.video.ok() else None
         self._show_static()
+
+    def _draw_widgets(self, rects, dy):
+        if not rects:
+            return
+        from datetime import datetime
+        inf = self.info or {}
+        # 1) jam + kelas berikutnya
+        x0, y0, x1, y1 = rects[0]
+        self.create_text(x0 + 20, y0 + 14 + dy, anchor="nw", tags=("txt", "clock"),
+                         font=self.f["clock"], fill=C.TEXT,
+                         text=datetime.now().strftime("%H:%M"))
+        nxt = inf.get("next")
+        if nxt is None:
+            line = "Tidak ada kelas lagi hari ini" if inf.get("classes") \
+                else "Tidak ada kelas hari ini"
+        elif nxt["now"]:
+            line = f"Kelas berjalan  {nxt['start']}–{nxt['end']}"
+        else:
+            line = f"Kelas berikutnya  {nxt['start']}  ·  {nxt['students']} murid"
+        self.create_text(x0 + 20, y0 + 64 + dy, anchor="nw", tags="txt", font=self.f["small"],
+                         fill=BLUE if nxt else C.MUTED, text=self._fit(line, x1 - x0 - 36))
+        # 2) cincin beres
+        x0, y0, x1, y1 = rects[1]
+        if self.items is not None:
+            done = sum(1 for it in self.items if it["level"] == "done")
+            urgent = sum(1 for it in self.items if it["level"] == "urgent")
+            tx = x0 + 18 + 60 + 16
+            self.create_text(tx, y0 + 24 + dy, anchor="nw", tags="txt", font=self.f["big"],
+                             fill=C.TEXT, text=f"{done}/{len(self.items)} beres")
+            self.create_text(tx, y0 + 56 + dy, anchor="nw", tags="txt", font=self.f["small"],
+                             fill=C.ACCENT if urgent else C.MUTED,
+                             text=self._fit(f"{urgent} perlu segera ditindak" if urgent
+                                            else "tidak ada yang mendesak", x1 - tx - 14))
+        # 3) sedang online
+        x0, y0, x1, y1 = rects[2]
+        s, t = inf.get("online_s", 0), inf.get("online_t", 0)
+        self.create_text(x0 + 20, y0 + 10 + dy, anchor="nw", tags="txt", font=self.f["clock"],
+                         fill=C.TEXT, text=str(s + t))
+        nw = self.f["clock"].measure(str(s + t))
+        self.create_text(x0 + 20 + nw + 10, y0 + 22 + dy, anchor="nw", tags="txt",
+                         font=self.f["small"], fill=C.ACCENT if s + t else C.MUTED,
+                         text="● sedang online" if s + t else "sedang online")
+        sub = f"{s} murid  ·  {t} guru" if self.role == "admin" else f"{s} murid"
+        self.create_text(x0 + 20, y0 + 64 + dy, anchor="nw", tags="txt", font=self.f["small"],
+                         fill=C.MUTED, text=sub)
+        if self._clock_job is None:
+            self._clock_job = self.after(15_000, self._tick_clock)
+
+    def _tick_clock(self):
+        """Jam widget diperbarui tiap 15 detik (hanya teks, sangat ringan)."""
+        from datetime import datetime
+        self._clock_job = None
+        if self._closed:
+            return
+        self.itemconfigure("clock", text=datetime.now().strftime("%H:%M"))
+        self._clock_job = self.after(15_000, self._tick_clock)
+
+    def _fit(self, text, width):
+        f = self.f["small"]
+        if f.measure(text) <= width:
+            return text
+        while text and f.measure(text + "…") > width:
+            text = text[:-1]
+        return text.rstrip() + "…"
 
     @staticmethod
     def _tint(w, h, color, level):
@@ -347,30 +434,21 @@ class DashboardView(tk.Canvas):
         W, H = self._size
         dy = -self.scroll
         name = (self.user or {}).get("name", "")
-        self.create_text(PAD, 40 + dy, anchor="nw", tags="txt", font=self.f["h1"], fill=C.TEXT,
-                         text=f"{D.greeting()}, {name}")
+        rects = self._widget_rects()
+        gy = (rects[0][3] + 40 + self.shift * 0.35) if rects else 40 + self.shift * 0.5
+        self.create_text(W / 2, gy + dy, anchor="n", tags="txt", font=self.f["hero"],
+                         fill=C.TEXT, text=f"{D.greeting()}, {name}")
         if self.items is None:
             sub = f"{D.today_text()}  ·  memuat…"
         else:
             todo = sum(1 for it in self.items if it["level"] in ("urgent", "todo"))
             sub = (f"{D.today_text()}  ·  " +
                    (f"{todo} hal perlu dikerjakan" if todo else "semua beres, kerja bagus!"))
-        self.create_text(PAD, 84 + dy, anchor="nw", tags="txt", font=self.f["sub"],
+        self.create_text(W / 2, gy + 56 + dy, anchor="n", tags="txt", font=self.f["sub"],
                          fill=C.MUTED, text=sub)
+        self._draw_widgets(rects, dy)
         if self.items is None:
             return
-        if W >= 760:
-            x0, y0, x1, _y1 = self._summary_rect()
-            done = sum(1 for it in self.items if it["level"] == "done")
-            urgent = sum(1 for it in self.items if it["level"] == "urgent")
-            self.create_text(x0 + 84, y0 + 16 + dy, anchor="nw", tags="txt",
-                             font=self.f["big"], fill=C.TEXT,
-                             text=f"{done}/{len(self.items)} beres")
-            self.create_text(x0 + 84, y0 + 46 + dy, anchor="nw", tags="txt",
-                             font=self.f["small"],
-                             fill=C.ACCENT if urgent else C.MUTED,
-                             text=f"{urgent} perlu segera ditindak" if urgent
-                             else "tidak ada yang mendesak")
         if not self.items:
             self.create_text(PAD, TOP_H + dy, anchor="nw", tags="txt", font=self.f["sub"],
                              fill=C.MUTED, text="Belum ada yang bisa ditampilkan.")
@@ -489,7 +567,7 @@ class DashboardView(tk.Canvas):
 
     def destroy(self):
         self._closed = True
-        for j in (self._job, self._refresh_job, self._resize_job):
+        for j in (self._job, self._refresh_job, self._resize_job, self._clock_job):
             if j is not None:
                 try:
                     self.after_cancel(j)

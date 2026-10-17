@@ -56,9 +56,8 @@ class AdminScreen(SidebarLayout):
         self.sb = AppSidebar(self, admin, f"Admin  ·  {admin['id']}", on_logout,
                              self._populate, placeholder="Cari murid, guru, laporan",
                              on_search=lambda q: self._search_changed(),
-                             suggest=self._suggest, on_enter=self._jump)
-        self.attach(self.sb)
-        self.enable_search("Cari murid, guru, laporan, atau aksi")
+                             suggest=self._suggest, on_enter=self._jump, palette=True)
+        self.attach(self.sb)   # cari: kolom sidebar membuka search palette (seperti murid)
 
         self.header = PageHeader(self.content, "Panel Admin")
         self.header.pack(fill="x")
@@ -516,6 +515,8 @@ class AdminScreen(SidebarLayout):
         if key == self.tab:
             return
         self.tab = key
+        if self.sb.query.strip():          # saringan dari palette tidak terbawa ke menu lain
+            self.sb.query = ""
         self._layout_tab()
         self.scroll.scroll_to_top()
         self.refresh()

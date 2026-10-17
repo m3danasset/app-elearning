@@ -275,6 +275,35 @@ def _teacher(now, teacher):
     return out
 
 
+def info(role, user):
+    """Isi widget atas: jumlah online dan kelas berikutnya hari ini (guru: kelas sendiri)."""
+    from elearning import schedule as SCH
+    from elearning import sessions
+    from elearning import teachers as T
+    from elearning.students import list_students
+    now = datetime.now()
+    out = {"online_s": 0, "online_t": 0, "next": None, "classes": 0}
+    try:
+        studs = [s["id"] for s in list_students()]
+        tchs = [t["id"] for t in T.list_teachers()] if role == "admin" else []
+        st = sessions.overview(studs + tchs)
+        out["online_s"] = sum(1 for i in studs if (st.get(i) or {}).get("online"))
+        out["online_t"] = sum(1 for i in tchs if (st.get(i) or {}).get("online"))
+        mins = now.hour * 60 + now.minute
+        slots = [s for s in SCH.list_slots() if s["day"] == now.weekday()
+                 and (role == "admin" or s.get("teacher") == (user or {}).get("id"))]
+        out["classes"] = len(slots)
+        for s in slots:
+            if SCH.to_min(s["end"]) > mins:
+                out["next"] = {"start": s["start"], "end": s["end"],
+                               "now": SCH.to_min(s["start"]) <= mins,
+                               "students": len(s["students"])}
+                break
+    except Exception as exc:
+        C.log(f"Dashboard: widget gagal dihitung: {exc!r}")
+    return out
+
+
 def items(role, user):
     now = datetime.now()
     try:
