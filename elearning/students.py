@@ -373,3 +373,131 @@ def delete_student(student_id):
         certificates.delete_student(sid)
     except Exception as exc:
         C.log(f"Permintaan sertifikat {sid} tidak terhapus: {exc!r}")
+
+# --- jendela Dev: ubah kategori & ID ---------------------------------------------------
+def _check_new_id(sid, data):
+    if not _ID_RE.match(sid):
+        raise ValueError("ID hanya boleh huruf, angka, - atau _ (maksimal 10 karakter).")
+    if is_teacher_id(sid):
+        raise ValueError("ID tidak boleh diawali GURU (khusus akun guru).")
+    if is_admin_id(sid):
+        raise ValueError("ID tidak boleh diawali ADMIN (khusus akun admin).")
+    if sid.startswith(TRIAL_ID):
+        raise ValueError("ID tidak boleh diawali TRIAL (khusus akun trial).")
+    if sid in data:
+        raise ValueError(f"ID {sid} sudah dipakai murid lain.")
+
+
+def set_program(student_id, program):
+    """Ganti kategori (adult / kids). Kursus yang terbuka disesuaikan: kursus program lama
+    dibuang; kalau jadi kosong, kursus pertama program baru dibuka."""
+    if program not in ID_PREFIX:
+        raise ValueError("Kategori harus dewasa atau anak.")
+    sid = student_id.strip().upper()
+    data = _load()
+    if sid not in data:
+        raise ValueError(f"Murid {sid} tidak ditemukan.")
+    if data[sid]["program"] == program:
+        return lookup_student(sid)
+    own = [c["id"] for c in COURSES if c["program"] == program]
+    data[sid]["program"] = program
+    data[sid]["courses"] = [c for c in data[sid]["courses"] if c in own] or own[:1]
+    data[sid].pop("hidden", None)
+    _write(data)
+    return lookup_student(sid)
+
+
+def change_id(old_id, new_id):
+    """Ganti ID murid BESERTA semua datanya: foto, progres video, badge, portfolio &
+    assignment, riwayat login (termasuk arsip), jadwal, kuis, sertifikat, riwayat cari.
+    ValueError (pesan siap tampil) kalau ID baru tidak boleh dipakai; data tidak berubah."""
+    old = old_id.strip().upper()
+    new = new_id.strip().upper()
+    if new == old:
+        return lookup_student(old)
+    data = _load()
+    if old not in data:
+        raise ValueError(f"Murid {old} tidak ditemukan.")
+    _check_new_id(new, data)
+    from elearning import achievements, progress
+    # folder / file tujuan tidak boleh sudah ada (jangan menimpa data lain)
+    moves = [(photos.photo_path(old), photos.photo_path(new)),
+             (progress._path(old), progress._path(new)),
+             (achievements._path(old), achievements._path(new))]
+    for base in (portfolio.root(), portfolio.section_root(portfolio.ASSIGNMENT)):
+        moves.append((os.path.join(base, portfolio._safe_id(old)),
+                      os.path.join(base, portfolio._safe_id(new))))
+    for src, dst in moves:
+        if os.path.exists(src) and os.path.exists(dst):
+            raise ValueError(f"Data untuk ID {new} sudah ada ({os.path.basename(dst)}).")
+    data[new] = data.pop(old)
+    _write(data)                     # akun pindah dulu; data di bawah menyusul
+    for src, dst in moves:
+        try:
+            if os.path.exists(src):
+                os.replace(src, dst)
+        except OSError as exc:
+            C.log(f"Ganti ID {old}->{new}: {src!r} tidak bisa dipindah: {exc!r}")
+    progress._docs.pop(old, None)
+    achievements._cache.pop(old, None)
+    _rename_in_records(old, new)
+    return lookup_student(new)
+
+
+def _rename_in_records(old, new):
+    """ID lama -> baru di file bersama (riwayat login, jadwal, kuis, sertifikat, recents)."""
+    try:
+        recs = sessions._read()
+        if any(r["id"] == old for r in recs):
+            sessions._write([dict(r, id=new) if r["id"] == old else r for r in recs])
+        for m in sessions.archive_months():
+            a = sessions._archive(m)
+            if a is not None and old in a["by_id"]:
+                sessions._dump(sessions._archive_path(m),
+                               [dict(r, id=new) if r["id"] == old else r for r in a["records"]])
+        if sessions._current is not None and sessions._current[0] == old:
+            sessions._current = (new,) + tuple(sessions._current[1:])
+    except Exception as exc:
+        C.log(f"Ganti ID {old}->{new}: riwayat login: {exc!r}")
+    try:
+        from elearning import schedule
+        with schedule._lock:
+            slots = schedule._load()
+            hit = False
+            for sl in slots:
+                if old in sl["students"]:
+                    sl["students"] = [new if x == old else x for x in sl["students"]]
+                    hit = True
+            if hit:
+                schedule._save(slots)
+    except Exception as exc:
+        C.log(f"Ganti ID {old}->{new}: jadwal: {exc!r}")
+    try:
+        from elearning import quizzes
+        items = [dict(q) for q in quizzes._read()]
+        hit = False
+        for q in items:
+            if old in q.get("students", []):
+                q["students"] = [new if x == old else x for x in q["students"]]
+                hit = True
+        if hit:
+            quizzes._write(items)
+    except Exception as exc:
+        C.log(f"Ganti ID {old}->{new}: kuis: {exc!r}")
+    try:
+        from elearning import certificates
+        items = certificates._load()
+        if any(r.get("student") == old for r in items):
+            certificates._write([dict(r, student=new) if r.get("student") == old else r
+                                 for r in items])
+    except Exception as exc:
+        C.log(f"Ganti ID {old}->{new}: sertifikat: {exc!r}")
+    try:
+        from elearning import recents
+        with recents._lock:
+            d = recents._load()
+            if old in d:
+                d[new] = d.pop(old)
+                recents._save(d)
+    except Exception as exc:
+        C.log(f"Ganti ID {old}->{new}: riwayat cari: {exc!r}")

@@ -188,6 +188,11 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   fitur on/off (app_settings.FEATURES: intro, badges, certificate, floating, mini_player,
   palette, fps60; cek dengan app_settings.feature). Fitur baru yang bisa dimatikan: tambahkan
   ke FEATURES + cek feature() di kodenya. Tab Setting di Panel Admin sudah dihapus.
+- Tab Login: 3 kolom (Jenis | ID | Nama, huruf Consolas), filter jenis, urut Nama/ID/Jenis.
+  "Edit murid" (StudentEditor): nama, ID, kategori, status, tgl lahir, kursus buka/tampil.
+  Ganti ID = students.change_id: pindahkan foto, progres, badge, portfolio & assignment,
+  riwayat login (+ arsip), jadwal, kuis, sertifikat, recents; ditolak kalau ID sudah dipakai.
+  Ganti kategori = students.set_program (kursus disesuaikan). Settings: tombol Apply.
 
 ## Tampilan login (3 mode, diatur di jendela Dev)
 - elearning/app_settings.py: data\app_settings.json (BUKAN data\settings.json, milik
