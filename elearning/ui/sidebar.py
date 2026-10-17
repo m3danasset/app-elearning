@@ -399,7 +399,18 @@ class _Search(tk.Canvas):
         self.bind("<Button-1>", self._click)
         self.bind("<Configure>", lambda ev: self._draw())
         self.var.trace_add("write", lambda *a: self._changed())
+        if getattr(sidebar, "palette", False):   # klik kolom = buka search palette (Ctrl+K)
+            for w in (self, e, self.ph):
+                w.bind("<Button-1>", self._open_palette)
+                w.config(cursor="hand2")
+            e.bind("<FocusIn>", self._open_palette)
         self._placeholder()
+
+    def _open_palette(self, _ev=None):
+        from elearning.ui.search_palette import open_palette
+        self.winfo_toplevel().focus_set()
+        open_palette(self.sb.master)
+        return "break"
 
     def _click(self, ev):
         if self.var.get() and ev.x > self.winfo_width() - 30:   # tombol x: kosongkan
@@ -794,7 +805,8 @@ class AppSidebar(tk.Frame):
     """
 
     def __init__(self, master, user, subtitle, on_logout, populate, placeholder="Cari",
-                 on_search=None, menu_items=(), suggest=None, on_enter=None):
+                 on_search=None, menu_items=(), suggest=None, on_enter=None, palette=False):
+        self.palette = palette    # True: kolom cari sidebar membuka search palette (murid)
         super().__init__(master, bg=C.SIDEBAR, width=EXPANDED_W)
         self.pack_propagate(False)
         self.user, self.subtitle = user, subtitle
@@ -830,6 +842,10 @@ class AppSidebar(tk.Frame):
         return any(q in str(t).lower() for t in texts if t)
 
     def focus_search(self):
+        if self.palette:
+            from elearning.ui.search_palette import open_palette
+            open_palette(self.master)
+            return
         if self.collapsed:
             self.toggle()
         if self._search is not None:

@@ -23,11 +23,10 @@ class HomeScreen(SidebarLayout):
         self.dock = None
 
         self.sb = AppSidebar(self, student, student_subtitle(student), on_logout,
-                             self._populate, placeholder="Search courses",
+                             self._populate, placeholder="Search", palette=True,
                              on_search=self._on_search)
         self.attach(self.sb)
-        self.enable_search("Search courses or actions" if self.trial
-                           else "Search courses, lessons, or actions")
+        # tanpa kolom cari di bawah: search palette dibuka dari kolom cari sidebar / Ctrl+K
         self._render_view()
 
     def search_sources(self):
