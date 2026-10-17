@@ -20,6 +20,11 @@ from elearning.ui.widgets import ScrollFrame, add_hover
 HOURS = getattr(C, "SCHEDULE_HOURS", (8, 21))   # jam pertama & terakhir yang tampil
 HOUR_H = 52
 HEAD_H = 50
+TOOL_H = 46        # baris atas: Hari / Minggu, panah, Hari ini, tanggal
+TOP = TOOL_H + HEAD_H
+MONTHS = ("Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus",
+          "September", "Oktober", "November", "Desember")
+_view = {"mode": "week"}   # tampilan terakhir (diingat selama aplikasi terbuka)
 GUTTER = 58
 GRID = "#2f2e2b"
 PROGRAM_COLOR = {"adult": "#3f6f8f", "kids": "#9a4f73", "mix": "#6b5f8f", "none": "#4a4945"}
@@ -43,7 +48,7 @@ def _fit(font, text, avail):
 class ScheduleBoard(tk.Canvas):
     def __init__(self, master, on_add=None, on_edit=None):
         super().__init__(master, bg=C.BG, highlightthickness=0, bd=0,
-                         height=HEAD_H + (HOURS[1] - HOURS[0]) * HOUR_H + 12)
+                         height=TOP + (HOURS[1] - HOURS[0]) * HOUR_H + 12)
         self.on_add, self.on_edit = on_add, on_edit
         self.slots, self.students, self.teachers = [], {}, {}
         self.query = ""
@@ -51,12 +56,18 @@ class ScheduleBoard(tk.Canvas):
         self.boxes = []            # (x0, y0, x1, y1, slot)
         self._imgs = []
         self._width = 0
+        self.mode = _view["mode"]   # "week" / "day"
+        self.anchor = date.today()  # hari yang tampil (Hari) / minggu yang tampil (Minggu)
+        self.tools = []            # (x0, y0, x1, y1, nama) tombol baris atas
         self.f = {"day": tkfont.Font(font=(C.FONT, 10, "bold")),
                   "date": tkfont.Font(font=(C.FONT, 9)),
                   "hour": tkfont.Font(font=(C.FONT, 8)),
                   "time": tkfont.Font(font=(C.FONT, 8, "bold")),
                   "body": tkfont.Font(font=(C.FONT, 9)),
-                  "plus": tkfont.Font(font=(C.FONT, 9))}
+                  "plus": tkfont.Font(font=(C.FONT, 9)),
+                  "tool": tkfont.Font(font=(C.FONT, 10)),
+                  "tool_b": tkfont.Font(font=(C.FONT, 10, "bold")),
+                  "range": tkfont.Font(font=(C.FONT, 12, "bold"))}
         self.bind("<Configure>", self._on_configure)
         self.bind("<Motion>", self._motion)
         self.bind("<Leave>", lambda e: self._set_hover(None))
@@ -73,13 +84,90 @@ class ScheduleBoard(tk.Canvas):
             self.redraw()
 
     # --- ukuran ------------------------------------------------------------------------
+    def _days(self):
+        """Hari (0 = Senin) yang tampil: semua di Minggu, satu di Hari."""
+        return list(range(7)) if self.mode == "week" else [self.anchor.weekday()]
+
+    def _date_of(self, day):
+        return self.anchor + timedelta(days=day - self.anchor.weekday())
+
     def _col(self, day):
-        w = max(7 * 60, self._width - GUTTER - 4)
-        cw = w / 7
-        return GUTTER + day * cw, GUTTER + (day + 1) * cw
+        days = self._days()
+        n = len(days)
+        w = max(n * 60, self._width - GUTTER - 4)
+        cw = w / n
+        i = days.index(day)
+        return GUTTER + i * cw, GUTTER + (i + 1) * cw
 
     def _y(self, minutes):
-        return HEAD_H + (minutes - HOURS[0] * 60) * HOUR_H / 60
+        return TOP + (minutes - HOURS[0] * 60) * HOUR_H / 60
+
+    # --- tampilan & navigasi -------------------------------------------------------------
+    def set_mode(self, mode):
+        if mode != self.mode:
+            self.mode = _view["mode"] = mode
+            self.hover = None
+            self.redraw()
+
+    def shift(self, step):
+        self.anchor += timedelta(days=step * (7 if self.mode == "week" else 1))
+        self.hover = None
+        self.redraw()
+
+    def go_today(self):
+        self.anchor = date.today()
+        self.redraw()
+
+    def _range_text(self):
+        if self.mode == "day":
+            d = self.anchor
+            return f"{SCH.DAYS[d.weekday()]}, {d.day} {MONTHS[d.month - 1]} {d.year}"
+        a = self._date_of(0)
+        b = a + timedelta(days=6)
+        if a.month == b.month:
+            return f"{a.day} – {b.day} {MONTHS[b.month - 1]} {b.year}"
+        if a.year == b.year:
+            return f"{a.day} {MONTHS[a.month - 1][:3]} – {b.day} {MONTHS[b.month - 1][:3]} {b.year}"
+        return f"{a.day} {MONTHS[a.month - 1][:3]} {a.year} – {b.day} {MONTHS[b.month - 1][:3]} {b.year}"
+
+    def _tool(self, x, y, w, h, name, text=None, icon=None, on=False, font=None):
+        hover = self.hover == ("tool", name)
+        fill = C.SEG_ON if on else (C.CARD_HOVER if hover else C.CARD)
+        p = I.pill(w, h, fill, C.BG, r=8, border=None if on else C.BORDER)
+        if p is not None:
+            self._imgs.append(p)
+            self.create_image(x, y, image=p, anchor="nw")
+        if icon:
+            ic = I.icon(icon, C.TEXT, fill, 16)
+            if ic is not None:
+                self._imgs.append(ic)
+                self.create_image(x + w / 2, y + h / 2, image=ic)
+        if text:
+            self.create_text(x + w / 2, y + h / 2, text=text, font=font or self.f["tool"],
+                             fill=C.TEXT if (on or hover) else C.MUTED)
+        self.tools.append((x, y, x + w, y + h, name))
+
+    def _draw_toolbar(self):
+        self.tools = []
+        y, h = 6, 30
+        x = GUTTER
+        for mode, label in (("day", "Hari"), ("week", "Minggu")):
+            on = self.mode == mode
+            f = self.f["tool_b"] if on else self.f["tool"]
+            w = f.measure(label) + 28
+            self._tool(x, y, w, h, mode, text=label, on=on, font=f)
+            x += w + 4
+        x += 14
+        self._tool(x, y, 30, h, "prev", icon="chev_left")
+        x += 34
+        self._tool(x, y, 30, h, "next", icon="chev_right")
+        x += 38
+        label = "Hari ini" if self.mode == "day" else "Minggu ini"
+        w = self.f["tool"].measure(label) + 26
+        self._tool(x, y, w, h, "today", text=label)
+        x += w + 16
+        self.create_text(x, y + h / 2, text=self._range_text(), anchor="w",
+                         font=self.f["range"], fill=C.TEXT)
 
     def _lanes(self, day_slots):
         """Jadwal yang bertabrakan di hari yang sama dibagi jadi lajur berdampingan."""
@@ -119,26 +207,26 @@ class ScheduleBoard(tk.Canvas):
         if self._width < 100:
             return
         W = self._width
-        top, bottom = HEAD_H, self._y(HOURS[1] * 60)
+        top, bottom = TOP, self._y(HOURS[1] * 60)
         today = date.today()
-        monday = today - timedelta(days=today.weekday())
-        for d in range(7):
+        self._draw_toolbar()
+        for d in self._days():
             x0, x1 = self._col(d)
-            day = monday + timedelta(days=d)
+            day = self._date_of(d)
             is_today = day == today
             if is_today:     # kolom hari ini: latar sedikit lebih terang
                 self.create_rectangle(x0, top, x1, bottom, fill=_mix(C.BG, C.CARD, 0.5),
                                       outline="")
             label = f"{SCH.DAYS[d]}"
-            self.create_text((x0 + x1) / 2, 16, text=label, font=self.f["day"],
+            self.create_text((x0 + x1) / 2, TOOL_H + 16, text=label, font=self.f["day"],
                              fill=C.TEXT if is_today else C.MUTED)
             num = str(day.day)
             if is_today:
                 p = I.pill(26, 22, C.ACCENT, C.BG, r=11)
                 if p is not None:
                     self._imgs.append(p)
-                    self.create_image((x0 + x1) / 2 - 13, 26, image=p, anchor="nw")
-            self.create_text((x0 + x1) / 2, 37, text=num, font=self.f["date"],
+                    self.create_image((x0 + x1) / 2 - 13, TOOL_H + 26, image=p, anchor="nw")
+            self.create_text((x0 + x1) / 2, TOOL_H + 37, text=num, font=self.f["date"],
                              fill="#ffffff" if is_today else C.MUTED)
             # sel yang disorot (tambah jadwal)
             if self.hover and self.hover[0] == "cell" and self.hover[1] == d:
@@ -158,14 +246,17 @@ class ScheduleBoard(tk.Canvas):
             if h < HOURS[1]:
                 self.create_text(GUTTER - 10, y + 1, text=f"{h:02d}:00", anchor="ne",
                                  font=self.f["hour"], fill=C.LOCKED)
-        for d in range(8):
-            x = self._col(min(d, 6))[0] if d < 7 else self._col(6)[1]
+        days = self._days()
+        for i in range(len(days) + 1):
+            x = self._col(days[i])[0] if i < len(days) else self._col(days[-1])[1]
             self.create_rectangle(x, top, x + 1, bottom, fill=GRID, outline="")
         # blok jadwal
         by_day = {}
         for s in self.slots:
             by_day.setdefault(s["day"], []).append(s)
         for d, day_slots in by_day.items():
+            if d not in days:
+                continue
             lane_of, n = self._lanes(day_slots)
             x0, x1 = self._col(d)
             lw = (x1 - x0 - 6) / n
@@ -176,12 +267,13 @@ class ScheduleBoard(tk.Canvas):
                     continue
                 bx0 = x0 + 3 + lane_of[s["id"]] * lw
                 self._draw_slot(s, bx0, self._y(a) + 2, bx0 + lw - 3, self._y(b) - 2,
-                                _mix(C.BG, C.CARD, 0.5) if (monday + timedelta(days=d)) == today
+                                _mix(C.BG, C.CARD, 0.5) if self._date_of(d) == today
                                 else C.BG)
         # garis "sekarang" di kolom hari ini
         now = datetime.now()
         m = now.hour * 60 + now.minute
-        if HOURS[0] * 60 <= m <= HOURS[1] * 60:
+        if HOURS[0] * 60 <= m <= HOURS[1] * 60 and today.weekday() in days \
+                and self._date_of(today.weekday()) == today:
             x0, x1 = self._col(today.weekday())
             y = self._y(m)
             self.create_rectangle(x0, y - 1, x1, y + 1, fill=C.ACCENT, outline="")
@@ -218,8 +310,25 @@ class ScheduleBoard(tk.Canvas):
                       _mix(fg, fill, 0.25)))
         if s["note"]:
             lines.append((s["note"], self.f["body"], _mix(fg, fill, 0.25)))
-        for nm in names:
-            lines.append(("• " + nm, self.f["body"], _mix(fg, fill, 0.2)))
+        wide = w > 360          # tampilan Hari: nama murid berkolom di sebelah kanan
+        if not wide:
+            for nm in names:
+                lines.append(("• " + nm, self.f["body"], _mix(fg, fill, 0.2)))
+        else:
+            info_w = 200
+            avail = info_w - 14
+            col_w = 190
+            cols = max(1, int((w - info_w - 10) // col_w))
+            lh = self.f["body"].metrics("linespace") + 2
+            rows = max(1, int((h - 14) // lh))
+            for i, nm in enumerate(names[:cols * rows]):
+                c, r = divmod(i, rows)
+                self.create_text(x0 + info_w + c * col_w, y0 + 7 + r * lh,
+                                 text=_fit(self.f["body"], "• " + nm, col_w - 12), anchor="nw",
+                                 font=self.f["body"], fill=_mix(fg, fill, 0.2))
+            if len(names) > cols * rows:
+                self.create_text(x1 - 8, y1 - 6, text=f"+{len(names) - cols * rows} lagi",
+                                 anchor="se", font=self.f["body"], fill=_mix(fg, fill, 0.3))
         for text, font, color in lines:
             lh = font.metrics("linespace")
             if y + lh > y1 - 4:
@@ -231,15 +340,23 @@ class ScheduleBoard(tk.Canvas):
 
     # --- interaksi -----------------------------------------------------------------------
     def _hit(self, x, y):
+        for x0, y0, x1, y1, name in self.tools:
+            if x0 <= x < x1 and y0 <= y < y1:
+                return ("tool", name), None
         for x0, y0, x1, y1, s in reversed(self.boxes):
             if x0 <= x <= x1 and y0 <= y <= y1:
                 return ("slot", s["id"]), s
-        if x < GUTTER or y < HEAD_H or y >= self._y(HOURS[1] * 60):
+        if self.mode == "week" and TOOL_H <= y < TOP and x >= GUTTER:
+            for d in self._days():
+                x0, x1 = self._col(d)
+                if x0 <= x < x1:
+                    return ("dayhead", d), None
+        if x < GUTTER or y < TOP or y >= self._y(HOURS[1] * 60):
             return None, None
-        for d in range(7):
+        for d in self._days():
             x0, x1 = self._col(d)
             if x0 <= x < x1:
-                h = HOURS[0] + int((y - HEAD_H) // HOUR_H)
+                h = HOURS[0] + int((y - TOP) // HOUR_H)
                 return ("cell", d, h), None
         return None, None
 
@@ -257,7 +374,20 @@ class ScheduleBoard(tk.Canvas):
         key, s = self._hit(e.x, e.y)
         if key is None:
             return
-        if key[0] == "slot" and self.on_edit:
+        if key[0] == "tool":
+            name = key[1]
+            if name in ("day", "week"):
+                self.set_mode(name)
+            elif name == "prev":
+                self.shift(-1)
+            elif name == "next":
+                self.shift(1)
+            elif name == "today":
+                self.go_today()
+        elif key[0] == "dayhead":      # klik nama hari (Minggu) = buka hari itu
+            self.anchor = self._date_of(key[1])
+            self.set_mode("day")
+        elif key[0] == "slot" and self.on_edit:
             self.on_edit(s)
         elif key[0] == "cell" and self.on_add:
             self.on_add(key[1], key[2])

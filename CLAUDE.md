@@ -99,3 +99,6 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   berdampingan. Klik kotak kosong = tambah di hari/jam itu, klik blok = ubah/hapus
   (ScheduleDialog: hari, mulai, selesai tiap 30 menit, guru, catatan, centang murid + cari).
   Kolom cari sidebar menyorot jadwal yang cocok (nama/ID murid, guru, catatan).
+- Baris atas kalender (di canvas yang sama): Hari / Minggu (diingat), panah sebelum/
+  sesudah, Hari ini / Minggu ini, tanggal. Tampilan Hari: satu kolom lebar, nama murid
+  berkolom. Klik nama hari di tampilan Minggu = buka hari itu. Redraw ~8 ms.
