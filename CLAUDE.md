@@ -305,3 +305,6 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   / "Kecilkan". PENUH = laci naik tepat di bawah widget, menutupi sapaan, bisa digulir +
   pudar bawah. Roda mouse: ke bawah di laci kecil = buka; ke atas di laci penuh (posisi
   paling atas) = kecilkan. Mode atur widget memakai susunan lama (baki, kartu di bawahnya).
+
+- Halaman utama murid (course_dock): kartu kursus 1:1 dengan cahaya gradasi warna kursus dari kiri-atas
+  (_tint, sama gaya kartu Dashboard); terkunci = gradasi samar; hover sedikit lebih terang.

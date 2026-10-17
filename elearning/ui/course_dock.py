@@ -36,6 +36,21 @@ def _rgb(c):
     return I._rgb(c)
 
 
+def _tint(s, color, strength):
+    """Cahaya lembut warna dari kiri-atas, memudar ke kanan-bawah (dalam sudut membulat)."""
+    Image = photos.Image
+    g = Image.linear_gradient("L").rotate(-90).resize((s, s))       # kiri 255 -> kanan 0
+    v = Image.linear_gradient("L").resize((s, s))                    # atas 0 -> bawah 255
+    a = Image.composite(g, Image.new("L", (s, s), 0), v.point(lambda x: 255 - x * 3 // 4))
+    a = a.point(lambda x: int((x / 255.0) ** 1.5 * 255 * strength))
+    mask = Image.new("L", (s, s), 0)
+    mask.paste(I.round_mask(s - 2, s - 2, RADIUS - 1), (1, 1))
+    a = Image.composite(a, Image.new("L", (s, s), 0), mask)
+    img = Image.new("RGBA", (s, s), _rgb(color) + (0,))
+    img.putalpha(a)
+    return img
+
+
 class _BgVideo:
     """Video latar yang sudah dicampur dengan warna latar (opacity rendah), di thread."""
 
@@ -245,8 +260,10 @@ class CourseDock(tk.Canvas):
         return "#%02x%02x%02x" % tuple(int(b[k] + (a[k] - b[k]) * f) for k in range(3))
 
     # --- gambar kartu & panah (disimpan) ----------------------------------------------------
-    def _card_img(self, s, hover):
-        key = ("dockcard", s, hover)
+    def _card_img(self, s, hover, color=None, unlocked=True):
+        """Kartu 1:1 sedikit tembus + cahaya gradasi warna kursus dari kiri-atas (gaya kartu
+        Dashboard admin / guru). Terkunci: gradasi samar."""
+        key = ("dockcard", s, hover, color, unlocked)
         img = I._img_cache.get(key)
         if img is None:
             Image = photos.Image
@@ -259,6 +276,9 @@ class CourseDock(tk.Canvas):
             body = Image.new("RGBA", (s - 2, s - 2), fill + (255,))
             body.putalpha(inner)
             img.alpha_composite(body, (1, 1))
+            if color:
+                img.alpha_composite(_tint(s, color, (0.30 if hover else 0.24) if unlocked
+                                          else 0.07))
             I._img_cache[key] = img
         return img
 
@@ -398,7 +418,9 @@ class CourseDock(tk.Canvas):
             if x1 < 0 or x0 > W:
                 continue
             hov = i == self.hover and self._open(i) and self._shown(i)
-            self._paste_clipped(out, self._card_img(s, hov), int(round(x0)),
+            c = self.courses[i]
+            self._paste_clipped(out, self._card_img(s, hov, c.get("color"),
+                                                    c["id"] in self.allowed), int(round(x0)),
                                 int(round(y0)) - by)
         out = out.convert("RGB")
         if self._overflow():
