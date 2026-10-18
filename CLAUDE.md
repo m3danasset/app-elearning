@@ -344,6 +344,13 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   (cek tetap di dalam akar USB, akar tidak bisa dihapus) -> file browser dibuka lagi di folder
   yang sama (opts start) + status "Deleted n item(s)". Batal -> langsung dibuka lagi.
 
+## Mini player (mode mengambang saat Blender)
+- ui/mini_player.py MINIMALIS: jendela = video 16:9 saja (sudut membulat RADIUS 12: Windows 11
+  DwmSetWindowAttribute(33, ROUND) antialias, cadangan SetWindowRgn). Kursor di atas: bilah
+  judul (atas) & bar kontrol (bawah) MENUMPUK di atas video (place + lift, ukuran jendela tetap);
+  kursor keluar -> hilang setelah HIDE_MS 700 ms (tidak saat seek diseret). Dicek di _tick 40 ms.
+  Xvfb tidak merender jendela ini (topmost); cek lewat place_info.
+
 ## Jendela web murid: Pinterest (PB / IC / SK), Gemini + Flow (murid AI); bukan trial
 - elearning/web_launcher.py + config.WEB_SITES (key, title, icon, url, allowed, ai). Ikon di
   sebelah "Buka Blender" (sidebar footer extra = daftar): web_pin / web_gemini / web_flow.

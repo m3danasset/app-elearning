@@ -39,6 +39,8 @@ _KEY = "mini_width"
 _KEY_FOLD = "mini_collapsed"
 REWIND_S = 10
 OV = 72          # ukuran tombol putar/jeda di tengah video
+RADIUS = 12      # sudut membulat jendela (Windows 11 DWM: antialias; Windows 10: region)
+HIDE_MS = 700    # kursor keluar -> bilah judul & kontrol hilang setelah jeda ini
 
 
 def _fmt(seconds):
@@ -74,6 +76,9 @@ class MiniPlayer(tk.Toplevel):
         self._btn_prev = False
         self._anchor = None                 # (x_ikon, y_ikon, ukuran_ikon, batas_jendela_blender)
         self._last_geo = ""
+        self._chrome = False                # bilah judul & kontrol tampil (kursor di atas)
+        self._leave_t = None
+        self._rounded = False
 
         saved = BL.load_setting(_KEY)
         self.width = int(saved) if isinstance(saved, (int, float)) else DEFAULT_W
@@ -170,24 +175,71 @@ class MiniPlayer(tk.Toplevel):
         return int(((width or self.width) - 2 * EDGE) * 9 / 16)
 
     def _total_h(self, width=None):
-        if self.collapsed:      # dilipat: hanya bilah judul + kontrol (video disembunyikan)
-            return 2 * EDGE + HEAD_H + BAR_H
-        return 2 * EDGE + HEAD_H + self._video_h(width) + BAR_H
+        # minimalis: jendela = video saja; bilah judul & kontrol MENUMPUK di atas video dan
+        # hanya tampil saat kursor di atas mini player (ukuran jendela tidak berubah)
+        return 2 * EDGE + self._video_h(width)
 
     def _apply_size(self):
         w_in = self.width - 2 * EDGE
         vh = self._video_h()
         self.box.place(x=EDGE, y=EDGE, width=w_in, height=self._total_h() - 2 * EDGE)
-        self.head.place(x=0, y=0, width=w_in, height=HEAD_H)
-        if self.collapsed:
-            self.stage.place_forget()
-            self.bar.place(x=0, y=HEAD_H, width=w_in, height=BAR_H)
-        else:
-            self.stage.place(x=0, y=HEAD_H, width=w_in, height=vh)
-            self.bar.place(x=0, y=HEAD_H + vh, width=w_in, height=BAR_H)
+        self.stage.place(x=0, y=0, width=w_in, height=vh)
+        self._apply_chrome()
         if self.engine is not None and isinstance(self.engine, LV._MpvEngine):
             self.surface.place(relx=0, rely=0, relwidth=1, relheight=1)
         self._apply_geometry()
+
+    def _apply_chrome(self):
+        """Kursor di atas: bilah judul (atas) & kontrol (bawah) di atas video. Tidak: video
+        polos tanpa overlay."""
+        w_in, vh = self.width - 2 * EDGE, self._video_h()
+        if self._chrome:
+            self.head.place(x=0, y=0, width=w_in, height=HEAD_H)
+            self.bar.place(x=0, y=vh - BAR_H, width=w_in, height=BAR_H)
+            self.head.lift()
+            self.bar.lift()
+        else:
+            self.head.place_forget()
+            self.bar.place_forget()
+
+    def _update_chrome(self, inside):
+        if inside:
+            self._leave_t = None
+            want = True
+        else:
+            if self._chrome and self._leave_t is None:
+                self._leave_t = time.time()
+            want = self._chrome and self._leave_t is not None and \
+                (time.time() - self._leave_t) * 1000 < HIDE_MS
+            want = want or self._drag_seek
+        if want != self._chrome:
+            self._chrome = want
+            self._apply_chrome()
+
+    def _round_corners(self):
+        """Sudut membulat. Windows 11: DWM (antialias). Lainnya: region (cadangan)."""
+        if self._rounded or sys.platform != "win32":
+            return
+        self._rounded = True
+        try:
+            import ctypes
+            from ctypes import wintypes
+            self.update_idletasks()
+            u = ctypes.WinDLL("user32")
+            u.GetParent.argtypes = [wintypes.HWND]
+            u.GetParent.restype = wintypes.HWND
+            hwnd = u.GetParent(self.winfo_id()) or self.winfo_id()
+            pref = ctypes.c_int(2)                       # DWMWCP_ROUND
+            dwm = ctypes.WinDLL("dwmapi")
+            if dwm.DwmSetWindowAttribute(wintypes.HWND(hwnd), 33, ctypes.byref(pref), 4) == 0:
+                return
+            g = ctypes.WinDLL("gdi32")
+            rgn = g.CreateRoundRectRgn(0, 0, self.width + 1, self._total_h() + 1,
+                                       RADIUS * 2, RADIUS * 2)
+            u.SetWindowRgn(wintypes.HWND(hwnd), rgn, True)
+            self._rounded = "rgn"
+        except Exception as exc:
+            C.log(f"Mini player: sudut membulat gagal: {exc!r}")
 
     def _max_width(self):
         if self._anchor:
@@ -239,6 +291,9 @@ class MiniPlayer(tk.Toplevel):
             # player; baru muncul lagi setelah mini player diam sebentar.
             self.ov.settle()
             self.geometry(geo)
+            if self._rounded == "rgn":           # region ikut ukuran baru
+                self._rounded = False
+                self.after_idle(self._round_corners)
 
     # =========================================================================
     # Tampil / sembunyi
@@ -248,6 +303,7 @@ class MiniPlayer(tk.Toplevel):
             return
         if self.state() == "withdrawn":
             self.deiconify()
+            self.after_idle(self._round_corners)
         self.attributes("-topmost", True)
         self.lift()
         if self.ov.shown:
@@ -491,7 +547,9 @@ class MiniPlayer(tk.Toplevel):
     def _update_overlay(self):
         """Tombol putar/jeda tampil hanya saat kursor di atas mini player (mpv menelan event
         mouse Tk, jadi posisi kursor diperiksa langsung)."""
-        want = self.has_video and self._pointer_inside()
+        inside = self._pointer_inside()
+        self._update_chrome(inside)
+        want = self.has_video and inside
         cx = self.stage.winfo_rootx() + self.stage.winfo_width() // 2
         cy = self.stage.winfo_rooty() + self.stage.winfo_height() // 2
         self.ov.sync(want, cx, cy)
