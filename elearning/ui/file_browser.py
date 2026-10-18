@@ -37,6 +37,7 @@ HEAD_H = 28                  # judul kolom (Details)
 ROW_H = 34                   # baris Details
 CELL_W, CELL_H = 128, 118    # sel Small thumbnails
 TW, TH = 112, 74             # ukuran thumbnail
+DANGER = "#e5484d"           # tombol Delete (sama dengan MiniConfirm)
 POLL_MS = C.UI_FRAME_MS      # hasil thread diambil maks. 1x per frame (30 fps)
 THUMB_CACHE = 400            # thumbnail di memori (~23 KB per gambar)
 DRIVES = "::drives"          # folder semu: daftar drive
@@ -277,6 +278,7 @@ class FileBrowser(OverlayPanel):
         self.on_pick = opts.get("on_pick")
         self.on_save = opts.get("on_save")
         self.on_open = opts.get("on_open")
+        self.on_delete = opts.get("on_delete")  # USB: hapus (konfirmasi di luar, lalu buka lagi)
         self.view = _state["view"]
         self.entries = []        # isi folder (semua)
         self.shown = []          # isi setelah saringan tab (resource)
@@ -313,7 +315,9 @@ class FileBrowser(OverlayPanel):
             self.tabs = [("all", "All"), ("image", "Images"), ("video", "Videos"),
                          ("file", "Other")]
             self.filter = "all"
-            start = self.root
+            start = opts.get("start") or self.root     # mis. kembali ke folder setelah hapus
+            if not os.path.isdir(start) or not _inside(start, [("", self.root)]):
+                start = self.root
 
         self._make_window(top, PANEL_W, PANEL_H, min_w=560, min_h=380)
         self.lw, self.lh = self.W - 24, self.H - LIST_TOP - FOOT_H - 4
@@ -357,6 +361,7 @@ class FileBrowser(OverlayPanel):
         b("<Tab>", lambda e: self._switch_tab(1))
         b("<Shift-Tab>", lambda e: self._switch_tab(-1))
         b("<ISO_Left_Tab>", lambda e: self._switch_tab(-1))
+        b("<Delete>", lambda e: self._delete())
         b("<Control-a>", lambda e: self._check_all())
         b("<Control-A>", lambda e: self._check_all())
         self.bind("<Button-1>", self._click_any, add="+")
@@ -416,6 +421,8 @@ class FileBrowser(OverlayPanel):
             self._primary()
         elif name == "secondary":
             self._secondary()
+        elif name == "delete":
+            self._delete()
         self.list.focus_set()
 
     # --- navigasi -------------------------------------------------------------------------
@@ -725,6 +732,8 @@ class FileBrowser(OverlayPanel):
         x = 20
         hints = [("Close", "Esc"), ("Up", "Backspace")]
         hints.append(("Check", "Space") if self.pick else ("Open", "Enter"))
+        if not self.pick and self.on_delete is not None:
+            hints.append(("Delete", "Del"))
         for text, key in hints:
             t = cv.create_text(x, y, text=text, anchor="w", fill=C.MUTED, font=self._f_sub,
                                tags="frame")
@@ -749,6 +758,14 @@ class FileBrowser(OverlayPanel):
                        fill="#ffffff" if ok else C.LOCKED)
         self._boxes.append((right - bw, y - 15, right, y + 15, "primary", None))
         right -= bw + 8
+        if not self.pick and self.on_delete is not None:
+            n = len(self.checked)
+            label = f"Delete {n}" if n else "Delete"
+            bw = self._f_tab.measure(label) + 28
+            self._btn(cv, right - bw, y - 15, bw, 30, "delete", None, C.CARD, C.CARD,
+                      text=label, fg=DANGER if self._delete_items() else C.LOCKED,
+                      border=C.BORDER, r=9)
+            right -= bw + 12
         if not self.pick and self.on_save is not None:
             n = len(self.checked)
             label = f"Save {n} to flash drive" if n else "Save to flash drive"
@@ -828,7 +845,7 @@ class FileBrowser(OverlayPanel):
             if p is not None:
                 cv._imgs.append(p)
                 cv.create_image(x0, y0 + 1, image=p, anchor="nw")
-        if not e["is_dir"] and (self.pick or self.on_save is not None):
+        if not e["is_dir"] and self._checkable():
             box, tick = self._check_img(on, bg)
             for ph in (box, tick):
                 if ph is not None:
@@ -978,7 +995,7 @@ class FileBrowser(OverlayPanel):
         if ent["is_dir"]:
             self._click_nav = True    # klik dua kali di folder: klik kedua diabaikan
             self._go(ent["path"])
-        elif self.pick or self.on_save is not None:
+        elif self._checkable():
             self._toggle(i)
         else:
             self._draw_list()
@@ -990,6 +1007,9 @@ class FileBrowser(OverlayPanel):
         if i >= 0 and not self.shown[i]["is_dir"] and not self.pick:
             self._toggle(i)          # klik pertama sudah mencentang: kembalikan
             self._open_file(self.shown[i])
+
+    def _checkable(self):
+        return self.pick or self.on_save is not None or self.on_delete is not None
 
     def _toggle(self, i):
         if not (0 <= i < len(self.shown)) or self.shown[i]["is_dir"]:
@@ -1052,6 +1072,28 @@ class FileBrowser(OverlayPanel):
                 top.after(1, lambda: fn(paths))
         else:
             self._activate(self.sel)
+
+    def _delete_items(self):
+        """Yang akan dihapus: file tercentang, atau item terpilih (file / folder)."""
+        if self.checked:
+            return list(self.checked.values())
+        if 0 <= self.sel < len(self.shown):
+            return [self.shown[self.sel]]
+        return []
+
+    def _delete(self):
+        """Tombol Delete / tombol Delete papan ketik (USB): file browser ditutup dulu supaya
+        popup konfirmasi tidak bertumpuk; pemilik membuka lagi di folder yang sama."""
+        if self.pick or self.on_delete is None:
+            return "break"
+        items = self._delete_items()
+        if not items:
+            return "break"
+        fn, top, folder = self.on_delete, self.top, self.cur
+        self.close()
+        top.after(1, lambda: fn([{"path": e["path"], "name": e["name"],
+                                  "is_dir": e["is_dir"]} for e in items], folder))
+        return "break"
 
     def _secondary(self):
         if self.pick or self.on_save is None:
@@ -1217,12 +1259,74 @@ class UsbPage(tk.Frame):
         except tk.TclError:
             pass
 
-    def open_browser(self):
+    def open_browser(self, start=None):
         if not os.path.isdir(self.root):
             self.status.config(text="The flash drive is not available.", fg=C.ERROR)
             return
         open_file_browser(self, mode="resource", root=self.root, title=self.name,
-                          on_open=self._open)
+                          on_open=self._open, on_delete=self._delete, start=start)
+
+    def _delete(self, items, folder):
+        """Popup konfirmasi mini (sama dengan Log out); Delete -> hapus di thread, lalu file
+        browser dibuka lagi di folder yang sama. Batal -> langsung dibuka lagi."""
+        if len(items) == 1:
+            name = items[0]["name"]
+            name = name if len(name) <= 22 else name[:20] + "…"
+            question = f"Delete “{name}”?"
+        else:
+            question = f"Delete {len(items)} items?"
+        app = self.winfo_toplevel()
+        state = {"ok": False}
+
+        def go():
+            state["ok"] = True
+        app._confirm(question, "Delete", go)
+        if not state["ok"]:
+            self.open_browser(folder)
+            return
+        self.status.config(text="Deleting...", fg=C.MUTED)
+        box = []
+        root = self.root
+
+        def work():
+            import shutil
+            done, failed = 0, 0
+            for it in items:
+                p = it["path"]
+                try:
+                    if not _inside(p, [("", root)]) or os.path.normcase(
+                            os.path.normpath(p)) == os.path.normcase(os.path.normpath(root)):
+                        raise OSError("outside the flash drive")
+                    if it["is_dir"] and not os.path.islink(p):
+                        shutil.rmtree(p)
+                    else:
+                        os.remove(p)
+                    done += 1
+                except OSError as exc:
+                    C.log(f"USB: hapus {p!r} gagal: {exc!r}")
+                    failed += 1
+            box.append((done, failed))
+
+        def wait():
+            try:
+                if not self.winfo_exists():
+                    return
+            except tk.TclError:
+                return
+            if not box:
+                self.after(POLL_MS * 3, wait)
+                return
+            done, failed = box[0]
+            text = f"Deleted {done} item(s)." if done else ""
+            if failed:
+                text += f" {failed} could not be deleted (in use or read-only)."
+            self.status.config(text=text.strip(), fg=C.ERROR if failed else C.ON)
+            from elearning.ui import usb_save
+            usb_save.monitor(self).refresh()       # sisa ruang diperbarui
+            self.open_browser(folder)
+
+        threading.Thread(target=work, daemon=True).start()
+        self.after(POLL_MS, wait)
 
     def _open(self, path):
         if os.path.splitext(path)[1].lower() in RUN_EXTS:

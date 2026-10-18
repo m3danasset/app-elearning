@@ -337,6 +337,11 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   flashdisk: tidak bisa naik / junction keluar; dibuka otomatis), "Eject". File program
   (RUN_EXTS: .exe, .bat, .lnk, ...) tidak dibuka. Dicabut / dikeluarkan -> kembali ke Dashboard
   + file browser ditutup.
+  Hapus (USB saja, FileBrowser on_delete): centang file / item terpilih (file atau folder) ->
+  tombol "Delete n" merah di footer atau tombol Del -> file browser ditutup, popup MiniConfirm
+  (App._confirm, sama dengan Log out: Cancel fokus awal, Delete merah) -> hapus di thread
+  (cek tetap di dalam akar USB, akar tidak bisa dihapus) -> file browser dibuka lagi di folder
+  yang sama (opts start) + status "Deleted n item(s)". Batal -> langsung dibuka lagi.
 
 ## Jendela web murid: Pinterest (PB / IC / SK), Gemini + Flow (murid AI); bukan trial
 - elearning/web_launcher.py + config.WEB_SITES (key, title, icon, url, allowed, ai). Ikon di
