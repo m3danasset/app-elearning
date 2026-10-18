@@ -13,6 +13,13 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
    tab, periode, filter, atau tampilan.
 3. Animasi harus mulus, tidak patah-patah: jadwal frame tetap, gerakan berbasis waktu.
    SEMUA animasi UI maks. 30 fps (pakai config.UI_FPS / UI_FRAME_MS, jangan angka sendiri).
+   MODE RINGAN (config.lite()): otomatis di PC <= 4 thread (config.LOW_END_PC, mis. Ryzen 3
+   2200G + Vega 8, kena AMD "driver timeout"), atau fitur Dev "animations" dimatikan: TANPA
+   video latar (video_background.find_video -> None: login, Dashboard murid/admin/guru),
+   carousel login diam tanpa kartu & tanpa thread (Carousel3D.static: pita digambar ulang
+   hanya di configure), geser kartu Dashboard murid langsung, palette / file browser tanpa
+   fade, notifikasi badge tanpa geser, layar penuh pelajaran tanpa fade, mpv hwdec=no +
+   penskala bilinear, Chrome web murid --disable-gpu. Fitur baru beranimasi WAJIB cek C.lite().
    Pengecualian: carousel login di PC spek tinggi (config.HIGH_END = driver NVIDIA + >= 12
    thread) maks. 60 fps dengan 4 thread render (config.CAROUSEL_WORKERS / CAROUSEL_FPS_MAX).
    Ukur jarak antar frame di layar biasa dan 1920x1080 sebelum dikirim.

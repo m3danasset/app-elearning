@@ -322,6 +322,12 @@ class _MpvEngine:
             sub_auto="no", sub_font_size=40, sub_border_size=2.5,
             hwdec="auto-safe",
             vd_lavc_threads=2)              # kalau GPU decode tidak ada: CPU dipakai maks. 2 thread
+        if C.lite():
+            # mode ringan (iGPU AMD Vega + Blender): decode di CPU dan penskala paling ringan,
+            # supaya GPU tidak kelamaan sibuk (AMD "driver timeout" / TDR)
+            opts.update(hwdec="no", scale="bilinear", dscale="bilinear", cscale="bilinear",
+                        dither_depth="no", correct_downscaling="no", sigmoid_upscaling="no",
+                        deband="no", interpolation="no")
 
         def on_log(level, prefix, text):    # pesan error/peringatan libmpv -> app.log
             if level in ("fatal", "error", "warn"):
@@ -754,7 +760,7 @@ class LessonPlayer(tk.Frame):
         try:
             top.attributes("-alpha", 1.0)      # uji dukungan -alpha
             self._veil = "alpha"
-            if FS_FADE_OUT_MS > 0:
+            if FS_FADE_OUT_MS > 0 and not C.lite():
                 self._fade(1.0, 0.0, FS_FADE_OUT_MS, cont)
                 return
             top.attributes("-alpha", 0.0)
@@ -773,7 +779,7 @@ class LessonPlayer(tk.Frame):
 
     def _reveal(self):
         """Tampilkan jendela lagi: muncul perlahan (fade-in) kalau FS_FADE_IN_MS > 0."""
-        if self._veil == "alpha" and FS_FADE_IN_MS > 0:
+        if self._veil == "alpha" and FS_FADE_IN_MS > 0 and not C.lite():
             self._fade(0.0, 1.0, FS_FADE_IN_MS, self._open_curtain)
         else:
             self._open_curtain()

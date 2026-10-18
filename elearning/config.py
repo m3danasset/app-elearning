@@ -55,6 +55,22 @@ UI_FRAME_MS = 34
 # file Blender berat tidak terganggu. CPU 4 thread (mis. Ryzen 3) = 1, selebihnya maks. 2.
 # process_cpu_count: hanya core yang boleh dipakai proses ini (ikut affinity), bukan semua core PC.
 WORKER_THREADS = 1 if (getattr(os, "process_cpu_count", os.cpu_count)() or 2) <= 4 else 2
+# PC spek rendah (CPU <= 4 thread, mis. Ryzen 3 2200G + Vega 8): MODE RINGAN otomatis.
+LOW_END_PC = WORKER_THREADS <= 1
+
+
+def lite():
+    """Mode ringan: tanpa animasi UI dan tanpa video latar (login, Dashboard), carousel login
+    diam, pemutar pelajaran tanpa decode GPU. Otomatis di PC spek rendah (LOW_END_PC); di PC lain
+    bisa dipaksa dengan mematikan fitur "animations" di jendela Dev. Mencegah beban GPU iGPU
+    (AMD "driver timeout") saat Blender juga berjalan."""
+    if LOW_END_PC:
+        return True
+    try:
+        from elearning import app_settings
+        return not app_settings.feature("animations")
+    except Exception:
+        return False
 
 
 def _high_end():

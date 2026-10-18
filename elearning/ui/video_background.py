@@ -39,7 +39,10 @@ def log(msg):
 
 
 def find_video(folder):
-    """Video pertama (urut abjad) di folder, atau None kalau tidak ada."""
+    """Video pertama (urut abjad) di folder, atau None kalau tidak ada / mode ringan
+    (config.lite: semua video latar mati, latar polos)."""
+    if C.lite():
+        return None
     try:
         names = sorted(os.listdir(folder))
     except OSError:

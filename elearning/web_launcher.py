@@ -143,6 +143,8 @@ def open_web(widget, student, key):
         args += [f"--host-resolver-rules={_rules(sites)}", "--no-first-run",
                  "--no-default-browser-check", "--disable-extensions",
                  "--disable-features=Translate,MediaRouter", "--disable-background-networking"]
+        if C.lite():   # mode ringan (iGPU + Blender): Chrome tidak memakai GPU
+            args += ["--disable-gpu", "--disable-smooth-scrolling"]
     flags = 0x00004000 if sys.platform == "win32" else 0   # BELOW_NORMAL_PRIORITY_CLASS
     try:
         proc = subprocess.Popen(args, creationflags=flags, close_fds=True)

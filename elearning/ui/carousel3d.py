@@ -259,8 +259,11 @@ class Carousel3D:
             mode = app_settings.login_mode()
         except Exception:
             mode = "carousel"
-        self.rows3 = mode == "rows3"          # 3 baris (30 portfolio), tanpa video latar
-        self.cards = mode != "video"          # "video": video latar saja, tanpa kartu
+        # mode ringan (config.lite, PC spek rendah): DIAM, tanpa kartu, tanpa thread render;
+        # pita hanya digambar ulang saat ukuran / kolom login berubah (configure)
+        self.static = C.lite()
+        self.rows3 = mode == "rows3" and not self.static   # 3 baris (30 portfolio), tanpa video
+        self.cards = mode != "video" and not self.static   # "video": video latar saja
         self._tex_h = 0
         self._tex_key = (0, 0, 0)
         self._tex_loading = None
@@ -286,6 +289,9 @@ class Carousel3D:
 
     # --- mulai / berhenti ------------------------------------------------------------
     def start(self):
+        if self.static:
+            C.log("Carousel 3D login: mode ringan (diam, tanpa kartu)")
+            return
         _timer_res(True)
         self.items = SC.collect(limit=MAX_ITEMS * (3 if self.rows3 else 1)) if self.cards else []
         C.log(f"Carousel 3D login: {len(self.items)} karya")
@@ -296,7 +302,7 @@ class Carousel3D:
         self._tick()
 
     def close(self):
-        if not self._stop.is_set():
+        if not self._stop.is_set() and not self.static:
             _timer_res(False)
         self._stop.set()
         for t in self._threads:      # frame yang sedang dibuat diselesaikan dulu (maks. sebentar)
@@ -328,9 +334,10 @@ class Carousel3D:
             if not same:
                 self._frames = {}
         self._ensure_textures(geo)
-        if same:
+        if same and not self.static:       # biasa: kolom berubah ikut frame berikutnya (_tick)
             return
-        self.bg.reset_video((geo.W, geo.H))
+        if not same:
+            self.bg.reset_video((geo.W, geo.H))
         # frame pertama ukuran baru dibuat langsung: tidak ada sisa pita ukuran lama.
         # Latar pita = frame video (sementara: frame lama yang diskalakan), sama dengan latar layar.
         vframe = self.bg.video_frame()

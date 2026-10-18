@@ -38,7 +38,7 @@ FADE_S = 0.12            # lama muncul (detik), berbasis waktu
 FRAME_MS = C.UI_FRAME_MS  # semua animasi UI maks. 30 fps (config)
 # PC 4 thread (mis. Ryzen 3 2200G): palette langsung tampil tanpa animasi alpha, jadi
 # tidak ada kerja menggambar ulang DWM selama Blender murid berjalan.
-LOW_END = getattr(C, "WORKER_THREADS", 2) <= 1
+LOW_END = C.lite()     # mode ringan: palette / file browser langsung tampil, tanpa fade
 TYPE_MS = C.UI_FRAME_MS  # ketikan beruntun digabung: daftar disusun ulang maks. 1x / frame
 HIGHLIGHT = "#6b3d0c"    # latar kata yang cocok (sama dengan saran sidebar)
 

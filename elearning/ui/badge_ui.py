@@ -328,7 +328,14 @@ class BadgeToast(tk.Canvas):
         self.close()
 
     def _slide(self, x0, x1, ms, then):
-        """Geser berbasis waktu (ease-out), frame tetap maks. 30 fps."""
+        """Geser berbasis waktu (ease-out), frame tetap maks. 30 fps. Mode ringan: langsung."""
+        if C.lite():
+            _x, y = self._target()
+            self.place(x=int(x1), y=y)
+            self.raise_widget()
+            if then is not None:
+                self.after(1, then)
+            return
         t0 = time.perf_counter()
 
         def step():

@@ -595,7 +595,10 @@ class CourseDock(tk.Canvas):
             return
         self.target = new
         self._set_hover(None)
-        import time
+        if C.lite():                       # mode ringan: langsung pindah, tanpa animasi
+            self.offset = float(new)
+            self._frame()
+            return
         self._from, self._t0 = self.offset, time.perf_counter()
         if self._anim is None and not self._closed:
             self._anim = self.after(0, self._step)
