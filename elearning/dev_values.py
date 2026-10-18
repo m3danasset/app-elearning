@@ -19,8 +19,8 @@ VALUES = (
     # --- Web murid ---
     ("pinterest_limit", "Web murid", "Batas Pinterest per hari (menit, 0 = tanpa batas)", "int",
      [("elearning.config", "PINTEREST_LIMIT_MIN")]),
-    ("web_window_hours", "Web murid", "Batas reset setelah (jam sejak mulai dipakai)", "float",
-     [("elearning.config", "WEB_WINDOW_HOURS")]),
+    ("web_reset_min", "Web murid", "Jeda reset setelah batas habis (menit)", "int",
+     [("elearning.config", "WEB_RESET_MIN")]),
     # --- Tampilan: sudut, bayangan, transparansi ---
     ("ui_radius_scale", "Tampilan UI", "Sudut bulat semua (x)", "float",
      [("elearning.config", "UI_RADIUS_SCALE")]),
@@ -206,7 +206,7 @@ VALUES = (
 )
 # batas aman (min, maks) per nilai; di luar batas -> Apply ditolak
 LIMITS = {
-    "pinterest_limit": (0, 600), "web_window_hours": (0.25, 48),
+    "pinterest_limit": (0, 600), "web_reset_min": (1, 1440),
     "ui_radius_scale": (0, 3), "radius_course_card": (2, 60), "radius_gallery": (0, 60),
     "radius_showcase": (0, 80), "radius_coverflow": (0, 60), "radius_palette": (0, 40),
     "radius_carousel": (0, 0.2), "shadow_logo": (0, 255), "shadow_logo_blur": (0.01, 0.3),

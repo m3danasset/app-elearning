@@ -321,34 +321,36 @@ def _limit(key, sid=None):
 
 
 def _usage_data():
-    """{"v": 2, "used": {"<ID>:<situs>": {"start": waktu mulai jendela, "secs": dipakai,
-    "warned": bool}}}. Seperti batas chat Claude: jatah berlaku per JENDELA WAKTU
-    (config.WEB_WINDOW_HOURS) yang dimulai saat pertama kali dipakai, lalu reset."""
+    """{"v": 3, "used": {"<ID>:<situs>": {"start", "secs", "hit", "warned"}}}.
+    Sistem menit (seperti batas chat Claude): jatah dipakai sampai habis ("hit" = waktu habis),
+    lalu jeda config.WEB_RESET_MIN menit, setelah itu jatah penuh lagi."""
     if _usage["data"] is None:
         try:
             with open(USAGE_FILE, encoding="utf-8") as f:
                 _usage["data"] = json.load(f)
         except Exception:
             _usage["data"] = {}
-        if _usage["data"].get("v") != 2:             # format lama (per hari): mulai baru
-            _usage["data"] = {"v": 2, "used": {}}
+        if _usage["data"].get("v") != 3:             # format lama: mulai baru
+            _usage["data"] = {"v": 3, "used": {}}
     return _usage["data"]
 
 
-def _window_s():
-    return max(0.25, float(getattr(C, "WEB_WINDOW_HOURS", 5) or 5)) * 3600
+def _reset_s():
+    return max(1.0, float(getattr(C, "WEB_RESET_MIN", 10) or 10)) * 60
 
 
 def _slot(sid, key, create=False):
-    """Catatan jendela waktu murid+situs; jendela yang sudah lewat dibuang (reset)."""
+    """Catatan murid+situs; jeda sudah lewat (atau catatan > 1 hari) -> dibuang (reset)."""
     used = _usage_data()["used"]
     k = f"{sid}:{key}"
     e = used.get(k)
-    if e is not None and time.time() - e.get("start", 0) >= _window_s():
+    now = time.time()
+    if e is not None and ((e.get("hit") and now - e["hit"] >= _reset_s())
+                          or now - e.get("start", 0) >= 86400):
         used.pop(k, None)
         e = None
     if e is None and create:
-        e = used[k] = {"start": time.time(), "secs": 0.0, "warned": False}
+        e = used[k] = {"start": now, "secs": 0.0, "hit": None, "warned": False}
     return e
 
 
@@ -358,11 +360,15 @@ def used_secs(sid, key):
 
 
 def reset_at(sid, key):
-    """Jam reset (teks HH:MM) atau "" kalau belum ada jendela berjalan."""
+    """Jam reset (HH:MM): jeda setelah jatah habis; sebelum habis = perkiraan kalau dipakai
+    terus sampai habis."""
     e = _slot(sid, key)
-    if not e:
-        return ""
-    return time.strftime("%H:%M", time.localtime(e["start"] + _window_s()))
+    if e and e.get("hit"):
+        t = e["hit"] + _reset_s()
+    else:
+        left = remaining(sid, key) or 0.0
+        t = time.time() + left + _reset_s()
+    return time.strftime("%H:%M", time.localtime(t))
 
 
 def _save_usage():
@@ -395,7 +401,7 @@ def status_text(sid, key):
     if left <= 0:
         return f"Limit reached · resets {reset_at(sid, key)}"
     m = int(left // 60 + (1 if left % 60 else 0))
-    return f"{m} min left" + (f" · resets {reset_at(sid, key)}" if used_secs(sid, key) else "")
+    return f"{m} min left"
 
 
 WARN_S = 120   # peringatan sekali per jendela waktu saat sisa <= 2 menit
@@ -422,10 +428,13 @@ def _count_usage(app):
         if 0 < left <= WARN_S and e and not e.get("warned"):
             e["warned"] = True
             _save_usage()
-            app.after(50, lambda t=title, r=reset_at(sid, key): _message(app, t, L(
-                f"Sisa waktu {t} 2 menit. Reset pukul {r}.",
-                f"2 minutes of {t} left. Your limit resets at {r}.")))
+            app.after(50, lambda t=title, m=getattr(C, "WEB_RESET_MIN", 10): _message(app, t, L(
+                f"Sisa waktu {t} 2 menit. Setelah habis, istirahat {m} menit.",
+                f"2 minutes of {t} left. After that, take a {m}-minute break.")))
         if left <= 0:
+            e = _slot(sid, key, create=True)
+            if not e.get("hit"):
+                e["hit"] = time.time()                              # jeda reset mulai sekarang
             _user32()[0].PostMessageW(hwnd, 0x0010, 0, 0)          # WM_CLOSE
             _state["site_hwnd"].pop(key, None)
             _save_usage()

@@ -922,7 +922,7 @@ class PinterestLimitDialog(tk.Toplevel):
                  anchor="w").pack(fill="x", pady=(2, 14))
         self.var = tk.StringVar(value=cur or labels[0])
         WheelPicker(body, self.var, labels, width=320, bg=C.CARD, fill=C.BG).pack(anchor="w")
-        tk.Label(body, text=f"Sudah dipakai {used_min} menit (jatah reset {getattr(C, 'WEB_WINDOW_HOURS', 5):g} jam setelah mulai dipakai). Gulir roda mouse untuk "
+        tk.Label(body, text=f"Sudah dipakai {used_min} menit (habis -> jeda {getattr(C, 'WEB_RESET_MIN', 10)} menit lalu reset). Gulir roda mouse untuk "
                             "mengganti. Bawaan diatur di jendela Dev.",
                  bg=C.CARD, fg=C.MUTED, font=(C.FONT, 9), anchor="w", justify="left",
                  wraplength=380).pack(fill="x", pady=(12, 0))
