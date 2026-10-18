@@ -142,7 +142,7 @@ class App(tk.Tk):
                       lambda: self._after_trial(self._quit))
 
     def _quit(self):
-        web_launcher.close()   # jendela web murid (Pinterest / Gemini / Flow) ikut ditutup
+        web_launcher.close()   # Chrome murid ikut ditutup
         self.badges.stop()
         self.blender_float.stop()
         sessions.end()
@@ -311,7 +311,7 @@ class App(tk.Tk):
             then()
 
     def _logout(self):
-        web_launcher.close()   # jendela web murid (Pinterest / Gemini / Flow) ikut ditutup
+        web_launcher.close()   # Chrome murid ikut ditutup
         self._account_id = None
         self.badges.stop()
         self._student = None

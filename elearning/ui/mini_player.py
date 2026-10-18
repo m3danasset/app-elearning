@@ -291,6 +291,9 @@ class MiniPlayer(tk.Toplevel):
             # player; baru muncul lagi setelah mini player diam sebentar.
             self.ov.settle()
             self.geometry(geo)
+            # diterapkan SEKARANG: kalau urutan jendela berubah sebelum Tk sempat menerapkan
+            # geometry (idle), Tk mengambil lagi posisi lama -> mini player tidak ikut ikon
+            self.update_idletasks()
             if self._rounded == "rgn":           # region ikut ukuran baru
                 self._rounded = False
                 self.after_idle(self._round_corners)
@@ -299,15 +302,17 @@ class MiniPlayer(tk.Toplevel):
     # Tampil / sembunyi
     # =========================================================================
     def show(self):
+        """Tampilkan. Urutan jendela (topmost) hanya diatur saat baru muncul, bukan tiap tick
+        (tiap perubahan urutan sebelum geometry diterapkan membatalkan perpindahan)."""
         if self.closed:
             return
         if self.state() == "withdrawn":
             self.deiconify()
+            self.attributes("-topmost", True)
+            self.lift()
             self.after_idle(self._round_corners)
-        self.attributes("-topmost", True)
-        self.lift()
-        if self.ov.shown:
-            self.ov.lift()          # tombol putar/jeda tetap di atas mini player
+            if self.ov.shown:
+                self.ov.lift()      # tombol putar/jeda tetap di atas mini player
 
     def hide(self):
         """Sembunyikan (ikon disembunyikan / aplikasi dibuka): video dijeda."""
@@ -375,11 +380,16 @@ class MiniPlayer(tk.Toplevel):
                 self.surface.place(relx=0, rely=0, relwidth=1, relheight=1)
                 self.surface.update_idletasks()
                 self.engine = LV._MpvEngine(self.surface.winfo_id())
-                for name, value in (("focus-on-open", "no"),):
-                    try:        # jendela video tidak boleh merebut fokus saat video dibuka
+                # jendela video tidak boleh merebut fokus (Blender) saat video dibuka: mpv baru
+                # memakai "focus-on=never", mpv lama "focus-on-open=no"
+                for name, value in (("focus-on", "never"), ("focus-on-open", "no")):
+                    try:
                         self.engine.mp.command("set", name, value)
-                    except Exception as exc:
-                        C.log(f"Mini player: mpv {name} tidak bisa diatur: {exc!r}")
+                        break
+                    except Exception:
+                        continue
+                else:
+                    C.log("Mini player: mpv focus-on tidak bisa diatur")
             except Exception as exc:
                 C.log(f"Mini player: mpv gagal dibuat, pakai OpenCV tanpa suara: {exc!r}")
                 self.surface.place_forget()

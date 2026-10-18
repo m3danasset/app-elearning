@@ -9,9 +9,10 @@ Fokus = bingkai biru (#a8c7fa); tombol "Close" berbingkai biru di kiri bawah (se
 
 Kartu = profil Chrome MILIK MURID (web_launcher.chrome_profiles, maks. WEB_MAX_PROFILES):
   - klik kartu / Enter = buka Chrome biasa dengan profil itu (web_launcher.open_browser);
+    url (mis. Gemini dari flyout, murid belum punya profil) dibuka sebagai tab setelahnya;
   - titik tiga (atau Delete) = hapus profil, dengan konfirmasi gaya dialog Chrome di panel;
   - kartu "Add" putus-putus (seperti Chrome) = profil baru + halaman login Google.
-Esc = tutup (atau batal di dialog hapus).
+Esc = tutup (atau batal di dialog hapus). Batas browsing habis -> popup tidak dibuka (pesan).
 """
 
 import os
@@ -51,9 +52,12 @@ GLOWS = ((-0.04, 0.42, 0.30, (40, 120, 70), 0.55),       # hijau kiri
 _cache = {}
 
 
-def open_chrome_profiles(widget, student):
-    return open_overlay(ChromeProfiles, widget.winfo_toplevel(), {"widget": widget,
-                                                                  "student": student})
+def open_chrome_profiles(widget, student, url=None):
+    """Popup profil Chrome; None kalau tidak dibuka (batas browsing habis / diblokir guru)."""
+    if not student or W._browse_blocked(widget.winfo_toplevel(), student["id"]):
+        return None
+    return open_overlay(ChromeProfiles, widget.winfo_toplevel(),
+                        {"widget": widget, "student": student, "url": url})
 
 
 def _background(w, h):
@@ -222,6 +226,7 @@ class ChromeProfiles(OverlayPanel):
     def _build(self, top, opts):
         self.widget = opts["widget"]
         self.student = opts["student"]
+        self.url = opts.get("url")
         fam = C.FONT
         self.f = {"h": tkfont.Font(family=fam, size=17),
                   "sub": tkfont.Font(family=fam, size=11),
@@ -279,7 +284,7 @@ class ChromeProfiles(OverlayPanel):
             cv.create_image(bx + 26, by + bh / 2, image=ic, tags="close")
         cv.create_text(bx + 44, by + bh / 2, text="Close", anchor="w", font=self.f["btn"],
                        fill=BLUE, tags="close")
-        st = W.status_text(self.student.get("id"), "pinterest") if self.student else ""
+        st = "No limit" if W.unlimited(self.student) else             W.status_text(self.student.get("id"), "pinterest")
         cv.create_text(W_ - 36, by + bh / 2, anchor="e", font=self.f["sub"], fill=SUB,
                        text=f"Browsing  ·  {st}" if st else "Browsing")
         cv.bind("<Motion>", self._motion)
@@ -390,7 +395,7 @@ class ChromeProfiles(OverlayPanel):
         x0, y0, x1, y1 = self.cards[i]["rect"]
         return x1 - 30 <= x < x1 and y0 <= y < y0 + 34
 
-    def _on_close(self, x, y):
+    def _in_close_btn(self, x, y):
         bx0, by0, bx1, by1 = self._btn
         return bx0 <= x < bx1 and by0 <= y < by1
 
@@ -408,7 +413,7 @@ class ChromeProfiles(OverlayPanel):
         if self.modal is not None:
             self._modal_motion(e)
             return
-        if self._on_close(e.x, e.y):
+        if self._in_close_btn(e.x, e.y):
             self._set_hover(None, None, cursor=True)
             return
         i = self._index_at(e.x, e.y)
@@ -438,7 +443,7 @@ class ChromeProfiles(OverlayPanel):
         if self.modal is not None:
             self._modal_click(e)
             return
-        if self._on_close(e.x, e.y):
+        if self._in_close_btn(e.x, e.y):
             self.close()
             return
         i = self._index_at(e.x, e.y)
@@ -468,9 +473,9 @@ class ChromeProfiles(OverlayPanel):
         widget, student = self.widget, self.student
         self.close()
         if c["kind"] == "add":
-            W.add_profile(widget, student)
+            W.add_profile(widget, student, then_url=self.url)
         else:
-            W.open_browser(widget, student, c["dir"])
+            W.open_browser(widget, student, c["dir"], url=self.url)
 
     # --- dialog hapus (gaya dialog Chrome, di dalam panel) -------------------------------
     def _ask_delete(self, i):

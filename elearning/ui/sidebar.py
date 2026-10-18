@@ -82,13 +82,15 @@ class _Tip:
             x = w.winfo_rootx() + w.winfo_width() + 8
             y = w.winfo_rooty() + w.winfo_height() // 2
             win = self.win = tk.Toplevel(w)
+            win.withdraw()
             win.overrideredirect(True)
-            win.configure(bg=C.BORDER)
+            win.attributes("-topmost", True)    # sebelum posisi: urutan jendela berubah
+            win.configure(bg=C.BORDER)          # setelah geometry = posisi dibatalkan Tk
             tk.Label(win, text=self.text, bg="#141413", fg=C.TEXT, font=_font(9),
                      padx=9, pady=4).pack(padx=1, pady=1)
             win.update_idletasks()
             win.geometry(f"+{x}+{y - win.winfo_reqheight() // 2}")
-            win.attributes("-topmost", True)
+            win.deiconify()
         except Exception:
             self.win = None
 
@@ -1567,8 +1569,9 @@ def blender_footer(sb):
         _blender_cache["blender"] = blender_icon.get_photo(FOOT_ICON)
     student = getattr(sb.winfo_toplevel(), "_student", None)
     # baris "Chrome" (logo Chrome asli dari PC) DI ATAS Blender, semua murid (bukan trial):
-    # klik = popup profil Chrome milik murid; kanan = cincin batas browsing. Murid AI: kursor
-    # di atas baris = flyout Gemini + Flow (jendela situs, kanan = sisa jatah).
+    # klik = popup profil Chrome milik murid (batas habis = pesan, popup tidak dibuka); kanan =
+    # cincin batas browsing (murid AI tanpa batas = tanpa cincin). Murid AI: kursor di atas
+    # baris = flyout Gemini + Flow, dibuka sebagai TAB di Chrome biasa murid.
     sites = web_launcher.sites_for(student)
     ai_sites = [s for s in sites if s["ai"]]
     for s in sites:

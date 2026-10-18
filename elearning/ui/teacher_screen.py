@@ -641,7 +641,8 @@ class TeacherScreen(SidebarLayout):
             self.pin_btn.pack_forget()
             return
         lim = st.get("pinterest_limit")
-        text = ("Chrome: bawaan" if lim is None else "Chrome: diblokir" if lim == 0
+        text = ("Chrome: tanpa batas (AI)" if W.is_ai_student(st) else
+                "Chrome: bawaan" if lim is None else "Chrome: diblokir" if lim == 0
                 else "Chrome: tanpa batas" if lim < 0 else f"Chrome: {lim} mnt")
         self.pin_btn.config(text=text)
         if not self.pin_btn.winfo_ismapped():
@@ -654,6 +655,10 @@ class TeacherScreen(SidebarLayout):
         sid = self.current_id
         st = lookup_student(sid) if sid else None
         if st is None:
+            return
+        if W.is_ai_student(st):            # murid kursus AI: browsing tidak dibatasi
+            W._message(self.winfo_toplevel(), "Batas Chrome",
+                       f"{st['name']} ikut kursus AI: browsing Chrome tidak dibatasi.")
             return
         used = int(W.used_secs(sid, "pinterest") // 60)   # jendela waktu sekarang
 

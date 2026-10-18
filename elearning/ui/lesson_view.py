@@ -2,13 +2,14 @@
 
 Dua mesin pemutar:
   - mpv (libmpv, lihat mpv_support.py): video tampil DI DALAM jendela aplikasi, ada SUARA,
-    pengatur volume, dan pilihan SUBTITLE (tombol CC). Dipakai kalau python-mpv dan
+    pengatur volume, dan bahasa SUBTITLE (tombol CC: klik = IND <-> ENG). Dipakai kalau python-mpv dan
     libmpv-2.dll tersedia.
   - OpenCV (cadangan): tanpa suara dan tanpa subtitle. Dipakai kalau mpv tidak tersedia,
     supaya aplikasi tetap jalan; alasannya tampil di atas pemutar dan dicatat di app.log.
 
 Kontrol: klik video / tombol putar = putar-jeda, klik/geser garis = pindah posisi,
-ikon speaker = bisukan, geser garis kecil = volume, CC = pilih subtitle.
+ikon speaker = bisukan, geser garis kecil = volume, CC = ganti bahasa subtitle (IND / ENG,
+tanpa submenu, subtitle selalu menyala kalau videonya punya).
 Layar video SELALU 16:9 dan terisi penuh (tanpa bar hitam kiri-kanan; video yang rasionya
 berbeda dipotong tipis di tepinya). Pilihan pelajaran ada di sidebar (course_screen.py);
 di bawah pemutar hanya ada tombol Sebelumnya / Selanjutnya.
@@ -52,7 +53,8 @@ except Exception as exc:   # opencv / pillow belum terpasang
     IMPORT_ERROR = repr(exc)
 
 MAX_FPS = 30
-SUB_LANGS = ("Indonesia", "English")   # pilihan menu CC (urutan tampil)
+SUB_LANGS = ("Indonesia", "English")   # bahasa subtitle (urutan siklus tombol CC)
+SUB_SHORT = {"Indonesia": "IND", "English": "ENG"}   # teks di tombol CC
 BAR_H = 48      # tinggi bar kontrol
 FOOT_H = 64     # tinggi baris tombol Sebelumnya / Selanjutnya
 FS_FADE_OUT_MS = 60     # animasi: layar meredup sebelum berganti layar penuh (0 = mati)
@@ -64,7 +66,8 @@ OV_IDLE = 2.2     # detik kursor diam saat video diputar -> tombol disembunyikan
 
 # Pilihan murid diingat selama aplikasi terbuka (tidak reset saat pindah pelajaran)
 _PREF = {"volume": 80, "mute": False, "sub": None, "speed": 1.0}
-SPEEDS = (1.0, 0.75, 0.5)   # tombol kecepatan: klik = berikutnya (tanpa submenu)   # sub: None/"off" = mati, atau nama label
+SPEEDS = (1.0, 0.75, 0.5)   # tombol kecepatan: klik = berikutnya (tanpa submenu)
+# _PREF["sub"]: None = belum memilih, atau "Indonesia" / "English" (subtitle selalu menyala)
 
 # Subtitle "naik" (on/off): supaya timeline Blender di video tidak tertutup subtitle.
 # Disimpan di data\\subtitle.json, berlaku untuk semua video di PC ini.
@@ -300,6 +303,9 @@ class _CvEngine:
     def sub_active(self):
         return False
 
+    def sub_label(self):
+        return None
+
     def set_sub(self, track_id, label=None):
         pass
 
@@ -342,6 +348,7 @@ class _MpvEngine:
         self.key_request = None         # "toggle" (F / F11) atau "esc", dari papan ketik di atas video
         self._need_subs = False
         self._subs = []
+        self._sub_opts = []             # [{"id", "label"}] video sekarang (dibaca sekali saat termuat)
         self.set_volume(_PREF["volume"], _PREF["mute"])
 
         @self.mp.event_callback("file-loaded")
@@ -470,17 +477,18 @@ class _MpvEngine:
             except Exception as exc:
                 C.log(f"mpv sub-add {sub['path']!r}: {exc!r}")
         opts = self.sub_options()
+        self._sub_opts = opts
         C.log(f"mpv: subtitle terbaca={[o['label'] for o in opts]}")
+        # Subtitle SELALU menyala (tombol CC hanya mengganti bahasa IND / ENG): bahasa pilihan
+        # murid kalau ada di video ini, kalau tidak Indonesia, lalu yang pertama.
         pref, target = _PREF["sub"], "no"
-        if pref is None and opts:
-            # belum pernah memilih: nyalakan otomatis (utamakan Indonesia, lalu yang pertama)
+        pick = next((o for o in opts if o["label"] == pref), None)
+        if pick is None and opts:
             pick = next((o for o in opts if o["label"] == "Indonesia"), opts[0])
-            target, _PREF["sub"] = pick["id"], pick["label"]
-        elif pref and pref != "off":
-            for opt in opts:
-                if opt["label"] == pref:
-                    target = opt["id"]
-                    break
+            if pref not in SUB_LANGS:           # belum pernah memilih: ini jadi pilihannya
+                _PREF["sub"] = pick["label"]
+        if pick is not None:
+            target = pick["id"]
         try:
             self.mp.sid = target
         except Exception as exc:
@@ -510,12 +518,21 @@ class _MpvEngine:
             return False
         return sid not in (None, False, "no", 0)
 
+    def sub_label(self):
+        """Bahasa subtitle yang sedang tampil ("Indonesia" / "English") atau None."""
+        try:
+            sid = self.mp.sid
+        except Exception:
+            return None
+        return next((o["label"] for o in self._sub_opts if o["id"] == sid), None)
+
     def set_sub(self, track_id, label=None):
         try:
             self.mp.sid = track_id if track_id else "no"
         except Exception as exc:
             C.log(f"mpv set sub: {exc!r}")
-        _PREF["sub"] = label if track_id else "off"
+        if track_id and label:
+            _PREF["sub"] = label
 
     def add_sub_file(self, path):
         label = os.path.splitext(os.path.basename(path))[0]
@@ -549,6 +566,7 @@ class LessonPlayer(tk.Frame):
         self.pos = 0.0
         self.dur = 0.0
         self.sub_on = False
+        self.sub_lang = None      # "Indonesia" / "English" yang sedang tampil (teks tombol CC)
         self._drag = False
         self._btn_hover = False
         self._n = 0
@@ -611,10 +629,16 @@ class LessonPlayer(tk.Frame):
         self.fs.pack(side="right", padx=(2, 12), pady=6)
         self.fs.bind("<Button-1>", lambda e: self.toggle_fullscreen())
 
+        # CC: klik = bahasa subtitle berikutnya (IND <-> ENG), tanpa submenu
         self.cc = tk.Canvas(bar, width=44, height=36, bg=C.CARD, highlightthickness=0,
                             bd=0, cursor="hand2")
         self.cc.pack(side="right", padx=(2, 2), pady=6)
-        self.cc.bind("<Button-1>", lambda e: self._open_sub_menu())
+        self.cc.bind("<Button-1>", lambda e: self._cycle_sub())
+        try:
+            from elearning.ui.sidebar import _Tip
+            _Tip(self.cc, "Subtitles: click to switch Indonesian / English")
+        except Exception:
+            pass
 
         # Kecepatan putar 1.0x -> 0.75x -> 0.5x (klik = berikutnya, tanpa submenu)
         self.spd = tk.Canvas(bar, width=48, height=36, bg=C.CARD, highlightthickness=0,
@@ -943,6 +967,7 @@ class LessonPlayer(tk.Frame):
         self.playing = False
         self.pos = self.dur = 0.0
         self.sub_on = False
+        self.sub_lang = None
         self.screen.itemconfig(self.img_item, image="")
         self.photo = None
         if e is not None:
@@ -1056,27 +1081,19 @@ class LessonPlayer(tk.Frame):
         self._draw_volume()
 
     # --- subtitle -------------------------------------------------------------
-    def _open_sub_menu(self):
+    def _cycle_sub(self):
+        """Tombol CC tanpa submenu: klik = bahasa subtitle berikutnya (IND -> ENG -> IND).
+        Subtitle tidak bisa dimatikan; video dengan satu bahasa saja = tetap bahasa itu."""
         e = self.engine
         if e is None or not e.has_audio or not self.has_video:
             return
-        menu = tk.Menu(self, tearoff=0, bg=C.CARD, fg=C.TEXT, activebackground=self.color,
-                       activeforeground="#ffffff", bd=0, relief="flat",
-                       selectcolor=self.color, font=(C.FONT, 10))
-        opts = e.sub_options()
-        current = next((o["id"] for o in opts if o["selected"]), 0) if e.sub_active() else 0
-        var = tk.IntVar(value=current or 0)
-        menu.add_radiobutton(label="Subtitles: Off", variable=var, value=0,
-                             command=lambda: self._pick_sub(0, "off"))
-        for o in opts:
-            menu.add_radiobutton(label=o["label"], variable=var, value=o["id"],
-                                 command=lambda i=o["id"], l=o["label"]: self._pick_sub(i, l))
+        opts = [o for o in e.sub_options() if o["label"] in SUB_SHORT]
         if not opts:
-            menu.add_command(label="(no subtitles for this video)", state="disabled")
-        try:
-            menu.tk_popup(self.cc.winfo_rootx() - 90, self.cc.winfo_rooty() - 8 - 30 * (len(opts) + 2))
-        finally:
-            menu.grab_release()
+            return
+        labels = [o["label"] for o in opts]
+        cur = e.sub_label() if e.sub_active() else None
+        nxt = opts[(labels.index(cur) + 1) % len(opts)] if cur in labels else opts[0]
+        self._pick_sub(nxt["id"], nxt["label"])
 
     def _toggle_sub_up(self):
         if not (self.has_video and self.engine is not None and self.engine.has_audio):
@@ -1103,6 +1120,7 @@ class LessonPlayer(tk.Frame):
     def _pick_sub(self, track_id, label):
         self.engine.set_sub(track_id, label)
         self.sub_on = bool(track_id)
+        self.sub_lang = label if track_id else None
         self._draw_cc()
         self._draw_up()
 
@@ -1211,16 +1229,18 @@ class LessonPlayer(tk.Frame):
         c.create_text(24, 18, text=text, fill=col, font=(C.FONT, 9, "bold"))
 
     def _draw_cc(self):
+        """Tombol CC = bahasa subtitle yang tampil ("IND" / "ENG", warna kursus); video tanpa
+        subtitle = "CC" redup."""
         c = self.cc
         c.delete("all")
-        enabled = self.has_video
-        col = self.color if (self.sub_on and enabled) else (C.TEXT if enabled else C.LOCKED)
+        short = SUB_SHORT.get(self.sub_lang) if (self.sub_on and self.has_video) else None
+        col = self.color if short else (C.MUTED if self.has_video else C.LOCKED)
         ph = _icon(("pl-cc", col), [(AA.rrect_ring(6, 9, 38, 27, 2.5, 1.0), col)], 44, 36)
         if ph is not None:
             c.create_image(0, 0, image=ph, anchor="nw")
         else:
             c.create_rectangle(6, 9, 38, 27, outline=col, width=2)
-        c.create_text(22, 18, text="CC", fill=col, font=(C.FONT, 9, "bold"))
+        c.create_text(22, 18, text=short or "CC", fill=col, font=(C.FONT, 8, "bold"))
 
     def _draw_seek(self):
         c = self.seekbar
@@ -1380,8 +1400,9 @@ class LessonPlayer(tk.Frame):
                     self.playing = st.playing
                     if e.has_audio:
                         active = e.sub_active()
-                        if active != self.sub_on:
-                            self.sub_on = active
+                        lang = e.sub_label() if active else None
+                        if (active, lang) != (self.sub_on, self.sub_lang):
+                            self.sub_on, self.sub_lang = active, lang
                             self._draw_cc()
                             self._draw_up()
                     if changed:

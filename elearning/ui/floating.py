@@ -174,7 +174,7 @@ class FloatingIcon(tk.Toplevel):
             if b:                            # ikon tidak boleh keluar dari layar / jendela Blender
                 x = max(b[0], min(x, b[2] - TILE))
                 y = max(b[1], min(y, b[3] - TILE))
-            self.geometry(f"+{x}+{y}")
+            self._place(x, y)
             if self.on_dragging is not None:
                 try:
                     self.on_dragging(x, y, False)   # mini player ikut bergeser
@@ -188,15 +188,26 @@ class FloatingIcon(tk.Toplevel):
         else:
             self.on_click()
 
+    def _place(self, x, y):
+        """Pindahkan SEKARANG. Di Windows, "wm geometry" baru diterapkan Tk saat idle; perubahan
+        urutan jendela (-topmost / lift) sebelum itu membuat Tk mengambil lagi posisi lama, jadi
+        dulu ikon kadang tertinggal di posisi lama (mis. Blender di-maximize / digeser)."""
+        x, y = int(x), int(y)
+        if self.winfo_ismapped() and (self.winfo_x(), self.winfo_y()) == (x, y):
+            return
+        self.geometry(f"+{x}+{y}")
+        self.update_idletasks()
+
     def move_to(self, x, y):
         if not self.dragging:
-            self.geometry(f"+{int(x)}+{int(y)}")
+            self._place(x, y)
 
     def show(self):
+        """Tampilkan. Urutan jendela (topmost) hanya diatur saat baru muncul, bukan tiap tick."""
         if self.state() == "withdrawn":
             self.deiconify()
-        self.attributes("-topmost", True)
-        self.lift()
+            self.attributes("-topmost", True)
+            self.lift()
 
     def hide(self):
         if self.state() != "withdrawn":
@@ -386,7 +397,7 @@ class BlenderFloat:
             if m is not None and m._path == st["path"] and not was_playing                     and abs((m.pos or 0) - st["pos"]) < 1.0:
                 return                        # tidak berubah: mini player dibiarkan
             was_open = m is not None and not m.closed
-            x, y = self.icon.winfo_x(), self.icon.winfo_y()
+            x, y = self._position(info)       # ikon masih tersembunyi: winfo_x/y bisa basi
             self._open_mini(info, x, y)       # mini player baru dari posisi video aplikasi
             if was_open and self.mini is not None:
                 self.mini.reopen()
@@ -507,8 +518,7 @@ class BlenderFloat:
                                    on_drag=self._mini_drag, on_drag_end=self._mini_drag_end,
                                    get_anchor=self._icon_anchor,
                                    on_fullscreen=self._mini_fullscreen)
-            bounds = (info["x"], info["y"], info["x"] + info["w"], info["y"] + info["h"])
-            self.mini.place_beside(x, y, TILE, bounds)
+            self.mini.place_beside(x, y, TILE, self._bounds(info))
             # Dimuat dalam keadaan TERSEMBUNYI (dulu open() menampilkan jendela sekejap lalu
             # disembunyikan -> mini player berkedip). Klik kanan ikon untuk memunculkan.
             self.mini.closed = True

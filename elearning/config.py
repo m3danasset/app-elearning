@@ -149,11 +149,10 @@ WEB_SITES = (
      "url": "https://flow.google.com/"},
 )
 WEB_AI_GROUPS = ("AI",)
-# Batas waktu per murid PER HARI (menit) supaya tidak doomscrolling; habis -> jendela ditutup,
-# baru bisa dibuka lagi besok. Situs yang tidak ada di sini: tanpa batas.
-PINTEREST_LIMIT_MIN = 10      # Pinterest (diatur juga di jendela Dev > Nilai; 0 = tanpa batas)
+# Batas waktu browsing Chrome per murid (menit) supaya tidak doomscrolling; habis -> jendela
+# Chrome ditutup, jeda WEB_RESET_MIN, lalu jatah penuh lagi. Murid AI: tanpa batas.
+PINTEREST_LIMIT_MIN = 10      # kunci lama "pinterest" (Dev > Nilai; 0 = tanpa batas)
 WEB_RESET_MIN = 10            # jatah habis -> jeda N menit, lalu jatah penuh lagi (Dev)
-WEB_DAILY_LIMIT_MIN = {}      # situs lain, mis. {"gemini": 30}
 CHROME_PATH = ""   # kosong = cari otomatis (Program Files / AppData)
 LESSON_DIR = os.path.join(APP_DIR, "assets", "lessons")
 LOG_PATH = os.path.join(APP_DIR, "app.log")

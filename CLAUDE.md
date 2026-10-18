@@ -170,6 +170,12 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   (lesson_view.SPEEDS, _PREF["speed"], mpv speed; oranye kalau bukan 1x). Berlaku di semua
   pelajaran selama app terbuka; intro selalu 1x; mini player ikut kecepatan ini (load). Pemutar
   cadangan OpenCV: tombol disembunyikan.
+- Tombol CC TANPA submenu: teks tombol = bahasa yang tampil ("IND" / "ENG", warna kursus;
+  lesson_view.SUB_SHORT), klik = bahasa berikutnya (_cycle_sub, urutan SUB_LANGS). Subtitle
+  SELALU menyala kalau videonya punya (tidak ada "Off"); video tanpa subtitle = "CC" redup.
+  Pilihan di _PREF["sub"] ("Indonesia" / "English", bawaan Indonesia) dipakai semua pelajaran +
+  mini player; video yang tidak punya bahasa itu memakai yang ada tanpa mengubah pilihan.
+  mpv: _sub_opts (dibaca sekali saat termuat) + sub_label().
 
 ## Export Excel admin (fitur baru ikut)
 - excel_export.SHEETS + Jadwal (daftar: hari, jam, guru, catatan, warna, murid) & Jadwal Sesi
@@ -355,6 +361,20 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   judul (atas) & bar kontrol (bawah) MENUMPUK di atas video (place + lift, ukuran jendela tetap);
   kursor keluar -> hilang setelah HIDE_MS 700 ms (tidak saat seek diseret). Dicek di _tick 40 ms.
   Xvfb tidak merender jendela ini (topmost); cek lewat place_info.
+- PENTING (Tk di Windows): "wm geometry" baru diterapkan saat idle; perubahan urutan jendela
+  (-topmost / lift) SEBELUM itu membuat Tk mengambil lagi posisi lama. Dulu ikon mengambang &
+  mini player memanggil topmost + lift tiap tick 250 ms -> saat Blender di-maximize / digeser
+  ikon tertinggal di posisi lama dan mini player meloncat-loncat ("kadang tidak di sebelah
+  ikon"). Sekarang: FloatingIcon._place / MiniPlayer._apply_geometry = geometry +
+  update_idletasks (langsung diterapkan); show() hanya mengatur topmost / lift saat baru
+  muncul. Jendela baru apa pun: topmost SEBELUM geometry (tooltip sidebar _Tip dulu kadang di
+  pojok kiri-atas layar). _sync_from_app memakai _position(info) (ikon masih tersembunyi).
+- Uji mode mengambang tanpa Blender: jendela palsu kelas "GHOST_WindowClass" (ctypes
+  RegisterClassW + CreateWindowExW) di luar layar; posisi ikon & mini player dibaca dengan
+  GetWindowRect (bukan winfo) di tiap skenario (Blender digeser / diperkecil / minimize /
+  kembali dari aplikasi / ikon diseret / ukuran mini).
+- Mini player: mpv "focus-on=never" (mpv lama: focus-on-open=no) supaya video tidak merebut
+  fokus keyboard Blender.
 
 ## Jendela web murid: Pinterest (PB / IC / SK), Gemini + Flow (murid AI); bukan trial
 - elearning/web_launcher.py + config.WEB_SITES (key, title, icon, url, allowed, ai). Ikon di
@@ -414,32 +434,39 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   login akun Google ikut tampil). Folder lama %LOCALAPPDATA%\M3DAN\browser\studio tidak
   dipakai lagi (tidak dihapus otomatis).
 - CHROME BIASA (SEMUA murid bukan trial, config.WEB_SITES "pinterest" ai=None): kartu profil
-  membuka web_launcher.open_browser(widget, student, pdir) = Google Chrome BIASA (tab, kolom
-  alamat, SEMUA situs, --profile-directory). SATU proses Chrome per murid untuk Chrome biasa DAN
-  Gemini / Flow (_base_args sama; peluncuran berikutnya diteruskan ke proses yang jalan): membuka
-  Gemini tidak menutup Chrome murid, dan sebaliknya; ganti murid -> ditutup. Tidak ada lagi
-  aturan host sempit untuk situs (WEB_LOGIN_HOSTS / "allowed" dihapus). _watch: jendela baru
-  saat ada situs menunggu = jendela situs (dijadikan milik aplikasi, hwnds / site_hwnd); kalau
-  Chrome biasa terbuka (pdirs) = jendela bebas (bwins, tidak diatur); selain itu = jendela
-  tambahan dari situs (_close_extra). pdirs dikosongkan kalau semua jendela Chrome biasa ditutup.
-  SUPERKIDS (config.WEB_SAFE_PROGRAMS, fitur Dev "safesearch"): --host-resolver-rules
+  membuka web_launcher.open_browser(widget, student, pdir, url=None) = Google Chrome BIASA (tab,
+  kolom alamat, SEMUA situs, --profile-directory). SATU proses Chrome per murid (peluncuran
+  berikutnya diteruskan ke proses yang jalan: profil lain = jendela baru, url = tab baru); ganti
+  murid / logout -> ditutup. Profil terakhir dicatat di m3dan_profiles.json "last".
+- Gemini / Flow (murid AI) = TAB di Chrome biasa (bukan jendela --app lagi; mesin jendela situs,
+  WEB_LOGIN_HOSTS / "allowed" / WEB_DAILY_LIMIT_MIN dihapus): open_web -> profil terakhir
+  (last_profile) + url; belum punya profil -> popup profil dengan url, lalu kartu profil /
+  "Add" (add_profile then_url = continue setelah login Google) membuka situsnya.
+- WAKTU BROWSING (_count_browser, kunci data tetap "pinterest" supaya batas guru / Dev lama
+  berlaku) dihitung selama ada jendela Chrome murid yang tidak di-minimize. MURID AI (punya
+  kursus grup WEB_AI_GROUPS; is_ai_student, dibaca maks. 1x / 5 dtk lewat _own_info): TANPA
+  BATAS (tanpa cincin; popup "Browsing · No limit"; tombol guru "Chrome: tanpa batas (AI)",
+  klik = pesan, bukan dialog). Sisa 2 mnt = peringatan; habis = semua jendela Chrome murid
+  WM_CLOSE (rapi), yang menolak (mis. "Leave site?") dipaksa setelah CLOSE_GRACE_S 5 dtk.
+  Batas habis / diblokir guru: open_chrome_profiles TIDAK membuka popup (pesan jam reset);
+  open_browser & add_profile juga menolak (_browse_blocked).
+- SUPERKIDS (config.WEB_SAFE_PROGRAMS, fitur Dev "safesearch"): --host-resolver-rules
   _safe_rules() = pencarian aman (config.WEB_SAFE_MAP: www.google.com -> forcesafesearch.google.com,
   YouTube restrictmoderate, strict.bing, safe.duckduckgo; google.com tanpa subdomain TIDAK
   dipetakan supaya FedCM aman) + --test-type = TANPA bilah "You are using an unsupported
   command-line flag" (diuji lewat UI Automation: tanpa --test-type bilah ada, dengan --test-type
   tidak); situs lain tetap bebas; popup menulis "SafeSearch is on.". Profil sudah terbuka ->
-  jendela Chrome biasa dibawa ke depan (_front). WAKTU BROWSING (_count_browser, waktu sendiri
-  _usage "blast"; kunci data tetap "pinterest" supaya batas guru / Dev lama berlaku) dihitung
-  selama ada jendela Chrome biasa yang tidak di-minimize; sisa 2 mnt = peringatan, habis =
-  jendela Chrome biasa ditutup (WM_CLOSE; Gemini / Flow tetap; tanpa situs = seluruh Chrome).
-  Label: guru "Chrome: 20 mnt", dialog "Batas browsing Chrome", cincin "x% of browsing limit".
-  SafeSearch belum bisa dibuktikan headless (captcha Google); cek manual di PC studio.
-- Murid AI (kursus grup WEB_AI_GROUPS): Gemini / Flow BUKAN baris sendiri lagi, tapi flyout di
+  jendela Chrome dibawa ke depan (_front). Label: guru "Chrome: 20 mnt", dialog "Batas
+  browsing Chrome", cincin "x% of browsing limit". SafeSearch belum bisa dibuktikan headless
+  (captcha Google); cek manual di PC studio.
+- Murid AI (kursus grup WEB_AI_GROUPS): Gemini / Flow BUKAN baris sendiri, tapi flyout di
   samping baris Chrome saat kursor di atasnya (sidebar._Flyout lewat sb.footer(flyout=...)):
   kartu bulat C.CARD + garis C.BORDER (sudut tembus -transparentcolor), baris 40 px disorot
-  pill, logo 32 px + nama + sisa jatah di kanan; muncul 120 ms, hilang 280 ms setelah kursor
-  keluar dari baris + kartu (dicek tiap 100 ms lewat posisi kursor; app mengecil = hilang).
+  pill, logo 32 px + nama; muncul 120 ms, hilang 280 ms setelah kursor keluar dari baris +
+  kartu (dicek tiap 100 ms lewat posisi kursor; app mengecil = hilang). Klik = tab Chrome.
   Sidebar dilipat: ikon Chrome tanpa tooltip, flyout = Chrome + Gemini + Flow.
+- Popup profil (ChromeProfiles, subkelas OverlayPanel): JANGAN menamai metode _on_close (itu
+  kait penutupan OverlayPanel); hit-test tombol Close = _in_close_btn.
 - Ikon shortcut sidebar (Chrome, Gemini, Flow, Blender) = sidebar.FOOT_ICON 32 px (= foto murid),
   RGBA transparan (tanpa kotak saat baris disorot); ikon garis Gemini / Flow lewat _glyph_logo
   (kotak 32 px, ikon 20 di tengah) supaya teks semua baris sejajar. Baris 42 px, rail 44x42.
