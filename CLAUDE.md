@@ -356,7 +356,8 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 - Hanya terlihat di aplikasi: jendela Chrome dijadikan milik jendela aplikasi (GWL_HWNDPARENT,
   tanpa taskbar), ditahan di area aplikasi, disembunyikan saat aplikasi mengecil / Blender,
   ditutup saat logout / tutup aplikasi. Pengawas after() 300 ms di thread utama.
-- Batas harian per murid (config.WEB_DAILY_LIMIT_MIN, Pinterest 10 menit): dihitung di _watch
+- Batas harian per murid (Pinterest: config.PINTEREST_LIMIT_MIN = 10, diatur di Dev > Nilai grup
+  "Web murid", 0 = tanpa batas; situs lain: WEB_DAILY_LIMIT_MIN): dihitung di _watch
   hanya saat jendela situs terbuka & terlihat (aplikasi mengecil / Blender = jeda), disimpan di
   data\web_usage.json (reset tiap hari). Habis -> jendela ditutup (WM_CLOSE) + pesan; klik ikon
   lagi -> "time's up, come back tomorrow".

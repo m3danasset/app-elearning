@@ -137,7 +137,8 @@ WEB_SITES = (
 WEB_AI_GROUPS = ("AI",)
 # Batas waktu per murid PER HARI (menit) supaya tidak doomscrolling; habis -> jendela ditutup,
 # baru bisa dibuka lagi besok. Situs yang tidak ada di sini: tanpa batas.
-WEB_DAILY_LIMIT_MIN = {"pinterest": 10}
+PINTEREST_LIMIT_MIN = 10      # Pinterest (diatur juga di jendela Dev > Nilai; 0 = tanpa batas)
+WEB_DAILY_LIMIT_MIN = {}      # situs lain, mis. {"gemini": 30}
 CHROME_PATH = ""   # kosong = cari otomatis (Program Files / AppData)
 LESSON_DIR = os.path.join(APP_DIR, "assets", "lessons")
 LOG_PATH = os.path.join(APP_DIR, "app.log")

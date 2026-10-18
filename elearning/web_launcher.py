@@ -291,7 +291,10 @@ _usage = {"data": None, "dirty": 0.0, "last": None}
 
 
 def _limit(key):
-    return (getattr(C, "WEB_DAILY_LIMIT_MIN", {}) or {}).get(key)
+    """Menit per hari, atau None (tanpa batas). Dibaca saat dipakai (nilai Dev langsung berlaku)."""
+    if key == "pinterest":
+        return getattr(C, "PINTEREST_LIMIT_MIN", 10) or None
+    return (getattr(C, "WEB_DAILY_LIMIT_MIN", {}) or {}).get(key) or None
 
 
 def _usage_data():
