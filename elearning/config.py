@@ -134,6 +134,10 @@ WEB_LOGIN_HOSTS = ("accounts.google.com", "*.google.com", "*.gstatic.com", "*.go
 # Admin / dev login SEKALI per PC (Jendela Dev > Settings / Ctrl+K admin); murid tidak pernah
 # melihat password. Kosong = profil per murid (login sendiri-sendiri, seperti dulu).
 WEB_STUDIO_ACCOUNT = "m3dan.asset@gmail.com"
+WEB_STUDIO_NAME = "M3DAN ASSET"          # nama di kartu profil "Teacher" (popup Chrome)
+# Program yang boleh memakai profil "Akun saya" (login Google sendiri). SUPERKIDS (kids) tidak:
+# hanya Pinterest akun guru (studio).
+WEB_OWN_PROFILE_PROGRAMS = ("adult",)
 # Host Google yang boleh dibuka MURID saat akun studio dipakai: hanya yang perlu untuk login /
 # "Continue with Google". Gmail, Drive, myaccount, Google Search (www.google.com) DIBLOK supaya
 # murid tidak bisa membuka isi akun studio. (Setup login admin memakai WEB_LOGIN_HOSTS penuh.)

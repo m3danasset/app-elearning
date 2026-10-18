@@ -1333,14 +1333,40 @@ def blender_footer(sb):
     if "blender" not in _blender_cache:
         _blender_cache["blender"] = blender_icon.get_photo(22)
     student = getattr(sb.winfo_toplevel(), "_student", None)
-    # situs web murid = baris sendiri DI ATAS Blender: Pinterest (PB / IC / SK, logo asli),
-    # Gemini + Flow (murid AI). Kanan: sisa jatah (mis. "8 min left").
+    # situs web murid = baris sendiri DI ATAS Blender. Pinterest -> baris "Chrome" (logo
+    # Chrome asli dari PC) yang membuka popup profil (akun guru / akun saya); Gemini + Flow
+    # (murid AI) tetap baris sendiri. Kanan: sisa jatah (mis. "8 min left").
     for s in web_launcher.sites_for(student):
         st = web_launcher.status_text(student["id"], s["key"]) if student else ""
+        if s["key"] == "pinterest":
+            def pick(sb=sb, student=student):
+                from elearning.ui.chrome_profiles import open_chrome_profiles
+                open_chrome_profiles(sb, student)
+            sb.footer("Chrome", pick, image=_chrome_logo(), icon=s["icon"], right=st or None)
+            continue
         sb.footer(s["title"], lambda k=s["key"]: web_launcher.open_web(sb, student, k),
                   image=_site_logo(s["key"]), icon=s["icon"], right=st or None)
     sb.footer(L("Buka Blender", "Open Blender") + f" {blender_launcher.VERSION}", open_blender_now,
               image=_blender_cache["blender"], icon="play")
+
+
+def _chrome_logo(size=22):
+    """Logo Chrome asli dari instalasi Chrome di PC (di atas warna sidebar) atau None."""
+    k = ("chrome", size)
+    if k not in _blender_cache:
+        ph = None
+        try:
+            from PIL import Image, ImageTk
+            from elearning import web_launcher
+            img = web_launcher.chrome_logo(size)
+            if img is not None:
+                bg = Image.new("RGBA", img.size, I._rgb(C.SIDEBAR) + (255,))
+                bg.alpha_composite(img)
+                ph = ImageTk.PhotoImage(bg.convert("RGB"))
+        except Exception as exc:
+            C.log(f"Logo Chrome tidak bisa dibuat: {exc!r}")
+        _blender_cache[k] = ph
+    return _blender_cache[k]
 
 
 def _site_logo(key, size=22):

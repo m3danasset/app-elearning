@@ -403,3 +403,11 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   lewat judul = _close_search). Peluncuran murid pertama menutup sisa Chrome profil studio
   (_kill_profile, PowerShell) supaya aturan sempit berlaku. Kosongkan WEB_STUDIO_ACCOUNT =
   kembali ke profil per murid.
+- POPUP PROFIL CHROME (ganti ide): baris Pinterest di sidebar murid jadi baris "Chrome" dengan logo
+  Chrome ASLI dari PC (web_launcher.chrome_logo: <Chrome>\<versi>\VisualElements\Logo.png).
+  Klik -> ui/chrome_profiles.py (overlay "Who's using Chrome?", English): kartu Teacher =
+  Pinterest akun guru/studio (profil "studio", host Google sempit) untuk SEMUA murid; kartu
+  Personal = akun Google murid sendiri (profil per ID, host normal) hanya program
+  config.WEB_OWN_PROFILE_PROGRAMS ("adult"); SUPERKIDS: kartu Personal terkunci "Adults only".
+  web_launcher.open_web(..., profile): satu proses Chrome sekaligus, ganti profil / murid ->
+  yang lama ditutup. Gemini / Flow (murid AI) tetap baris sendiri, profil murid sendiri.

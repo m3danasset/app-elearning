@@ -57,15 +57,53 @@ def chrome_path():
 
 
 def shared():
-    """True: semua murid memakai akun Google studio (satu profil "studio" per PC)."""
+    """True: akun Google studio tersedia (profil "studio" = Pinterest akun guru)."""
     return bool(getattr(C, "WEB_STUDIO_ACCOUNT", ""))
 
 
-def profile_dir(student_id):
+def profiles_for(student):
+    """Profil Chrome untuk Pinterest: [(kunci, boleh?)]. "studio" = akun guru (semua murid);
+    "own" = akun Google murid sendiri (hanya program WEB_OWN_PROFILE_PROGRAMS, bukan SUPERKIDS)."""
+    out = []
+    if shared():
+        out.append(("studio", True))
+    own_ok = bool(student) and student.get("program") in getattr(
+        C, "WEB_OWN_PROFILE_PROGRAMS", ("adult",))
+    out.append(("own", own_ok))
+    return out
+
+
+def profile_dir(student_id, profile="own"):
     base = os.environ.get("LOCALAPPDATA") or os.path.join(C.APP_DIR, "data")
-    safe = "studio" if shared() else \
+    safe = "studio" if profile == "studio" else \
         ("".join(ch for ch in str(student_id) if ch.isalnum()) or "murid")
     return os.path.join(base, "M3DAN", "browser", safe)
+
+
+def chrome_logo(size):
+    """Logo Chrome ASLI dari instalasi Chrome di PC ini (VisualElements\\Logo.png), dipotong
+    pas & diperkecil halus (PIL RGBA) atau None."""
+    exe = chrome_path()
+    if not exe:
+        return None
+    try:
+        from PIL import Image
+        root = os.path.dirname(exe)
+        cands = [os.path.join(root, "VisualElements", "Logo.png")]
+        for d in sorted(os.listdir(root), reverse=True):        # folder versi, mis. 155.0...
+            cands.append(os.path.join(root, d, "VisualElements", "Logo.png"))
+        path = next((p for p in cands if os.path.isfile(p)), None)
+        if path is None:
+            return None
+        with Image.open(path) as im:
+            img = im.convert("RGBA")
+        box = img.getchannel("A").getbbox()
+        if box:
+            img = img.crop(box)
+        return img.resize((size, size), Image.LANCZOS)
+    except Exception as exc:
+        C.log(f"Web: logo Chrome tidak terbaca: {exc!r}")
+        return None
 
 
 def _prepare_profile(folder):
@@ -91,11 +129,13 @@ def _prepare_profile(folder):
         C.log(f"Web: profil Chrome tidak bisa diatur: {exc!r}")
 
 
-def _rules(sites, setup=False):
-    """Aturan host Chrome: selain host di sini gagal dimuat. Murid + akun studio: host Google
-    dipersempit (tanpa Gmail / Drive / myaccount / Search); setup login admin: penuh."""
-    hosts = list(C.WEB_LOGIN_HOSTS if (setup or not shared())
-                 else getattr(C, "WEB_STUDENT_GOOGLE_HOSTS", C.WEB_LOGIN_HOSTS))
+def _rules(sites, setup=False, profile="own"):
+    """Aturan host Chrome: selain host di sini gagal dimuat. Profil studio (akun guru) untuk
+    murid: host Google dipersempit (tanpa Gmail / Drive / myaccount / Search); profil murid
+    sendiri & setup login admin: penuh."""
+    narrow = profile == "studio" and not setup
+    hosts = list(getattr(C, "WEB_STUDENT_GOOGLE_HOSTS", C.WEB_LOGIN_HOSTS) if narrow
+                 else C.WEB_LOGIN_HOSTS)
     for s in sites:
         hosts += [h for h in s["allowed"] if h not in hosts]
     return "MAP * ~NOTFOUND, " + ", ".join(f"EXCLUDE {h}" for h in hosts)
@@ -119,15 +159,22 @@ def running():
     return p is not None and p.poll() is None
 
 
-def open_web(widget, student, key):
-    """Ikon situs diklik: buka jendelanya, atau tampilkan lagi kalau sudah terbuka."""
+def open_web(widget, student, key, profile="own"):
+    """Situs dibuka: jendelanya, atau tampilkan lagi kalau sudah terbuka. profile: "studio"
+    (Pinterest akun guru) / "own" (akun Google murid). Satu proses Chrome sekaligus: ganti
+    murid / ganti profil -> yang lama ditutup."""
     from elearning.i18n import L
     app = widget.winfo_toplevel()
     sites = sites_for(student)
     site = next((s for s in sites if s["key"] == key), None)
     if site is None:
         return False
-    if running() and _state["sid"] != student["id"]:
+    ok = dict(profiles_for(student))
+    if profile == "studio" and not ok.get("studio"):
+        profile = "own"
+    if profile == "own" and not ok.get("own") and key == "pinterest":
+        return False                         # SUPERKIDS: hanya akun guru
+    if running() and (_state["sid"] != student["id"] or _state.get("profile") != profile):
         close()
     left = remaining(student["id"], key)
     if left is not None and left <= 0:
@@ -149,7 +196,7 @@ def open_web(widget, student, key):
         _message(app, site["title"], L("Google Chrome belum terpasang di PC ini. Hubungi guru / admin.",
                                        "Google Chrome is not installed on this PC. Please ask your teacher."))
         return False
-    folder = profile_dir(student["id"])
+    folder = profile_dir(student["id"], profile)
     x, y, w, h = _area(app)
     ww, hh = max(420, int(w * 0.42)), max(360, h - 24)
     n = len(_state["site_hwnd"]) if running() else 0          # jendela berikutnya sedikit bergeser
@@ -158,10 +205,10 @@ def open_web(widget, student, key):
             f"--window-position={x + w - ww - 12 - 24 * n},{y + 12 + 24 * n}"]
     first = not running()
     if first:   # proses browser baru: aturan situs & opsi hanya berlaku di peluncuran pertama
-        if shared():          # profil studio: tutup sisa Chrome lain (mis. setup admin)
+        if profile == "studio":   # profil studio: tutup sisa Chrome lain (mis. setup admin)
             _kill_profile(folder)
         _prepare_profile(folder)
-        args += [f"--host-resolver-rules={_rules(sites)}", "--no-first-run",
+        args += [f"--host-resolver-rules={_rules(sites, profile=profile)}", "--no-first-run",
                  "--no-default-browser-check", "--disable-extensions",
                  "--disable-features=Translate,MediaRouter", "--disable-background-networking"]
         if C.lite():   # mode ringan (iGPU + Blender): Chrome tidak memakai GPU
@@ -176,7 +223,7 @@ def open_web(widget, student, key):
         return False
     if first:      # peluncuran berikutnya diteruskan ke proses ini lalu langsung selesai
         _state.update(proc=proc, sid=student["id"], app=app, hwnds=set(), hidden=False,
-                      site_hwnd={}, pending=[])
+                      site_hwnd={}, pending=[], profile=profile, extra={})
     _state["pending"].append((key, time.monotonic()))
     C.log(f"Web: {site['title']} dibuka untuk {student['id']}")
     if _state["job"] is None:
@@ -257,8 +304,8 @@ def studio_login(widget):
                                        "Google Chrome is not installed on this PC."))
         return False
     close()                                   # jendela murid (profil sama) ditutup dulu
-    _kill_profile(profile_dir(""))
-    folder = profile_dir("")
+    folder = profile_dir("", "studio")
+    _kill_profile(folder)
     _prepare_profile(folder)
     acc = getattr(C, "WEB_STUDIO_ACCOUNT", "")
     url = ("https://accounts.google.com/ServiceLogin?continue="
@@ -316,7 +363,7 @@ def close():
         else:
             p.terminate()
     _state.update(proc=None, sid=None, app=None, job=None, hwnds=set(), hidden=False,
-                  site_hwnd={}, pending=[], extra={})
+                  site_hwnd={}, pending=[], extra={}, profile=None)
 
 
 # --- Win32: jendela milik aplikasi -------------------------------------------------------
@@ -596,7 +643,7 @@ def _watch():
                         else:                   # dibuka dari dalam situs: diperiksa dulu
                             _state.setdefault("extra", {})[hwnd] = now
                 _close_extra(now)
-                if shared():
+                if _state.get("profile") == "studio":
                     _close_search()
             if visible == _state["hidden"]:      # aplikasi mengecil / kembali
                 _show(visible)
