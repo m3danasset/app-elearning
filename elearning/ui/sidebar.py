@@ -13,6 +13,8 @@ terbuka. Isi menu dan daftar diberikan oleh layar lewat fungsi populate(sb), yan
 memanggil sb.nav(), sb.section(), sb.item(), sb.note(), sb.footer().
 """
 
+import sys
+import time
 import tkinter as tk
 import tkinter.font as tkfont
 
@@ -103,6 +105,166 @@ class _Tip:
             except Exception:
                 pass
             self.win = None
+
+
+class _Flyout:
+    """Pilihan tambahan di SAMPING baris sidebar saat kursor di atasnya (mis. Gemini + Flow di
+    baris Chrome murid AI). Kartu bersudut bulat (sudut tembus warna kunci di Windows), baris
+    disorot seperti menu claude.ai. items() -> [(teks, gambar 32 px, perintah, teks kanan)].
+    Muncul setelah SHOW_MS; hilang HIDE_MS setelah kursor keluar dari baris + kartu (dicek
+    berkala lewat posisi kursor, jadi tidak pernah tertinggal terbuka)."""
+
+    SHOW_MS, HIDE_MS, POLL_MS, ROW, PAD = 120, 280, 100, 40, 6
+    KEY = "#0d0c0c"
+
+    def __init__(self, widget, items):
+        self.widget, self.items = widget, items
+        self.win = self.cv = None
+        self.job = None
+        self.rows = []
+        self.hot = None
+        self.seen = 0.0
+        widget.bind("<Enter>", lambda e: self._schedule(), add="+")
+        widget.bind("<Button-1>", lambda e: self.hide(), add="+")
+        widget.bind("<Destroy>", lambda e: self.hide(), add="+")
+
+    def _cancel(self):
+        if self.job is not None:
+            try:
+                self.widget.after_cancel(self.job)
+            except Exception:
+                pass
+            self.job = None
+
+    def _schedule(self):
+        if self.win is not None:
+            self.seen = time.monotonic()
+            return
+        self._cancel()
+        self.job = self.widget.after(self.SHOW_MS, self._show)
+
+    @staticmethod
+    def _inside(w, px, py, right=0):
+        x, y = w.winfo_rootx(), w.winfo_rooty()
+        return x <= px < x + w.winfo_width() + right and y <= py < y + w.winfo_height()
+
+    def _show(self):
+        self.job = None
+        w = self.widget
+        try:
+            if not w.winfo_viewable() or not self._inside(w, *w.winfo_pointerxy()):
+                return
+            items = list(self.items() or ())
+        except Exception:
+            return
+        if not items:
+            return
+        f, small = tkfont.Font(font=_font(10)), tkfont.Font(font=_font(9))
+        PAD, ROW = self.PAD, self.ROW
+        need = max(f.measure(t) + (small.measure(r) + 18 if r else 0) for t, _i, _c, r in items)
+        W = max(196, PAD * 2 + 8 + 32 + 10 + need + 14)
+        H = PAD * 2 + ROW * len(items)
+        win = tk.Toplevel(w)
+        win.withdraw()
+        win.overrideredirect(True)
+        key = self.KEY
+        try:
+            win.attributes("-topmost", True)
+            if sys.platform == "win32":
+                win.attributes("-transparentcolor", key)
+            else:
+                key = C.SIDEBAR
+        except Exception:
+            key = C.SIDEBAR
+        cv = tk.Canvas(win, width=W, height=H, bg=key, highlightthickness=0, bd=0,
+                       cursor="hand2")
+        cv.pack()
+        cv._imgs = []
+        bgimg = I.pill(W, H, C.CARD, key, r=12, border=C.BORDER)
+        if bgimg is not None:
+            cv._imgs.append(bgimg)
+            cv.create_image(0, 0, image=bgimg, anchor="nw")
+        self.rows = []
+        for i, (text, img, cmd, right) in enumerate(items):
+            y0 = PAD + i * ROW
+            self.rows.append((y0, cmd))
+            cy = y0 + ROW / 2
+            if img is not None:
+                cv.create_image(PAD + 8 + 16, cy, image=img, tags="fg")
+            cv.create_text(PAD + 8 + 32 + 10, cy, anchor="w", text=text, font=f,
+                           fill=C.TEXT, tags="fg")
+            if right:
+                cv.create_text(W - PAD - 12, cy, anchor="e", text=right, font=small,
+                               fill=C.MUTED, tags="fg")
+        cv.bind("<Motion>", lambda e: self._hover(self._row_at(e.y)))
+        cv.bind("<Leave>", lambda e: self._hover(None))
+        cv.bind("<Button-1>", lambda e: self._click(self._row_at(e.y)))
+        # baris pertama sejajar dengan baris sidebar; tetap di dalam layar
+        x = w.winfo_rootx() + w.winfo_width() + 6
+        y = int(w.winfo_rooty() + w.winfo_height() / 2 - PAD - ROW / 2)
+        y = max(4, min(y, w.winfo_screenheight() - H - 8))
+        win.geometry(f"{W}x{H}+{x}+{y}")
+        self.win, self.cv, self.W, self.hot = win, cv, W, None
+        self.seen = time.monotonic()
+        win.deiconify()
+        self.job = w.after(self.POLL_MS, self._poll)
+
+    def _row_at(self, y):
+        for i, (y0, _cmd) in enumerate(self.rows):
+            if y0 <= y < y0 + self.ROW:
+                return i
+        return None
+
+    def _hover(self, i):
+        if i == self.hot or self.cv is None:
+            return
+        self.hot = i
+        self.cv.delete("hot")
+        if i is not None:
+            ph = I.pill(self.W - 2 * self.PAD, self.ROW, C.CARD_HOVER, C.CARD, r=8)
+            if ph is not None:
+                self.cv._imgs.append(ph)
+                self.cv.create_image(self.PAD, self.rows[i][0], image=ph, anchor="nw",
+                                     tags="hot")
+                self.cv.tag_raise("fg")
+
+    def _click(self, i):
+        if i is None:
+            return
+        cmd = self.rows[i][1]
+        self.hide()
+        cmd()
+
+    def _poll(self):
+        self.job = None
+        if self.win is None:
+            return
+        try:
+            px, py = self.widget.winfo_pointerxy()
+            inside = (self._inside(self.widget, px, py, right=8)      # + celah ke kartu
+                      or self._inside(self.win, px, py))
+            gone = self.widget.winfo_toplevel().state() in ("iconic", "withdrawn")
+        except Exception:
+            self.hide()
+            return
+        now = time.monotonic()
+        if inside and not gone:
+            self.seen = now
+        elif gone or now - self.seen > self.HIDE_MS / 1000:
+            self.hide()
+            return
+        self.job = self.widget.after(self.POLL_MS, self._poll)
+
+    def hide(self):
+        self._cancel()
+        if self.win is not None:
+            try:
+                self.win.destroy()
+            except Exception:
+                pass
+        self.win = self.cv = None
+        self.rows = []
+        self.hot = None
 
 
 # --- satu baris: menu / kursus / pelajaran / murid ----------------------------------
@@ -1183,12 +1345,13 @@ class AppSidebar(tk.Frame):
         return self._spec("note", text=text, dock=dock)
 
     def footer(self, text, command, image=None, icon=None, extra=None, right=None,
-               right_ring=None):
+               right_ring=None, flyout=None):
         """Item di dasar sidebar, tepat di atas profil (mis. Buka Blender).
         extra = [(ikon, perintah, tip), ...]: tombol ikon kecil di sebelah kanannya.
-        right = teks kecil di kanan (mis. sisa menit Pinterest)."""
+        right = teks kecil di kanan (mis. sisa menit Pinterest).
+        flyout() -> [(teks, gambar, perintah, teks kanan)]: pilihan di samping saat disorot."""
         return self._spec("footer", text=text, command=command, image=image, icon=icon,
-                          extra=extra, right=right, right_ring=right_ring)
+                          extra=extra, right=right, right_ring=right_ring, flyout=flyout)
 
     def _build_nav(self, text, icon, command, active=False, primary=False, right=None):
         if self.collapsed:
@@ -1248,11 +1411,15 @@ class AppSidebar(tk.Frame):
         return lbl
 
     def _build_footer(self, text, command, image=None, icon=None, extra=None, right=None,
-                      right_ring=None):
+                      right_ring=None, flyout=None):
         if self.collapsed:
-            b = IconButton(self._footer_box, icon or "play", command, tip=text, image=image,
+            # dengan flyout: tanpa tooltip; baris ini sendiri jadi pilihan pertama di flyout
+            b = IconButton(self._footer_box, icon or "play", command,
+                           tip=None if flyout else text, image=image,
                            size=(44, 42) if image is not None else (40, 36))
             b.pack(pady=1)
+            if flyout:
+                b._flyout = _Flyout(b, lambda: [(text, image, command, "")] + list(flyout()))
             for ic, cmd, tip in extra or ():
                 IconButton(self._footer_box, ic, cmd, tip=tip).pack(pady=1)
             return b
@@ -1265,6 +1432,8 @@ class AppSidebar(tk.Frame):
         r = Row(box, text, command, image=image, icon=None if image else icon, right=right,
                 right_ring=right_ring, height=42 if image is not None else ROW_H)
         r.pack(fill="x", side="left" if extra else "top", expand=bool(extra))
+        if flyout:
+            r._flyout = _Flyout(r, flyout)
         return r
 
     # --- menu profil --------------------------------------------------------------------
@@ -1397,22 +1566,29 @@ def blender_footer(sb):
     if "blender" not in _blender_cache:
         _blender_cache["blender"] = blender_icon.get_photo(FOOT_ICON)
     student = getattr(sb.winfo_toplevel(), "_student", None)
-    # situs web murid = baris sendiri DI ATAS Blender. Pinterest -> baris "Chrome" (logo
-    # Chrome asli dari PC) yang membuka popup profil Chrome milik murid; Gemini + Flow
-    # (murid AI) tetap baris sendiri. Kanan: sisa jatah (mis. "8 min left").
-    for s in web_launcher.sites_for(student):
-        st = web_launcher.status_text(student["id"], s["key"]) if student else ""
-        if s["key"] == "pinterest":
-            def pick(sb=sb, student=student):
-                from elearning.ui.chrome_profiles import open_chrome_profiles
-                open_chrome_profiles(sb, student)
-            sb.footer("Chrome", pick, image=_chrome_logo(), icon=s["icon"],
-                      right_ring=lambda student=student: web_launcher.usage_ring(
-                          student["id"], "pinterest") if student else None)
+    # baris "Chrome" (logo Chrome asli dari PC) DI ATAS Blender, semua murid (bukan trial):
+    # klik = popup profil Chrome milik murid; kanan = cincin batas browsing. Murid AI: kursor
+    # di atas baris = flyout Gemini + Flow (jendela situs, kanan = sisa jatah).
+    sites = web_launcher.sites_for(student)
+    ai_sites = [s for s in sites if s["ai"]]
+    for s in sites:
+        if s["key"] != "pinterest":
             continue
-        sb.footer(s["title"], lambda k=s["key"]: web_launcher.open_web(sb, student, k),
-                  image=_site_logo(s["key"]) or _glyph_logo(s["icon"]), icon=s["icon"],
-                  right=st or None)
+
+        def pick(sb=sb, student=student):
+            from elearning.ui.chrome_profiles import open_chrome_profiles
+            open_chrome_profiles(sb, student)
+
+        def flyout(sb=sb, student=student, ai_sites=ai_sites):
+            return [(x["title"], _site_logo(x["key"]) or _glyph_logo(x["icon"]),
+                     lambda k=x["key"]: web_launcher.open_web(sb, student, k),
+                     web_launcher.status_text(student["id"], x["key"]))
+                    for x in ai_sites]
+
+        sb.footer("Chrome", pick, image=_chrome_logo(), icon=s["icon"],
+                  right_ring=lambda student=student: web_launcher.usage_ring(
+                      student["id"], "pinterest") if student else None,
+                  flyout=flyout if ai_sites else None)
     sb.footer(L("Buka Blender", "Open Blender") + f" {blender_launcher.VERSION}", open_blender_now,
               image=_blender_cache["blender"], icon="play")
 

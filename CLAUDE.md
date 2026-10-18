@@ -411,28 +411,35 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   login akun Google sendiri; akun murid lain tidak terlihat (folder data Chrome per ID).
 - Folder: %LOCALAPPDATA%\M3DAN\browser\<ID> = SATU --user-data-dir per murid, profil di dalamnya
   (Default, Profile 1, ...; daftar urut di m3dan_profiles.json; pertama kali "Default" yang sudah
-  login akun Google ikut tampil). Gemini / Flow (--app, aturan host sempit) memakai profil
-  terakhir (Local State last_used). Satu proses Chrome sekaligus: ganti mode (situs <-> Chrome
-  biasa) / ganti murid -> yang lama ditutup; profil lain murid yang sama = diteruskan ke proses
-  yang jalan (jendela baru, _state pdirs). Folder lama %LOCALAPPDATA%\M3DAN\browser\studio tidak
+  login akun Google ikut tampil). Folder lama %LOCALAPPDATA%\M3DAN\browser\studio tidak
   dipakai lagi (tidak dihapus otomatis).
-- Popup profil Chrome: TANPA latar gelap & tanpa fade (dim dihancurkan, alpha 1 langsung);
-  logo + judul + kartu di tengah panel; bingkai fokus biru hanya setelah tombol panah.
-- Baris "Chrome" di sidebar: cincin pemakaian bulat gaya Claude di kanan (sidebar.Row
-  right_ring -> web_launcher.usage_ring: biru, >= 80 % oranye, habis merah; chart_art.donut
-  18 px), tooltip 2 baris saat kursor di atas cincin ("46% of Pinterest limit" / "6 min left
-  of 10 min", atau "Limit reached" / "Resets in 7 min"); diperbarui tiap 30 dtk.
-- CHROME BIASA: kartu profil membuka web_launcher.open_browser(widget, student, pdir) = Google
-  Chrome BIASA (tab, kolom alamat, SEMUA situs, --profile-directory). SUPERKIDS (config.
-  WEB_SAFE_PROGRAMS, fitur Dev "safesearch"): --host-resolver-rules _safe_rules() = pencarian aman
-  (config.WEB_SAFE_MAP: www.google.com -> forcesafesearch.google.com, YouTube restrictmoderate,
-  strict.bing, safe.duckduckgo; google.com tanpa subdomain TIDAK dipetakan supaya FedCM aman),
-  situs lain tetap bebas; popup menulis "SafeSearch is on.". Sudah terbuka -> jendela dibawa ke
-  depan (_front). _state mode="browser": _watch hanya menghitung WAKTU BROWSING (_count_browser,
-  kunci data tetap "pinterest" supaya batas guru / Dev lama berlaku) selama ada jendela Chrome
-  yang tidak di-minimize; sisa 2 mnt = peringatan, habis = seluruh Chrome ditutup + pesan.
+- CHROME BIASA (SEMUA murid bukan trial, config.WEB_SITES "pinterest" ai=None): kartu profil
+  membuka web_launcher.open_browser(widget, student, pdir) = Google Chrome BIASA (tab, kolom
+  alamat, SEMUA situs, --profile-directory). SATU proses Chrome per murid untuk Chrome biasa DAN
+  Gemini / Flow (_base_args sama; peluncuran berikutnya diteruskan ke proses yang jalan): membuka
+  Gemini tidak menutup Chrome murid, dan sebaliknya; ganti murid -> ditutup. Tidak ada lagi
+  aturan host sempit untuk situs (WEB_LOGIN_HOSTS / "allowed" dihapus). _watch: jendela baru
+  saat ada situs menunggu = jendela situs (dijadikan milik aplikasi, hwnds / site_hwnd); kalau
+  Chrome biasa terbuka (pdirs) = jendela bebas (bwins, tidak diatur); selain itu = jendela
+  tambahan dari situs (_close_extra). pdirs dikosongkan kalau semua jendela Chrome biasa ditutup.
+  SUPERKIDS (config.WEB_SAFE_PROGRAMS, fitur Dev "safesearch"): --host-resolver-rules
+  _safe_rules() = pencarian aman (config.WEB_SAFE_MAP: www.google.com -> forcesafesearch.google.com,
+  YouTube restrictmoderate, strict.bing, safe.duckduckgo; google.com tanpa subdomain TIDAK
+  dipetakan supaya FedCM aman) + --test-type = TANPA bilah "You are using an unsupported
+  command-line flag" (diuji lewat UI Automation: tanpa --test-type bilah ada, dengan --test-type
+  tidak); situs lain tetap bebas; popup menulis "SafeSearch is on.". Profil sudah terbuka ->
+  jendela Chrome biasa dibawa ke depan (_front). WAKTU BROWSING (_count_browser, waktu sendiri
+  _usage "blast"; kunci data tetap "pinterest" supaya batas guru / Dev lama berlaku) dihitung
+  selama ada jendela Chrome biasa yang tidak di-minimize; sisa 2 mnt = peringatan, habis =
+  jendela Chrome biasa ditutup (WM_CLOSE; Gemini / Flow tetap; tanpa situs = seluruh Chrome).
   Label: guru "Chrome: 20 mnt", dialog "Batas browsing Chrome", cincin "x% of browsing limit".
   SafeSearch belum bisa dibuktikan headless (captcha Google); cek manual di PC studio.
+- Murid AI (kursus grup WEB_AI_GROUPS): Gemini / Flow BUKAN baris sendiri lagi, tapi flyout di
+  samping baris Chrome saat kursor di atasnya (sidebar._Flyout lewat sb.footer(flyout=...)):
+  kartu bulat C.CARD + garis C.BORDER (sudut tembus -transparentcolor), baris 40 px disorot
+  pill, logo 32 px + nama + sisa jatah di kanan; muncul 120 ms, hilang 280 ms setelah kursor
+  keluar dari baris + kartu (dicek tiap 100 ms lewat posisi kursor; app mengecil = hilang).
+  Sidebar dilipat: ikon Chrome tanpa tooltip, flyout = Chrome + Gemini + Flow.
 - Ikon shortcut sidebar (Chrome, Gemini, Flow, Blender) = sidebar.FOOT_ICON 32 px (= foto murid),
   RGBA transparan (tanpa kotak saat baris disorot); ikon garis Gemini / Flow lewat _glyph_logo
   (kotak 32 px, ikon 20 di tengah) supaya teks semua baris sejajar. Baris 42 px, rail 44x42.

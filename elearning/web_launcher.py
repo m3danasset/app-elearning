@@ -1,17 +1,18 @@
-"""Jendela web mengambang murid lewat Google Chrome mode aplikasi (config.WEB_SITES):
-Pinterest untuk murid PB / IC / SK, Gemini + Flow untuk murid AI. Bukan trial.
+"""Chrome murid (config.WEB_SITES), bukan trial: Google Chrome BIASA untuk semua murid
+(pemilih profil ui/chrome_profiles.py) + Gemini / Flow untuk murid AI (jendela --app).
 
-- chrome.exe --app=<url>: jendela polos tanpa kolom alamat / tab. Chrome asli (bukan
-  browser tertanam) supaya login Google tidak diblokir.
+- Gemini / Flow: chrome.exe --app=<url>: jendela polos tanpa kolom alamat / tab. Chrome asli
+  (bukan browser tertanam) supaya login Google tidak diblokir.
 - SATU folder data Chrome per ID murid di %LOCALAPPDATA%\\M3DAN\\browser\\<ID> (satu proses
   Chrome; tiap situs = jendela sendiri). Di dalamnya profil Chrome milik murid (Default,
   Profile 1, ...; pemilih profil ui/chrome_profiles.py). Akun murid lain tidak terlihat.
   Unduhan diarahkan ke config.STUDENT_DRIVE (Z:\\).
-- Hanya host situs milik murid + login Google (--host-resolver-rules: lainnya gagal dimuat).
-- Hanya terlihat di aplikasi utama: jendela Chrome dijadikan "milik" jendela aplikasi
+- Chrome biasa & jendela situs memakai SATU proses Chrome per murid (peluncuran berikutnya
+  diteruskan ke proses itu): membuka Gemini tidak menutup Chrome murid, dan sebaliknya.
+- Jendela situs hanya terlihat di aplikasi utama: dijadikan "milik" jendela aplikasi
   (selalu di atas aplikasi, tidak di atas program lain, tidak ada di taskbar), ditahan di dalam
   area aplikasi, disembunyikan saat aplikasi mengecil / Blender dibuka, ditutup saat logout.
-- Prioritas BelowNormal, tanpa ekstensi. Pengawas posisi = after() tiap 300 ms (bukan animasi),
+- Prioritas BelowNormal. Pengawas posisi = after() tiap 300 ms (bukan animasi),
   semua panggilan Win32 dari thread utama.
 """
 
@@ -25,10 +26,11 @@ from elearning import config as C
 
 WATCH_MS = 300
 PENDING_S = 10.0   # jendela situs yang tidak muncul dalam 10 dtk dianggap gagal
-# hwnds: semua jendela Chrome milik aplikasi; site_hwnd: kunci situs -> jendela utamanya;
-# pending: situs yang baru diluncurkan, menunggu jendelanya muncul
+# hwnds: jendela situs milik aplikasi; site_hwnd: kunci situs -> jendela utamanya;
+# pending: situs yang baru diluncurkan, menunggu jendelanya muncul; pdirs: profil Chrome biasa
+# yang dibuka; bwins: jendela Chrome biasa (bebas, tidak dijadikan milik aplikasi)
 _state = {"proc": None, "sid": None, "app": None, "job": None, "hwnds": set(), "hidden": False,
-          "site_hwnd": {}, "pending": []}
+          "site_hwnd": {}, "pending": [], "extra": {}, "pdirs": set(), "bwins": set()}
 _u32 = None
 
 
@@ -41,7 +43,7 @@ def sites_for(student):
     group = {c["id"]: c.get("group") for c in COURSES}
     ai = any(group.get(cid) in C.WEB_AI_GROUPS for cid in student.get("courses", []))
     other = not ai_only(student)
-    return [s for s in C.WEB_SITES if (ai if s["ai"] else other)]
+    return [s for s in C.WEB_SITES if s["ai"] is None or (ai if s["ai"] else other)]
 
 
 def available(student):
@@ -293,14 +295,6 @@ def _prepare_profile(folder, pdir="Default"):
         C.log(f"Web: profil Chrome tidak bisa diatur: {exc!r}")
 
 
-def _rules(sites):
-    """Aturan host jendela situs (Gemini / Flow): selain host di sini gagal dimuat."""
-    hosts = list(C.WEB_LOGIN_HOSTS)
-    for s in sites:
-        hosts += [h for h in s["allowed"] if h not in hosts]
-    return "MAP * ~NOTFOUND, " + ", ".join(f"EXCLUDE {h}" for h in hosts)
-
-
 def _area(app):
     """Area isi aplikasi di layar (x, y, w, h)."""
     return app.winfo_rootx(), app.winfo_rooty(), app.winfo_width(), app.winfo_height()
@@ -319,17 +313,57 @@ def running():
     return p is not None and p.poll() is None
 
 
+def _base_args(exe, student, pdir):
+    """Argumen bersama (Chrome biasa & jendela situs = SATU proses): profil murid, tanpa layar
+    pertama, pencarian aman SUPERKIDS (+ --test-type: tanpa bilah peringatan "unsupported
+    command-line flag"), mode ringan tanpa GPU."""
+    args = [exe, f"--user-data-dir={profile_dir(student['id'])}", f"--profile-directory={pdir}",
+            "--no-first-run", "--no-default-browser-check",
+            "--disable-features=Translate,MediaRouter"]
+    rules = _safe_rules(student)
+    if rules:
+        args += [f"--host-resolver-rules={rules}", "--test-type"]
+    if C.lite():   # mode ringan (iGPU + Blender): Chrome tidak memakai GPU
+        args += ["--disable-gpu", "--disable-smooth-scrolling"]
+    return args
+
+
+def _launch(app, title, args):
+    """Jalankan chrome.exe (BelowNormal) -> proses atau None (+ pesan)."""
+    from elearning.i18n import L
+    flags = 0x00004000 if sys.platform == "win32" else 0   # BELOW_NORMAL_PRIORITY_CLASS
+    try:
+        return subprocess.Popen(args, creationflags=flags, close_fds=True)
+    except OSError as exc:
+        C.log(f"Web: Chrome gagal dibuka: {exc!r}")
+        _message(app, title, L("Chrome tidak bisa dibuka. Coba lagi.",
+                               "Chrome could not be opened. Please try again."))
+        return None
+
+
+def _no_chrome(app, title):
+    from elearning.i18n import L
+    _message(app, title, L("Google Chrome belum terpasang di PC ini. Hubungi guru / admin.",
+                           "Google Chrome is not installed on this PC. Please ask your teacher."))
+
+
+def _started(proc, student, app):
+    """Proses Chrome pertama murid ini: peluncuran berikutnya diteruskan ke sini."""
+    _state.update(proc=proc, sid=student["id"], app=app, hwnds=set(), hidden=False,
+                  site_hwnd={}, pending=[], extra={}, pdirs=set(), bwins=set())
+
+
 def open_web(widget, student, key):
-    """Situs dibuka: jendelanya, atau tampilkan lagi kalau sudah terbuka. Profil Chrome yang
-    terakhir dipakai murid. Satu proses Chrome sekaligus: ganti murid / Chrome biasa sedang
-    terbuka -> yang lama ditutup."""
+    """Situs (Gemini / Flow) di jendela aplikasi sendiri (--app), atau tampilkan lagi kalau
+    sudah terbuka. Profil Chrome yang terakhir dipakai murid (akun Google-nya). Proses Chrome
+    murid yang sudah jalan (mis. Chrome biasa) dipakai bersama; ganti murid -> ditutup."""
     from elearning.i18n import L
     app = widget.winfo_toplevel()
     sites = sites_for(student)
     site = next((s for s in sites if s["key"] == key), None)
     if site is None:
         return False
-    if running() and (_state["sid"] != student["id"] or _state.get("mode") == "browser"):
+    if running() and _state["sid"] != student["id"]:
         close()
     left = remaining(student["id"], key)
     if left is not None and left <= 0:
@@ -348,38 +382,25 @@ def open_web(widget, student, key):
         return True     # masih menunggu jendelanya muncul (klik dobel)
     exe = chrome_path()
     if exe is None:
-        _message(app, site["title"], L("Google Chrome belum terpasang di PC ini. Hubungi guru / admin.",
-                                       "Google Chrome is not installed on this PC. Please ask your teacher."))
+        _no_chrome(app, site["title"])
         return False
     folder = profile_dir(student["id"])
+    first = not running()
+    pdir = _last_profile(folder)
+    if first:
+        _kill_profile(folder)     # sisa Chrome murid ini (aturan / flag lama)
+        _prepare_profile(folder, pdir)
     x, y, w, h = _area(app)
     ww, hh = max(420, int(w * 0.42)), max(360, h - 24)
     n = len(_state["site_hwnd"]) if running() else 0          # jendela berikutnya sedikit bergeser
-    args = [exe, f"--app={site['url']}", f"--user-data-dir={folder}",
-            f"--window-size={ww},{hh}",
-            f"--window-position={x + w - ww - 12 - 24 * n},{y + 12 + 24 * n}"]
-    first = not running()
-    if first:   # proses browser baru: aturan situs & opsi hanya berlaku di peluncuran pertama
-        _kill_profile(folder)     # sisa Chrome biasa murid ini (aturan host belum terpasang)
-        pdir = _last_profile(folder)
-        _prepare_profile(folder, pdir)
-        args += [f"--profile-directory={pdir}",
-                 f"--host-resolver-rules={_rules(sites)}", "--no-first-run",
-                 "--no-default-browser-check", "--disable-extensions",
-                 "--disable-features=Translate,MediaRouter", "--disable-background-networking"]
-        if C.lite():   # mode ringan (iGPU + Blender): Chrome tidak memakai GPU
-            args += ["--disable-gpu", "--disable-smooth-scrolling"]
-    flags = 0x00004000 if sys.platform == "win32" else 0   # BELOW_NORMAL_PRIORITY_CLASS
-    try:
-        proc = subprocess.Popen(args, creationflags=flags, close_fds=True)
-    except OSError as exc:
-        C.log(f"Web: Chrome gagal dibuka: {exc!r}")
-        _message(app, site["title"], L("Chrome tidak bisa dibuka. Coba lagi.",
-                                       "Chrome could not be opened. Please try again."))
+    args = _base_args(exe, student, pdir) + [
+        f"--app={site['url']}", f"--window-size={ww},{hh}",
+        f"--window-position={x + w - ww - 12 - 24 * n},{y + 12 + 24 * n}"]
+    proc = _launch(app, site["title"], args)
+    if proc is None:
         return False
     if first:      # peluncuran berikutnya diteruskan ke proses ini lalu langsung selesai
-        _state.update(proc=proc, sid=student["id"], app=app, hwnds=set(), hidden=False,
-                      site_hwnd={}, pending=[], extra={}, mode="app", pdirs=set())
+        _started(proc, student, app)
     _state["pending"].append((key, time.monotonic()))
     C.log(f"Web: {site['title']} dibuka untuk {student['id']}")
     if _state["job"] is None:
@@ -481,12 +502,22 @@ def _browse_blocked(app, sid):
     return True
 
 
+def _browser_windows():
+    """Jendela Chrome biasa murid yang masih ada."""
+    if sys.platform != "win32":
+        return []
+    u = _user32()[0]
+    live = [h for h in _state["bwins"] if u.IsWindow(h)]
+    _state["bwins"] = set(live)
+    return live
+
+
 def _front():
-    """Semua jendela Chrome murid dibawa ke depan (yang di-minimize dipulihkan)."""
+    """Jendela Chrome biasa murid dibawa ke depan (yang di-minimize dipulihkan)."""
     if sys.platform != "win32" or not running():
         return
     u, _c, _w = _user32()
-    wins = _chrome_windows(_state["proc"].pid)
+    wins = _browser_windows()
     for hwnd in wins:
         u.ShowWindow(hwnd, 9 if u.IsIconic(hwnd) else 5)    # RESTORE / SHOW
     if wins:
@@ -495,51 +526,36 @@ def _front():
 
 def open_browser(widget, student, pdir, url=None):
     """Kartu profil di popup Chrome: Google Chrome BIASA (tab, kolom alamat, semua situs) dengan
-    profil murid itu (--profile-directory). Profil lain murid yang sama dibuka di proses Chrome
-    yang sudah jalan (jendela baru). Waktu browsing dibatasi per hari (kunci "pinterest"):
-    dihitung selama ada jendela Chrome yang tidak di-minimize."""
-    from elearning.i18n import L
+    profil murid itu (--profile-directory). Proses Chrome murid yang sudah jalan (profil lain,
+    Gemini / Flow) dipakai bersama: jendela baru. Waktu browsing dibatasi per hari (kunci
+    "pinterest"): dihitung selama ada jendela Chrome biasa yang tidak di-minimize."""
     app = widget.winfo_toplevel()
     if not any(s["key"] == "pinterest" for s in sites_for(student)):
         return False
-    if running() and (_state["sid"] != student["id"] or _state.get("mode") != "browser"):
+    if running() and _state["sid"] != student["id"]:
         close()
     if _browse_blocked(app, student["id"]):
         return False
-    if running() and url is None and pdir in _state.get("pdirs", ()):
+    if running() and url is None and pdir in _state["pdirs"] and _browser_windows():
         _front()                                     # profil ini sudah terbuka: ke depan
         return True
     exe = chrome_path()
     if exe is None:
-        _message(app, "Chrome", L("Google Chrome belum terpasang di PC ini. Hubungi guru / admin.",
-                                  "Google Chrome is not installed on this PC. Please ask your teacher."))
+        _no_chrome(app, "Chrome")
         return False
     folder = profile_dir(student["id"])
     first = not running()
     if first:
-        _kill_profile(folder)      # sisa Chrome murid ini (mis. jendela situs) ditutup dulu
+        _kill_profile(folder)      # sisa Chrome murid ini (aturan / flag lama)
     _prepare_profile(folder, pdir)
-    args = [exe, f"--user-data-dir={folder}", f"--profile-directory={pdir}", "--no-first-run",
-            "--no-default-browser-check", "--disable-features=Translate,MediaRouter"]
-    rules = _safe_rules(student)
-    if rules:
-        args.append(f"--host-resolver-rules={rules}")
-    if C.lite():   # mode ringan (iGPU + Blender): Chrome tidak memakai GPU
-        args += ["--disable-gpu", "--disable-smooth-scrolling"]
-    if url:
-        args.append(url)
-    flags = 0x00004000 if sys.platform == "win32" else 0   # BELOW_NORMAL_PRIORITY_CLASS
-    try:
-        proc = subprocess.Popen(args, creationflags=flags, close_fds=True)
-    except OSError as exc:
-        C.log(f"Web: Chrome gagal dibuka: {exc!r}")
-        _message(app, "Chrome", L("Chrome tidak bisa dibuka. Coba lagi.",
-                                  "Chrome could not be opened. Please try again."))
+    args = _base_args(exe, student, pdir) + ([url] if url else [])
+    proc = _launch(app, "Chrome", args)
+    if proc is None:
         return False
     if first:      # peluncuran berikutnya diteruskan ke proses ini lalu langsung selesai
-        _state.update(proc=proc, sid=student["id"], app=app, hwnds=set(), hidden=False,
-                      site_hwnd={}, pending=[], extra={}, mode="browser", pdirs=set())
+        _started(proc, student, app)
     _state["pdirs"].add(pdir)
+    _state["bwait"] = time.monotonic()
     C.log(f"Web: Chrome ({pdir}) dibuka untuk {student['id']}")
     if _state["job"] is None:
         _watch()
@@ -547,12 +563,13 @@ def open_browser(widget, student, pdir, url=None):
 
 
 def _count_browser(app, active):
-    """Waktu browsing (kunci "pinterest"): bertambah selama ada jendela Chrome terbuka & tidak
-    di-minimize. Sisa 2 menit -> peringatan; habis -> Chrome ditutup + jam reset."""
+    """Waktu browsing (kunci "pinterest"): bertambah selama ada jendela Chrome biasa yang tidak
+    di-minimize. Sisa 2 menit -> peringatan; habis -> jendela Chrome biasa ditutup (Gemini /
+    Flow tetap) + jam reset."""
     from elearning.i18n import L
     now = time.monotonic()
-    dt = 0.0 if _usage["last"] is None else min(5.0, now - _usage["last"])
-    _usage["last"] = now
+    dt = 0.0 if _usage["blast"] is None else min(5.0, now - _usage["blast"])
+    _usage["blast"] = now
     sid, key = _state["sid"], "pinterest"
     if _limit(key, sid) is None:
         return
@@ -575,7 +592,13 @@ def _count_browser(app, active):
         _save_usage()
         r = reset_at(sid, key)
         C.log(f"Web: batas browsing habis untuk {sid}, reset {r}")
-        close()                                                  # seluruh Chrome ditutup
+        if sys.platform == "win32" and any(_alive(h) for h in _state["site_hwnd"].values()):
+            u = _user32()[0]
+            for hwnd in _browser_windows():                      # jendela situs tetap
+                u.PostMessageW(hwnd, 0x0010, 0, 0)               # WM_CLOSE
+            _state.update(pdirs=set(), bwins=set())
+        else:
+            close()                                              # seluruh Chrome ditutup
         app.after(50, lambda r=r: _message(app, "Chrome", L(
             f"Batas browsing habis. Bisa dipakai lagi pukul {r}.",
             f"You've hit your browsing limit. It resets at {r}.")))
@@ -588,7 +611,7 @@ def close():
     """Tutup jendela web (logout, tutup aplikasi, ganti murid)."""
     if _usage["dirty"]:
         _save_usage()
-    _usage["last"] = None
+    _usage["last"] = _usage["blast"] = None
     app, job = _state["app"], _state["job"]
     if app is not None and job is not None:
         try:
@@ -603,7 +626,7 @@ def close():
         else:
             p.terminate()
     _state.update(proc=None, sid=None, app=None, job=None, hwnds=set(), hidden=False,
-                  site_hwnd={}, pending=[], extra={}, mode=None, pdirs=set())
+                  site_hwnd={}, pending=[], extra={}, pdirs=set(), bwins=set())
 
 
 # --- Win32: jendela milik aplikasi -------------------------------------------------------
@@ -702,7 +725,7 @@ def _show(visible, focus=None):
 
 # --- batas waktu harian (config.WEB_DAILY_LIMIT_MIN) ---------------------------------------
 USAGE_FILE = os.path.join(C.DATA_DIR, "web_usage.json")
-_usage = {"data": None, "dirty": 0.0, "last": None}
+_usage = {"data": None, "dirty": 0.0, "last": None, "blast": None}   # blast = Chrome biasa
 
 
 _own = {}   # sid -> (waktu baca, batas khusus): students.json dibaca maks. 1x / 5 dtk
@@ -888,33 +911,30 @@ def _watch():
     if app is None or not running():
         if app is not None:
             _state.update(proc=None, sid=None, app=None, hwnds=set(), site_hwnd={},
-                          pending=[], mode=None, pdirs=set())
+                          pending=[], extra={}, pdirs=set(), bwins=set())
         return
     try:
-        if _state.get("mode") == "browser":      # Chrome biasa: hanya hitung waktu browsing
-            if sys.platform == "win32":
-                u = _user32()[0]
-                active = any(not u.IsIconic(h) for h in _chrome_windows(_state["proc"].pid))
-            else:
-                active = True
-            _count_browser(app, active)
-            if _state["app"] is not None:
-                _state["job"] = app.after(WATCH_MS, _watch)
-            return
         if sys.platform == "win32":
             owner = int(app.wm_frame(), 16)
             visible = app.state() == "normal" and app.winfo_viewable()
+            now = time.monotonic()
+            _state["pending"] = [p for p in _state["pending"] if now - p[1] < PENDING_S]
+            for hwnd in _chrome_windows(_state["proc"].pid):       # termasuk popup login
+                if hwnd in _state["hwnds"] or hwnd in _state["bwins"]:
+                    continue
+                if _state["pending"]:          # jendela baru = situs yang terakhir diminta
+                    if _state["hidden"]:
+                        continue               # dijadikan milik aplikasi setelah tampil lagi
+                    _adopt(hwnd, owner)
+                    _state["hwnds"].add(hwnd)
+                    _state["site_hwnd"][_state["pending"].pop(0)[0]] = hwnd
+                elif _state["pdirs"]:          # Chrome biasa murid: jendela bebas (tab, Ctrl+N)
+                    _state["bwins"].add(hwnd)
+                elif not _state["hidden"]:     # dibuka dari dalam situs: diperiksa dulu
+                    _adopt(hwnd, owner)
+                    _state["hwnds"].add(hwnd)
+                    _state["extra"][hwnd] = now
             if not _state["hidden"]:
-                now = time.monotonic()
-                _state["pending"] = [p for p in _state["pending"] if now - p[1] < PENDING_S]
-                for hwnd in _chrome_windows(_state["proc"].pid):   # termasuk popup login
-                    if hwnd not in _state["hwnds"]:
-                        _adopt(hwnd, owner)
-                        _state["hwnds"].add(hwnd)
-                        if _state["pending"]:   # jendela baru = situs yang terakhir diminta
-                            _state["site_hwnd"][_state["pending"].pop(0)[0]] = hwnd
-                        else:                   # dibuka dari dalam situs: diperiksa dulu
-                            _state.setdefault("extra", {})[hwnd] = now
                 _close_extra(now)
             if visible == _state["hidden"]:      # aplikasi mengecil / kembali
                 _show(visible)
@@ -922,6 +942,17 @@ def _watch():
                 for hwnd in list(_state["hwnds"]):
                     _clamp(hwnd, app)
             _count_usage(app)
-        _state["job"] = app.after(WATCH_MS, _watch)
+            if _state["pdirs"]:
+                u = _user32()[0]
+                live = _browser_windows()
+                if not live and now - _state.get("bwait", 0.0) > PENDING_S:
+                    _state["pdirs"] = set()    # semua jendela Chrome biasa sudah ditutup
+                _count_browser(app, any(not u.IsIconic(h) for h in live))
+        else:
+            _count_usage(app)
+            if _state["pdirs"]:
+                _count_browser(app, True)
+        if _state["app"] is not None:
+            _state["job"] = app.after(WATCH_MS, _watch)
     except Exception as exc:
         C.log(f"Web: pengawas jendela berhenti: {exc!r}")

@@ -116,20 +116,9 @@ STUDENT_DRIVE = "Z:\\"
 # Drive yang TIDAK BOLEH dibuka / ditulisi murid lewat aplikasi (B: = sistem e-learning,
 # C: = Windows).
 BLOCKED_DRIVES = ("B:", "C:")
-# Jendela web mengambang murid (ikon di sebelah "Buka Blender"), tidak untuk trial.
-# Google Chrome mode aplikasi (tanpa kolom alamat), SATU profil per ID murid (login Google
-# dipakai bersama semua situs). Hanya host di "allowed" situs milik murid itu yang bisa dibuka;
-# login Google selalu diizinkan. Catatan: kalau PC memakai proxy, pembatasan situs tidak berlaku.
-# ai: True = hanya murid AI (membuka kursus grup WEB_AI_GROUPS), False = hanya murid non-AI
-# (PB / IC / SK, ada kursus di luar grup AI). Murid yang punya keduanya dapat semua.
-# Login Google juga memasang cookie di domain negara (accounts.google.co.id) & YouTube
-# (accounts.youtube.com); tanpa itu "Continue with Google" macet setelah popup terbuka.
-WEB_LOGIN_HOSTS = ("accounts.google.com", "*.google.com", "*.gstatic.com", "*.googleapis.com",
-                   "*.googleusercontent.com", "www.recaptcha.net", "accounts.google.*",
-                   "accounts.youtube.com",
-                   # FedCM ("Continue with Google" di Chrome) membaca
-                   # https://google.com/.well-known/web-identity: domain TANPA subdomain
-                   "google.com")
+# Chrome murid (bukan trial): baris "Chrome" di sidebar = Google Chrome BIASA, semua situs.
+# Murid AI (kursus grup WEB_AI_GROUPS): Gemini + Flow muncul saat kursor di atas baris Chrome
+# (flyout), dibuka sebagai jendela aplikasi (--app) di proses Chrome yang SAMA.
 # Baris "Chrome" di sidebar murid = Google Chrome BIASA (semua situs) dengan profil Chrome
 # MILIK MURID SENDIRI (pemilih profil gaya Chrome: kartu "Add" = akun Google baru, titik tiga =
 # hapus). Semua profil satu murid ada di %LOCALAPPDATA%\M3DAN\browser\<ID> (Default,
@@ -151,14 +140,13 @@ WEB_SAFE_MAP = (("www.google.com", "forcesafesearch.google.com"),
 WEB_SITES = (
     # "pinterest" = baris Chrome di sidebar murid: Chrome BIASA (semua situs), batas waktu
     # browsing harian (kunci data tetap "pinterest" supaya batas guru & pemakaian lama aman)
-    {"key": "pinterest", "title": "Chrome", "icon": "web_pin", "ai": False,
-     "url": "https://id.pinterest.com/",
-     "allowed": ("pinterest.com", "*.pinterest.com", "pinimg.com", "*.pinimg.com")},
+    # ai: None = semua murid, True = hanya murid AI (flyout di baris Chrome)
+    {"key": "pinterest", "title": "Chrome", "icon": "web_pin", "ai": None,
+     "url": "https://www.google.com/"},
     {"key": "gemini", "title": "Gemini", "icon": "web_gemini", "ai": True,
-     "url": "https://gemini.google.com/", "allowed": ("gemini.google.com",)},
+     "url": "https://gemini.google.com/"},
     {"key": "flow", "title": "Flow", "icon": "web_flow", "ai": True,
-     "url": "https://flow.google.com/",
-     "allowed": ("flow.google.com", "labs.google", "*.labs.google")},
+     "url": "https://flow.google.com/"},
 )
 WEB_AI_GROUPS = ("AI",)
 # Batas waktu per murid PER HARI (menit) supaya tidak doomscrolling; habis -> jendela ditutup,
