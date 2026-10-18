@@ -405,7 +405,10 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   kembali ke profil per murid.
 - POPUP PROFIL CHROME (ganti ide): baris Pinterest di sidebar murid jadi baris "Chrome" dengan logo
   Chrome ASLI dari PC (web_launcher.chrome_logo: <Chrome>\<versi>\VisualElements\Logo.png).
-  Klik -> ui/chrome_profiles.py (overlay "Who's using Chrome?", English): kartu Teacher =
+  Klik -> ui/chrome_profiles.py (overlay "Who's using Chrome?", English, MENIRU pemilih
+  profil Chrome asli: latar #1f1f1f + cahaya warna di tepi (numpy, GLOWS), kartu #3c4043 r=8
+  + titik tiga, avatar bulat, fokus bingkai biru #a8c7fa, tombol "Close" berbingkai seperti
+  "Guest mode", kartu terkunci putus-putus seperti "Add"; ikon transparan _clear_icon): kartu Teacher =
   Pinterest akun guru/studio (profil "studio", host Google sempit) untuk SEMUA murid; kartu
   Personal = akun Google murid sendiri (profil per ID, host normal) hanya program
   config.WEB_OWN_PROFILE_PROGRAMS ("adult"); SUPERKIDS: kartu Personal terkunci "Adults only".
