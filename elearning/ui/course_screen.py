@@ -74,7 +74,7 @@ class CourseScreen(SidebarLayout):
 
     # --- sidebar -----------------------------------------------------------------
     def _populate(self, sb):
-        sb.nav("All courses", "grid", self.on_back)
+        sb.nav("Dashboard", "home", self.on_back)
         sb.nav("Lessons", "play", lambda: self._set_view("materi"),
                active=self.view == "materi")
         # Resources. Trial: SATU halaman untuk semua kelas (ANIMATION & MODELING) = halaman

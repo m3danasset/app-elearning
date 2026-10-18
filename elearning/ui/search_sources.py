@@ -63,7 +63,7 @@ def student_sources(screen, student):
                               "title": title, "sub": c["title"], "icon": "play",
                               "action": lambda c=c, t=title: app.show_course(student, c,
                                                                             lesson=t)})
-    actions = [{"title": "All courses", "icon": "grid",
+    actions = [{"title": "Dashboard", "icon": "home", "sub": "All courses",
                 "action": lambda: app.show_home(student)}]
     cur = getattr(screen, "course", None)     # badge per kursus: hanya dari layar kursus
     if not trial and cur is not None:

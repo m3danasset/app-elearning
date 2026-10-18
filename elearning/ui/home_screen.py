@@ -37,7 +37,7 @@ class HomeScreen(SidebarLayout):
     # --- sidebar ---------------------------------------------------------------------
     def _populate(self, sb):
         # Badge berlaku per kursus: menu Badges ada di sidebar layar kursus, bukan di sini
-        sb.nav("All courses", "grid", lambda: self._set_view("courses"),
+        sb.nav("Dashboard", "home", lambda: self._set_view("courses"),
                active=self.view == "courses")
         if self.trial:   # trial: SATU menu Resources untuk semua kelas (folder resources/trial)
             sb.nav("Resources", "folder", lambda: self._set_view("resource"),
@@ -68,14 +68,21 @@ class HomeScreen(SidebarLayout):
             ResourceList(self.content, {"id": "trial", "title": "Trial", "program": "trial"}
                          ).pack(fill="both", expand=True)
             return
-        hello = ("Welcome! Pick a class to try learning."
-                 if self.trial else
-                 f"Hi, {self.student['name']}! Continue learning from your open courses.")
+        # Dashboard murid (gaya Dashboard admin / guru): sapaan besar + tanggal, kartu kursus
+        from datetime import datetime
+        now = datetime.now()
+        if self.trial:
+            title, hello = "Welcome!", "Pick a class to try learning."
+        else:
+            greet = ("Good morning" if now.hour < 11 else "Good afternoon" if now.hour < 18
+                     else "Good evening")
+            title = f"{greet}, {self.student['name'].split()[0]}"
+            hello = f"{now.strftime('%A, %d %B %Y')}  ·  Pick a course to continue learning"
         # Kartu kursus mendatar di tengah (gaya Dock), latar video opsional; widget USB untuk
         # murid SUPERKIDS / BASIC / INTERMEDIATE (bukan trial, bukan murid AI)
         from elearning.courses import ai_only
         self.dock = CourseDock(self.content, self.courses, self.allowed, self.on_open_course,
-                               "Pick a trial class" if self.trial else "Pick a course", hello,
+                               title, hello, hero=True,
                                usb=not self.trial and not ai_only(self.student))
         self.dock.pack(fill="both", expand=True)
         self._build_grid()

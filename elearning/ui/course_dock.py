@@ -105,7 +105,8 @@ class CourseDock(tk.Canvas):
 
     FRAME_MS = C.UI_FRAME_MS   # maks. 30 fps
 
-    def __init__(self, master, courses, allowed, on_open, title, hello, foot=None, usb=False):
+    def __init__(self, master, courses, allowed, on_open, title, hello, foot=None, usb=False,
+                 hero=False):
         super().__init__(master, bg=C.BG, highlightthickness=0, bd=0)
         # teks bawah kartu (terbuka, terkunci); resource trial memakai "Open in Blender" dst.
         self.foot = foot or ("Open course  →", "Locked  ·  ask your teacher")
@@ -139,11 +140,14 @@ class CourseDock(tk.Canvas):
             "title": tkfont.Font(family=C.FONT, size=15, weight="bold"),
             "desc": tkfont.Font(family=C.FONT, size=9),
             "foot": tkfont.Font(family=C.FONT, size=9, weight="bold"),
+            "hero": tkfont.Font(family=C.FONT, size=40, weight="bold"),
             "wbig": tkfont.Font(family=C.FONT, size=14, weight="bold"),
             "wsmall": tkfont.Font(family=C.FONT, size=9),
         }
         # widget USB di atas judul (murid SK / PB / IC): tidak bisa diatur / dipindah
         self.usb = usb
+        self.hero = hero             # halaman utama murid = Dashboard: sapaan besar (40 pt)
+        self._title_y = 0
         self._usb_drives = None      # None = sedang dicek; [(root, label, free, total)]
         self._usb_rect = None
         self._usb_mask = None
@@ -316,16 +320,30 @@ class CourseDock(tk.Canvas):
         w, h = self._size
         self._s = self._card_size()
         s = self._s
-        self._cy = h * 0.54
+        self._cy = h * (0.60 if self.hero else 0.54)
         self._band = (int(self._cy - s / 2 - LIFT - 2), int(s + LIFT + 6))
         self.coords(self._band_item, 0, self._band[0])
         self.delete("fg")
         self._items, self._fades = [], []
         top = self._cy - s / 2 - LIFT
-        self.create_text(w / 2, top - 58, text=self.title_text, font=self.f["h1"],
-                         fill=C.TEXT, tags="fg")
-        self.create_text(w / 2, top - 28, text=self.hello_text, font=self.f["hello"],
-                         fill=C.MUTED, tags="fg")
+        if self.hero:      # gaya Dashboard admin / guru: sapaan besar, baris kecil di bawahnya
+            f = self.f["hero"]
+            for size in (40, 34, 28, 24):
+                f.config(size=size)
+                if f.measure(self.title_text) <= w - 80:
+                    break
+            title_y = top - 42 - f.metrics("linespace")
+            self.create_text(w / 2, title_y, text=self.title_text, font=f, anchor="n",
+                             fill=C.TEXT, tags="fg")
+            self.create_text(w / 2, top - 28, text=self.hello_text, font=self.f["hello"],
+                             fill=C.MUTED, tags="fg")
+            title_y -= 2
+        else:
+            title_y = top - 58
+            self.create_text(w / 2, top - 58, text=self.title_text, font=self.f["h1"],
+                             fill=C.TEXT, tags="fg")
+            self.create_text(w / 2, top - 28, text=self.hello_text, font=self.f["hello"],
+                             fill=C.MUTED, tags="fg")
         self._update_rects()
         if not self.courses:
             self.create_text(w / 2, self._cy, text=self.empty_text, font=self.f["hello"],
@@ -338,7 +356,8 @@ class CourseDock(tk.Canvas):
         self._text_x = self._start_x()
         self._apply_fades(force=True)
         self._compose_band()
-        self._usb_layout(top - 58)
+        self._title_y = title_y
+        self._usb_layout(title_y if self.hero else title_y - 14)
 
     def _fit_title(self, s):
         longest = max((c["title"] for c in self.courses), key=len)
@@ -606,14 +625,16 @@ class CourseDock(tk.Canvas):
 
     # --- widget USB ------------------------------------------------------------------------
     def _usb_layout(self, title_y):
-        """Widget di tengah ruang kosong di atas judul; disembunyikan kalau ruangnya kurang."""
+        """Widget di tengah ruang kosong di atas judul. Tidak tampil kalau tidak ada USB yang
+        tercolok atau ruangnya kurang."""
         self.delete("usbw")
         self._usb_rect = None
-        if not self.usb:
+        if not self.usb or not self._usb_drives:
+            self.itemconfigure(self._usb_item, image="")
             return
         w = self._size[0]
         ww = int(min(USB_W, w - 48))
-        bottom = title_y - 30
+        bottom = title_y - 16
         y = max(16, (bottom - USB_H) / 2)
         if ww < 200 or bottom - y < USB_H:
             self.itemconfigure(self._usb_item, image="")
@@ -689,11 +710,9 @@ class CourseDock(tk.Canvas):
         tx = x0 + 18 + 38 + 14
         tw = x1 - tx - 16
         d = self._usb_drives
-        if d is None:
-            big, small, col = "Checking USB...", "", C.MUTED
-        elif not d:
-            big, small, col = "No USB plugged in", "Plug in a flashdisk to save work", C.MUTED
-        elif len(d) == 1:
+        if not d:
+            return
+        if len(d) == 1:
             root, label, free, _total = d[0]
             name = f"{label} ({root[:2]})" if label else f"USB ({root[:2]})"
             big = "USB plugged in"
@@ -720,11 +739,12 @@ class CourseDock(tk.Canvas):
             drives = self._usb_box.pop()
             self._usb_box.clear()
             if drives != self._usb_drives:
-                changed = bool(drives) != bool(self._usb_drives) or self._usb_drives is None
+                shown = bool(drives) != bool(self._usb_drives)
                 self._usb_drives = drives
-                if changed:
-                    self._compose_usb()       # warna / ikon berubah
-                self._usb_text()
+                if shown:                     # dicolok / dicabut semua: widget muncul / hilang
+                    self._usb_layout(self._title_y if self.hero else self._title_y - 14)
+                else:
+                    self._usb_text()
         mask = usb_save.drive_mask()
         if mask != self._usb_mask and not self._usb_busy:
             self._usb_mask = mask
@@ -742,7 +762,8 @@ class CourseDock(tk.Canvas):
 
             import threading
             threading.Thread(target=work, daemon=True).start()
-        self.after(USB_POLL_MS if self._usb_drives is not None else 100, self._usb_poll)
+        busy = self._usb_busy or self._usb_box or self._usb_drives is None
+        self.after(100 if busy else USB_POLL_MS, self._usb_poll)   # hasil thread cepat diambil
 
     def destroy(self):
         self._closed = True

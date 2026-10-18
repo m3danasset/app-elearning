@@ -308,12 +308,16 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 
 - Halaman utama murid (course_dock): kartu kursus 1:1 dengan cahaya gradasi warna kursus dari kiri-atas
   (_tint, sama gaya kartu Dashboard); terkunci = gradasi samar; hover sedikit lebih terang.
+- Halaman utama murid & trial = "Dashboard" (menu sidebar ikon home, juga di layar kursus &
+  Ctrl+K), gaya Dashboard admin / guru: CourseDock(hero=True) = sapaan besar 40 pt ("Good
+  morning, <nama depan>"; trial "Welcome!") + tanggal, kartu kursus di bawahnya (cy 0,60).
 - Widget USB (course_dock, usb=True; murid SK / PB / IC, bukan trial, bukan murid AI =
   courses.ai_only): SATU widget tetap (tidak bisa diatur) gaya widget Dashboard, di tengah ruang
-  atas judul (disembunyikan kalau ruang kurang). "USB plugged in" hijau + nama (E:) + sisa ruang,
-  "2 USB plugged in", atau "No USB plugged in". usb_save.drive_mask dicek tiap 1 dtk di thread
-  utama; berubah -> removable_drives + drive_info di thread. Gambar widget = potongan latar
-  (ikut frame video), ~2,5 ms.
+  atas sapaan. HANYA tampil kalau ada USB tercolok (tanpa USB = tidak ada widget) dan ruang
+  cukup. "USB plugged in" hijau + nama (E:) + sisa ruang, atau "2 USB plugged in".
+  usb_save.drive_mask dicek tiap 1 dtk di thread utama; berubah -> removable_drives +
+  drive_info di thread (hasil diambil tiap 100 ms selama berjalan). Gambar widget = potongan
+  latar (ikut frame video), ~2,5 ms.
 
 ## Jendela web murid: Pinterest (PB / IC / SK), Gemini + Flow (murid AI); bukan trial
 - elearning/web_launcher.py + config.WEB_SITES (key, title, icon, url, allowed, ai). Ikon di
