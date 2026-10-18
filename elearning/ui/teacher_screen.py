@@ -655,7 +655,7 @@ class TeacherScreen(SidebarLayout):
         st = lookup_student(sid) if sid else None
         if st is None:
             return
-        used = int(W._usage_data()["used"].get(f"{sid}:pinterest", 0) // 60)   # hari ini
+        used = int(W.used_secs(sid, "pinterest") // 60)   # jendela waktu sekarang
 
         def submit(minutes):
             try:

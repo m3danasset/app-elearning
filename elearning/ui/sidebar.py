@@ -1333,7 +1333,10 @@ def blender_footer(sb):
         _blender_cache["blender"] = blender_icon.get_photo(22)
     student = getattr(sb.winfo_toplevel(), "_student", None)
     # ikon situs di sebelah Blender: Pinterest (PB / IC / SK), Gemini + Flow (murid AI)
-    extra = [(s["icon"], lambda k=s["key"]: web_launcher.open_web(sb, student, k), s["title"])
+    def tip(s):          # mis. "Pinterest · 8 min left" (batas seperti chat Claude)
+        st = web_launcher.status_text(student["id"], s["key"]) if student else ""
+        return f"{s['title']} · {st}" if st else s["title"]
+    extra = [(s["icon"], lambda k=s["key"]: web_launcher.open_web(sb, student, k), tip(s))
              for s in web_launcher.sites_for(student)]
     sb.footer(L("Buka Blender", "Open Blender") + f" {blender_launcher.VERSION}", open_blender_now,
               image=_blender_cache["blender"], icon="play", extra=extra)

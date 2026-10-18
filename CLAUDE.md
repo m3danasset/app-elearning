@@ -357,10 +357,12 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   tanpa taskbar), ditahan di area aplikasi, disembunyikan saat aplikasi mengecil / Blender,
   ditutup saat logout / tutup aplikasi. Pengawas after() 300 ms di thread utama.
 - Batas harian per murid (Pinterest: config.PINTEREST_LIMIT_MIN = 10, diatur di Dev > Nilai grup
-  "Web murid", 0 = tanpa batas; situs lain: WEB_DAILY_LIMIT_MIN): dihitung di _watch
-  hanya saat jendela situs terbuka & terlihat (aplikasi mengecil / Blender = jeda), disimpan di
-  data\web_usage.json (reset tiap hari). Habis -> jendela ditutup (WM_CLOSE) + pesan; klik ikon
-  lagi -> "time's up, come back tomorrow".
+  "Web murid", 0 = tanpa batas; situs lain: WEB_DAILY_LIMIT_MIN). SEPERTI BATAS CHAT CLAUDE:
+  jatah per jendela waktu config.WEB_WINDOW_HOURS (5 jam, Dev) yang mulai saat pertama dipakai,
+  lalu reset (data\web_usage.json v2: {start, secs, warned}). Dihitung di _watch hanya saat
+  jendela situs terbuka & terlihat (aplikasi mengecil / Blender = jeda). Sisa 2 menit -> pesan
+  sekali; habis -> jendela ditutup (WM_CLOSE) + "resets at HH:MM"; tooltip ikon "Pinterest ·
+  8 min left · resets 15:30" (status_text).
   Guru (detail murid, tombol "Pinterest: bawaan / 20 mnt / diblokir / tanpa batas", hanya murid
   yang punya akses Pinterest): PinterestLimitDialog (WheelPicker: Bawaan, Diblokir, 5-120 menit,
   Tanpa batas) -> students.json "pinterest_limit" (None bawaan, 0 blokir, -1 tanpa batas;

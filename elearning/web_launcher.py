@@ -123,11 +123,12 @@ def open_web(widget, student, key):
     left = remaining(student["id"], key)
     if left is not None and left <= 0:
         lim = _limit(key, student["id"])
+        r = reset_at(student["id"], key)
         _message(app, site["title"], L(
-            f"{site['title']} tidak tersedia untukmu hari ini. Tanya guru." if lim == 0 else
-            f"Waktu {site['title']} hari ini sudah habis ({lim} menit). Coba lagi besok.",
+            f"{site['title']} tidak tersedia untukmu. Tanya guru." if lim == 0 else
+            f"Batas {site['title']} habis. Bisa dipakai lagi pukul {r}.",
             f"{site['title']} is not available for you. Ask your teacher." if lim == 0 else
-            f"Your {site['title']} time for today is used up ({lim} min). Come back tomorrow!"))
+            f"You've hit your {site['title']} limit ({lim} min). It resets at {r}."))
         return False
     if running() and _alive(_state["site_hwnd"].get(key)):
         _show(True, focus=_state["site_hwnd"][key])
@@ -320,17 +321,48 @@ def _limit(key, sid=None):
 
 
 def _usage_data():
-    from datetime import date
+    """{"v": 2, "used": {"<ID>:<situs>": {"start": waktu mulai jendela, "secs": dipakai,
+    "warned": bool}}}. Seperti batas chat Claude: jatah berlaku per JENDELA WAKTU
+    (config.WEB_WINDOW_HOURS) yang dimulai saat pertama kali dipakai, lalu reset."""
     if _usage["data"] is None:
         try:
             with open(USAGE_FILE, encoding="utf-8") as f:
                 _usage["data"] = json.load(f)
         except Exception:
             _usage["data"] = {}
-    today = date.today().isoformat()
-    if _usage["data"].get("date") != today:          # hari baru: semua mulai dari 0
-        _usage["data"] = {"date": today, "used": {}}
+        if _usage["data"].get("v") != 2:             # format lama (per hari): mulai baru
+            _usage["data"] = {"v": 2, "used": {}}
     return _usage["data"]
+
+
+def _window_s():
+    return max(0.25, float(getattr(C, "WEB_WINDOW_HOURS", 5) or 5)) * 3600
+
+
+def _slot(sid, key, create=False):
+    """Catatan jendela waktu murid+situs; jendela yang sudah lewat dibuang (reset)."""
+    used = _usage_data()["used"]
+    k = f"{sid}:{key}"
+    e = used.get(k)
+    if e is not None and time.time() - e.get("start", 0) >= _window_s():
+        used.pop(k, None)
+        e = None
+    if e is None and create:
+        e = used[k] = {"start": time.time(), "secs": 0.0, "warned": False}
+    return e
+
+
+def used_secs(sid, key):
+    e = _slot(sid, key)
+    return e["secs"] if e else 0.0
+
+
+def reset_at(sid, key):
+    """Jam reset (teks HH:MM) atau "" kalau belum ada jendela berjalan."""
+    e = _slot(sid, key)
+    if not e:
+        return ""
+    return time.strftime("%H:%M", time.localtime(e["start"] + _window_s()))
 
 
 def _save_usage():
@@ -346,16 +378,32 @@ def _save_usage():
 
 
 def remaining(sid, key):
-    """Detik tersisa hari ini, atau None kalau situs tanpa batas."""
+    """Detik tersisa di jendela waktu sekarang, atau None kalau situs tanpa batas."""
     lim = _limit(key, sid)
     if lim is None:
         return None
-    used = _usage_data()["used"].get(f"{sid}:{key}", 0.0)
-    return max(0.0, lim * 60 - used)
+    return max(0.0, lim * 60 - used_secs(sid, key))
+
+
+def status_text(sid, key):
+    """Ringkas untuk tooltip ikon: '8 min left' / 'Limit reached · resets 15:30'."""
+    left = remaining(sid, key)
+    if left is None:
+        return ""
+    if _limit(key, sid) == 0:
+        return "Not available"
+    if left <= 0:
+        return f"Limit reached · resets {reset_at(sid, key)}"
+    m = int(left // 60 + (1 if left % 60 else 0))
+    return f"{m} min left" + (f" · resets {reset_at(sid, key)}" if used_secs(sid, key) else "")
+
+
+WARN_S = 120   # peringatan sekali per jendela waktu saat sisa <= 2 menit
 
 
 def _count_usage(app):
-    """Tambah waktu pakai situs berbatas yang jendelanya terbuka & terlihat; habis -> tutup."""
+    """Tambah waktu pakai situs berbatas yang jendelanya terbuka & terlihat; sisa 2 menit ->
+    peringatan; habis -> jendela ditutup + jam reset (seperti batas chat Claude)."""
     from elearning.i18n import L
     now = time.monotonic()
     dt = 0.0 if _usage["last"] is None else min(5.0, now - _usage["last"])
@@ -364,20 +412,28 @@ def _count_usage(app):
     for key, hwnd in list(_state["site_hwnd"].items()):
         if _limit(key, sid) is None or not _alive(hwnd):
             continue
-        used = _usage_data()["used"]
+        title = next((s["title"] for s in C.WEB_SITES if s["key"] == key), key)
         if not _state["hidden"]:
-            used[f"{sid}:{key}"] = used.get(f"{sid}:{key}", 0.0) + dt
+            e = _slot(sid, key, create=True)
+            e["secs"] += dt
             _usage["dirty"] += dt
-        if remaining(sid, key) <= 0:
+        left = remaining(sid, key)
+        e = _slot(sid, key)
+        if 0 < left <= WARN_S and e and not e.get("warned"):
+            e["warned"] = True
+            _save_usage()
+            app.after(50, lambda t=title, r=reset_at(sid, key): _message(app, t, L(
+                f"Sisa waktu {t} 2 menit. Reset pukul {r}.",
+                f"2 minutes of {t} left. Your limit resets at {r}.")))
+        if left <= 0:
             _user32()[0].PostMessageW(hwnd, 0x0010, 0, 0)          # WM_CLOSE
             _state["site_hwnd"].pop(key, None)
             _save_usage()
-            title = next((s["title"] for s in C.WEB_SITES if s["key"] == key), key)
-            lim = _limit(key, sid)
-            C.log(f"Web: batas {title} {lim} menit habis untuk {sid}")
-            app.after(50, lambda t=title, m=lim: _message(app, t, L(
-                f"Waktu {t} hari ini sudah habis ({m} menit).",
-                f"Time's up! You've used your {m} min of {t} for today.")))
+            r = reset_at(sid, key)
+            C.log(f"Web: batas {title} habis untuk {sid}, reset {r}")
+            app.after(50, lambda t=title, r=r: _message(app, t, L(
+                f"Batas {t} habis. Bisa dipakai lagi pukul {r}.",
+                f"You've hit your {t} limit. It resets at {r}.")))
     if _usage["dirty"] >= 10:                    # simpan tiap ~10 dtk pemakaian
         _save_usage()
 
