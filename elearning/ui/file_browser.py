@@ -43,7 +43,7 @@ THUMB_CACHE = 400            # thumbnail di memori (~23 KB per gambar)
 DRIVES = "::drives"          # folder semu: daftar drive
 WIN = sys.platform == "win32"
 
-_state = {"view": "thumbs", "last_pick": None}
+_state = {"view": "thumbs", "sort": "name", "last_pick": None}   # diingat selama app terbuka
 _thumbs = collections.OrderedDict()   # (path, mtime) -> gambar PIL (RGB, TW x TH)
 _thumbs_lock = threading.Lock()
 
@@ -280,6 +280,7 @@ class FileBrowser(OverlayPanel):
         self.on_open = opts.get("on_open")
         self.on_delete = opts.get("on_delete")  # USB: hapus (konfirmasi di luar, lalu buka lagi)
         self.view = _state["view"]
+        self.sort = _state["sort"]      # "name" (A-Z) / "date" (terbaru dulu); folder tetap di atas
         self.entries = []        # isi folder (semua)
         self.shown = []          # isi setelah saringan tab (resource)
         self.checked = {}        # path -> entry
@@ -415,6 +416,8 @@ class FileBrowser(OverlayPanel):
             self._go(data)
         elif name == "tab":
             self._set_tab(data)
+        elif name == "sort":
+            self._set_sort(data)
         elif name == "view":
             self._set_view(data)
         elif name == "primary":
@@ -506,6 +509,12 @@ class FileBrowser(OverlayPanel):
                     best, blen = key, len(k)
         return best
 
+    def _set_sort(self, key):
+        if key != self.sort:
+            self.sort = _state["sort"] = key
+            self._apply_filter()
+            self._draw_frame()
+
     def _set_view(self, view):
         if view != self.view:
             self.view = _state["view"] = view
@@ -558,6 +567,8 @@ class FileBrowser(OverlayPanel):
             self.shown = list(self.entries)
         else:
             self.shown = [e for e in self.entries if e["is_dir"] or e["kind"] == self.filter]
+        if self.sort == "date":
+            self.shown.sort(key=lambda e: (not e["is_dir"], -(e.get("mtime") or 0)))
         self.sel = min(self.sel, len(self.shown) - 1)
         self._layout()
         if draw:
@@ -665,7 +676,14 @@ class FileBrowser(OverlayPanel):
             self._btn(cv, vx + i * 32, 19, 30, 30, "view", view,
                       C.SEG_ON if on else C.CARD, C.CARD, icon=icon,
                       fg=C.TEXT if on else C.MUTED)
-        x, xmax = 90, vx - 12
+        sx = vx - 8                       # urutan: A-Z / Date (teks kecil bersegmen)
+        for key, label in (("date", "Date"), ("name", "A–Z")):
+            on = self.sort == key
+            bw = self._f_tab.measure(label) + 20
+            sx -= bw + 2
+            self._btn(cv, sx, 19, bw, 30, "sort", key, C.SEG_ON if on else C.CARD, C.CARD,
+                      text=label, fg=C.TEXT if on else C.MUTED)
+        x, xmax = 90, sx - 12
         crumbs = self._crumbs()
         parts = []
         for i, (label, path) in enumerate(crumbs):

@@ -80,7 +80,8 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 
 ## File browser murid (Resource, Portfolio, Assignment)
 - ui/file_browser.py: FileBrowser (overlay yang sama dengan search palette: OverlayPanel di
-  search_palette.py). Tampilan Details / Small thumbnails (diingat selama aplikasi terbuka).
+  search_palette.py). Tampilan Details / Small thumbnails (bawaan thumbnails) + urutan A–Z /
+  Date (terbaru dulu, folder tetap di atas), tombol di kanan atas; keduanya diingat selama app terbuka.
   Mode "pick": tombol Upload murid (Portfolio / Assignment) memilih gambar & video dari PC
   HANYA drive lokal murid (config.STUDENT_DRIVE, default Z:\) dan flashdisk yang tercolok;
   folder lain, naik di atas akar drive, dan shortcut/junction ke luar drive ditolak.
