@@ -174,7 +174,8 @@ def open_web(widget, student, key):
 
 
 EXTRA_GRACE_S = 4.0     # jendela tambahan tanpa judul login Google -> ditutup setelah ini
-LOGIN_WORDS = ("google", "sign in", "masuk", "login", "log in", "akun", "account")
+LOGIN_WORDS = ("google", "sign in", "masuk", "login", "log in", "akun", "account",
+               "youtube", "pilih akun", "choose an account")
 
 
 def _title(hwnd):
@@ -198,6 +199,12 @@ def _close_extra(now):
         title = _title(hwnd).lower()
         if any(w in title for w in LOGIN_WORDS):
             extra.pop(hwnd, None)            # popup login: dibiarkan (tetap milik aplikasi)
+            continue
+        # tanpa judul / masih memuat (popup login baru dibuka, internet lambat): tunggu dulu,
+        # jangan pernah ditutup; yang ditutup hanya halaman situs itu sendiri (judul berisi
+        # nama situs, mis. "Pinterest") atau jendela berjudul lain setelah EXTRA_GRACE_S
+        blank = not title or title in ("about:blank", "untitled") or title.startswith("http")
+        if blank:
             continue
         if any(s["title"].lower() in title for s in C.WEB_SITES) or now - t > EXTRA_GRACE_S:
             u.PostMessageW(hwnd, 0x0010, 0, 0)             # WM_CLOSE

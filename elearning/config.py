@@ -122,8 +122,11 @@ BLOCKED_DRIVES = ("B:", "C:")
 # login Google selalu diizinkan. Catatan: kalau PC memakai proxy, pembatasan situs tidak berlaku.
 # ai: True = hanya murid AI (membuka kursus grup WEB_AI_GROUPS), False = hanya murid non-AI
 # (PB / IC / SK, ada kursus di luar grup AI). Murid yang punya keduanya dapat semua.
+# Login Google juga memasang cookie di domain negara (accounts.google.co.id) & YouTube
+# (accounts.youtube.com); tanpa itu "Continue with Google" macet setelah popup terbuka.
 WEB_LOGIN_HOSTS = ("accounts.google.com", "*.google.com", "*.gstatic.com", "*.googleapis.com",
-                   "*.googleusercontent.com", "www.recaptcha.net")
+                   "*.googleusercontent.com", "www.recaptcha.net", "accounts.google.*",
+                   "accounts.youtube.com")
 WEB_SITES = (
     {"key": "pinterest", "title": "Pinterest", "icon": "web_pin", "ai": False,
      "url": "https://id.pinterest.com/",

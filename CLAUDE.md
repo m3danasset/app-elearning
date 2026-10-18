@@ -389,3 +389,6 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   dibiarkan.
 - Dashboard: ukuran berubah (sidebar dilipat / dibuka) -> frame video terakhir direntang ke
   ukuran baru (bukan latar polos), jadi latar tidak berkedip.
+- Login Google di jendela web: WEB_LOGIN_HOSTS juga accounts.google.* (cookie domain negara, mis. .co.id) &
+  accounts.youtube.com. _close_extra tidak pernah menutup jendela tanpa judul / masih memuat.
+  Aturan host hanya berlaku saat Chrome murid diluncurkan pertama (tutup Chrome profil M3DAN\browser dulu).
