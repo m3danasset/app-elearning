@@ -394,39 +394,41 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   Aturan host hanya berlaku saat Chrome murid diluncurkan pertama (tutup Chrome profil M3DAN\browser dulu).
   FedCM ("Continue with Google") butuh domain google.com TANPA subdomain (*.google.com tidak mencakupnya)
   -> WEB_LOGIN_HOSTS berisi "google.com". Diuji headless dengan flag aplikasi: popup Sign in muncul.
-- AKUN GOOGLE STUDIO (config.WEB_STUDIO_ACCOUNT = m3dan.asset@gmail.com, keputusan pemilik studio):
-  semua murid memakai SATU profil Chrome "studio" per PC (%LOCALAPPDATA%\M3DAN\browser\studio).
-  Admin login SEKALI per PC lewat Jendela Dev > Settings > Akun web murid / Ctrl+K admin
-  (web_launcher.studio_login: jendela Chrome biasa, host Google penuh; password diketik admin,
-  tidak disimpan app). Murid: host Google dipersempit (WEB_STUDENT_GOOGLE_HOSTS: Gmail, Drive,
-  myaccount, YouTube diblok; www.google.com hanya untuk FedCM, jendela Google Search ditutup
-  lewat judul = _close_search). Peluncuran murid pertama menutup sisa Chrome profil studio
-  (_kill_profile, PowerShell) supaya aturan sempit berlaku. Kosongkan WEB_STUDIO_ACCOUNT =
-  kembali ke profil per murid.
-- POPUP PROFIL CHROME (ganti ide): baris Pinterest di sidebar murid jadi baris "Chrome" dengan logo
-  Chrome ASLI dari PC (web_launcher.chrome_logo: <Chrome>\<versi>\VisualElements\Logo.png).
-  Klik -> ui/chrome_profiles.py (overlay "Who's using Chrome?", English, MENIRU pemilih
-  profil Chrome asli: latar #1f1f1f + cahaya warna di tepi (numpy, GLOWS), kartu #3c4043 r=8
-  + titik tiga, avatar bulat, fokus bingkai biru #a8c7fa, tombol "Close" berbingkai seperti
-  "Guest mode", kartu terkunci putus-putus seperti "Add"; ikon transparan _clear_icon): kartu Teacher =
-  Pinterest akun guru/studio (profil "studio", host Google sempit) untuk SEMUA murid; kartu
-  Personal = akun Google murid sendiri (profil per ID, host normal) hanya program
-  config.WEB_OWN_PROFILE_PROGRAMS ("adult"); SUPERKIDS: kartu Personal terkunci "Adults only".
-  web_launcher.open_web(..., profile): satu proses Chrome sekaligus, ganti profil / murid ->
-  yang lama ditutup. Gemini / Flow (murid AI) tetap baris sendiri, profil murid sendiri.
+- PROFIL CHROME MILIK MURID (pengganti akun studio / kartu guru, yang sudah DIHAPUS bersama
+  tombol login studio di Dev & Ctrl+K): baris "Chrome" di sidebar murid (logo Chrome ASLI dari
+  PC, web_launcher.chrome_logo) -> ui/chrome_profiles.py, overlay "Who's using Chrome?" English
+  yang MENIRU pemilih profil Chrome asli (latar #1f1f1f + cahaya warna tepi, kartu #3c4043 r=8,
+  fokus biru #a8c7fa, tombol "Close" berbingkai). Kartu = profil murid
+  (web_launcher.chrome_profiles: nama & email akun dari Local State info_cache / Preferences
+  account_info / gaia_cookie, foto "Google Profile Picture.png" kalau ada, selain itu huruf di
+  lingkaran warna; belum login = ikon orang + "Not signed in"). Kartu "Add" putus-putus (plus
+  gelap di lingkaran abu, seperti Chrome) = add_profile: folder "Profile N" baru + Chrome di
+  halaman login Google (SIGNIN_URL, versi "masuk ke Chrome"); maks. config.WEB_MAX_PROFILES (4),
+  kartu Add hilang kalau penuh. Titik tiga (atau Delete setelah panah) = dialog "Delete this
+  profile?" di dalam panel (fokus awal Cancel, bingkai fokus hanya lewat keyboard, Esc / klik
+  luar = batal) -> delete_profile: Chrome murid ditutup, entri dihapus dari m3dan_profiles.json &
+  Local State (os_crypt tetap), folder dihapus di thread (coba ulang 5x). SEMUA murid bebas
+  login akun Google sendiri; akun murid lain tidak terlihat (folder data Chrome per ID).
+- Folder: %LOCALAPPDATA%\M3DAN\browser\<ID> = SATU --user-data-dir per murid, profil di dalamnya
+  (Default, Profile 1, ...; daftar urut di m3dan_profiles.json; pertama kali "Default" yang sudah
+  login akun Google ikut tampil). Gemini / Flow (--app, aturan host sempit) memakai profil
+  terakhir (Local State last_used). Satu proses Chrome sekaligus: ganti mode (situs <-> Chrome
+  biasa) / ganti murid -> yang lama ditutup; profil lain murid yang sama = diteruskan ke proses
+  yang jalan (jendela baru, _state pdirs). Folder lama %LOCALAPPDATA%\M3DAN\browser\studio tidak
+  dipakai lagi (tidak dihapus otomatis).
 - Popup profil Chrome: TANPA latar gelap & tanpa fade (dim dihancurkan, alpha 1 langsung);
   logo + judul + kartu di tengah panel; bingkai fokus biru hanya setelah tombol panah.
 - Baris "Chrome" di sidebar: cincin pemakaian bulat gaya Claude di kanan (sidebar.Row
   right_ring -> web_launcher.usage_ring: biru, >= 80 % oranye, habis merah; chart_art.donut
   18 px), tooltip 2 baris saat kursor di atas cincin ("46% of Pinterest limit" / "6 min left
   of 10 min", atau "Limit reached" / "Resets in 7 min"); diperbarui tiap 30 dtk.
-- CHROME BIASA (ganti ide lagi): kartu profil membuka web_launcher.open_browser = Google Chrome
-  BIASA (tab, kolom alamat, SEMUA situs), bukan --app Pinterest. Profil "studio" (akun guru,
-  wajib untuk SUPERKIDS): --host-resolver-rules dari _studio_rules() = isi akun Google studio
-  diblok (config.WEB_STUDIO_BLOCK: Gmail, Drive, Docs, myaccount, Photos, ...) + pencarian aman
-  (config.WEB_SAFE_MAP: forcesafesearch.google.com, restrictmoderate.youtube.com, strict.bing,
-  safe.duckduckgo). Profil "own" (murid dewasa) tanpa aturan. Sudah terbuka -> jendela dibawa
-  ke depan. _state mode="browser": _watch hanya menghitung WAKTU BROWSING (_count_browser,
+- CHROME BIASA: kartu profil membuka web_launcher.open_browser(widget, student, pdir) = Google
+  Chrome BIASA (tab, kolom alamat, SEMUA situs, --profile-directory). SUPERKIDS (config.
+  WEB_SAFE_PROGRAMS, fitur Dev "safesearch"): --host-resolver-rules _safe_rules() = pencarian aman
+  (config.WEB_SAFE_MAP: www.google.com -> forcesafesearch.google.com, YouTube restrictmoderate,
+  strict.bing, safe.duckduckgo; google.com tanpa subdomain TIDAK dipetakan supaya FedCM aman),
+  situs lain tetap bebas; popup menulis "SafeSearch is on.". Sudah terbuka -> jendela dibawa ke
+  depan (_front). _state mode="browser": _watch hanya menghitung WAKTU BROWSING (_count_browser,
   kunci data tetap "pinterest" supaya batas guru / Dev lama berlaku) selama ada jendela Chrome
   yang tidak di-minimize; sisa 2 mnt = peringatan, habis = seluruh Chrome ditutup + pesan.
   Label: guru "Chrome: 20 mnt", dialog "Batas browsing Chrome", cincin "x% of browsing limit".

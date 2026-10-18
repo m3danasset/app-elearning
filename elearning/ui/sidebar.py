@@ -1398,7 +1398,7 @@ def blender_footer(sb):
         _blender_cache["blender"] = blender_icon.get_photo(FOOT_ICON)
     student = getattr(sb.winfo_toplevel(), "_student", None)
     # situs web murid = baris sendiri DI ATAS Blender. Pinterest -> baris "Chrome" (logo
-    # Chrome asli dari PC) yang membuka popup profil (akun guru / akun saya); Gemini + Flow
+    # Chrome asli dari PC) yang membuka popup profil Chrome milik murid; Gemini + Flow
     # (murid AI) tetap baris sendiri. Kanan: sisa jatah (mis. "8 min left").
     for s in web_launcher.sites_for(student):
         st = web_launcher.status_text(student["id"], s["key"]) if student else ""

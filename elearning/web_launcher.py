@@ -3,8 +3,9 @@ Pinterest untuk murid PB / IC / SK, Gemini + Flow untuk murid AI. Bukan trial.
 
 - chrome.exe --app=<url>: jendela polos tanpa kolom alamat / tab. Chrome asli (bukan
   browser tertanam) supaya login Google tidak diblokir.
-- SATU profil per ID murid di %LOCALAPPDATA%\\M3DAN\\browser\\<ID> (satu proses Chrome; tiap
-  situs = jendela sendiri, login Google dipakai bersama). Akun murid lain tidak terlihat.
+- SATU folder data Chrome per ID murid di %LOCALAPPDATA%\\M3DAN\\browser\\<ID> (satu proses
+  Chrome; tiap situs = jendela sendiri). Di dalamnya profil Chrome milik murid (Default,
+  Profile 1, ...; pemilih profil ui/chrome_profiles.py). Akun murid lain tidak terlihat.
   Unduhan diarahkan ke config.STUDENT_DRIVE (Z:\\).
 - Hanya host situs milik murid + login Google (--host-resolver-rules: lainnya gagal dimuat).
 - Hanya terlihat di aplikasi utama: jendela Chrome dijadikan "milik" jendela aplikasi
@@ -56,27 +57,10 @@ def chrome_path():
     return next((p for p in cands if p and os.path.isfile(p)), None)
 
 
-def shared():
-    """True: akun Google studio tersedia (profil "studio" = Pinterest akun guru)."""
-    return bool(getattr(C, "WEB_STUDIO_ACCOUNT", ""))
-
-
-def profiles_for(student):
-    """Profil Chrome untuk Pinterest: [(kunci, boleh?)]. "studio" = akun guru (semua murid);
-    "own" = akun Google murid sendiri (hanya program WEB_OWN_PROFILE_PROGRAMS, bukan SUPERKIDS)."""
-    out = []
-    if shared():
-        out.append(("studio", True))
-    own_ok = bool(student) and student.get("program") in getattr(
-        C, "WEB_OWN_PROFILE_PROGRAMS", ("adult",))
-    out.append(("own", own_ok))
-    return out
-
-
-def profile_dir(student_id, profile="own"):
+def profile_dir(student_id):
+    """Folder data Chrome (--user-data-dir) murid ini; profil-profilnya ada di dalamnya."""
     base = os.environ.get("LOCALAPPDATA") or os.path.join(C.APP_DIR, "data")
-    safe = "studio" if profile == "studio" else \
-        ("".join(ch for ch in str(student_id) if ch.isalnum()) or "murid")
+    safe = "".join(ch for ch in str(student_id) if ch.isalnum()) or "murid"
     return os.path.join(base, "M3DAN", "browser", safe)
 
 
@@ -106,9 +90,189 @@ def chrome_logo(size):
         return None
 
 
-def _prepare_profile(folder):
+# --- profil Chrome murid (pemilih profil gaya Chrome: tambah akun Google / hapus) ---------
+META = "m3dan_profiles.json"      # {"profiles": ["Profile 1", ...]} di folder data Chrome murid
+# halaman login Google versi "masuk ke Chrome" (seperti tombol Sign in profil baru Chrome)
+SIGNIN_URL = ("https://accounts.google.com/signin/chrome/sync?ssp=1&continue="
+              "https%3A%2F%2Fwww.google.com%2F")
+
+
+def _read_json(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _write_json(path, data):
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+        os.replace(tmp, path)
+        return True
+    except OSError as exc:
+        C.log(f"Web: {os.path.basename(path)} tidak tersimpan: {exc!r}")
+        return False
+
+
+def _cookie_email(prefs):
+    """Email akun Google yang login di web saja (belum login ke Chrome): daftar akun cookie
+    Google yang disimpan Chrome di Preferences (gaia_cookie)."""
+    import base64
+    import re
+    g = prefs.get("gaia_cookie") or {}
+    text = g.get("last_list_accounts_data") or ""
+    raw = g.get("last_list_accounts_binary_data") or ""
+    if raw:
+        try:
+            text += base64.b64decode(raw).decode("latin-1")
+        except Exception:
+            pass
+    m = re.search(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", str(text))
+    return m.group(0) if m else ""
+
+
+def _account(folder, pdir, local):
+    """(nama, email, gambar) akun Google profil ini: data login Chrome (Local State), daftar
+    akun di Preferences, atau akun yang login di web. Kosong = belum login."""
+    info = ((local.get("profile") or {}).get("info_cache") or {}).get(pdir) or {}
+    name = info.get("gaia_given_name") or info.get("gaia_name") or ""
+    email = info.get("user_name") or ""
+    pd = os.path.join(folder, pdir)
+    if not email or not name:
+        prefs = _read_json(os.path.join(pd, "Preferences"))
+        for a in prefs.get("account_info") or []:
+            if isinstance(a, dict) and a.get("email"):
+                email = email or a["email"]
+                name = name or a.get("given_name") or a.get("full_name") or ""
+                break
+        email = email or _cookie_email(prefs)
+    pic = os.path.join(pd, "Google Profile Picture.png")
+    if not os.path.isfile(pic):
+        pic = None
+        av = os.path.join(pd, "Accounts", "Avatar Images")
+        try:
+            names = sorted(os.listdir(av))
+        except OSError:
+            names = []
+        if names:
+            pic = os.path.join(av, names[0])
+    return name, email, pic
+
+
+def _profile_dirs(sid):
+    """Nama folder profil murid (urut ditambahkan). Pertama kali: profil lama "Default" yang
+    sudah login akun Google ikut dipakai."""
+    folder = profile_dir(sid)
+    dirs = _read_json(os.path.join(folder, META)).get("profiles")
+    if isinstance(dirs, list):
+        return [d for d in dirs if isinstance(d, str) and d]
+    dirs = []
+    if os.path.isdir(os.path.join(folder, "Default")):
+        local = _read_json(os.path.join(folder, "Local State"))
+        if _account(folder, "Default", local)[1]:
+            dirs = ["Default"]
+        _write_json(os.path.join(folder, META), {"profiles": dirs})
+    return dirs
+
+
+def chrome_profiles(sid):
+    """Profil Chrome murid ini: [{"dir", "name", "email", "picture"}] (yang foldernya ada)."""
+    folder = profile_dir(sid)
+    local = _read_json(os.path.join(folder, "Local State"))
+    out = []
+    for d in _profile_dirs(sid):
+        if os.path.isdir(os.path.join(folder, d)):
+            name, email, pic = _account(folder, d, local)
+            out.append({"dir": d, "name": name, "email": email, "picture": pic})
+    return out
+
+
+def max_profiles():
+    return max(1, int(getattr(C, "WEB_MAX_PROFILES", 4) or 4))
+
+
+def add_profile(widget, student):
+    """Kartu "Add": profil Chrome baru (Profile N) dibuka di halaman login Google."""
+    from elearning.i18n import L
+    app = widget.winfo_toplevel()
+    sid = student["id"]
+    if len(chrome_profiles(sid)) >= max_profiles():
+        _message(app, "Chrome", L(f"Maksimal {max_profiles()} profil. Hapus satu dulu.",
+                                  f"You can have up to {max_profiles()} profiles. "
+                                  "Delete one first."))
+        return False
+    if _browse_blocked(app, sid):
+        return False
+    folder = profile_dir(sid)
+    dirs = _profile_dirs(sid)
+    n = 1
+    while f"Profile {n}" in dirs or os.path.exists(os.path.join(folder, f"Profile {n}")):
+        n += 1
+    pdir = f"Profile {n}"
+    if not _write_json(os.path.join(folder, META), {"profiles": dirs + [pdir]}):
+        return False
+    C.log(f"Web: profil Chrome {pdir} ditambahkan untuk {sid}")
+    return open_browser(widget, student, pdir, url=SIGNIN_URL)
+
+
+def delete_profile(student, pdir):
+    """Hapus profil Chrome murid dari PC ini (akun Google, riwayat, bookmark). Chrome murid
+    ditutup dulu; folder profil dihapus di thread."""
+    import shutil
+    import threading
+    sid = student["id"]
+    dirs = _profile_dirs(sid)
+    if pdir not in dirs or os.sep in pdir or "/" in pdir or pdir in (".", ".."):
+        return False
+    folder = profile_dir(sid)
+    if running() and _state["sid"] == sid:
+        close()
+    _kill_profile(folder)
+    dirs = [d for d in dirs if d != pdir]
+    _write_json(os.path.join(folder, META), {"profiles": dirs})
+    path = os.path.join(folder, "Local State")
+    local = _read_json(path)
+    prof = local.get("profile")
+    if isinstance(prof, dict):         # hanya kalau terbaca (kunci cookie profil lain aman)
+        (prof.get("info_cache") or {}).pop(pdir, None)
+        for k in ("profiles_order", "last_active_profiles"):
+            if isinstance(prof.get(k), list):
+                prof[k] = [d for d in prof[k] if d != pdir]
+        if prof.get("last_used") == pdir:
+            if dirs:
+                prof["last_used"] = dirs[-1]
+            else:
+                prof.pop("last_used", None)
+        _write_json(path, local)
+    target = os.path.join(folder, pdir)
+
+    def work():                    # Chrome yang baru ditutup bisa masih memegang file sebentar
+        for _ in range(5):
+            shutil.rmtree(target, ignore_errors=True)
+            if not os.path.exists(target):
+                break
+            time.sleep(1.0)
+        C.log(f"Web: profil Chrome {pdir} milik {sid} dihapus"
+              + ("" if not os.path.exists(target) else " (sebagian file masih terkunci)"))
+
+    threading.Thread(target=work, daemon=True).start()
+    return True
+
+
+def _last_profile(folder):
+    """Profil Chrome yang terakhir dipakai murid (akun Google terakhir): untuk Gemini / Flow."""
+    d = (_read_json(os.path.join(folder, "Local State")).get("profile") or {}).get("last_used")
+    return d if isinstance(d, str) and d and os.path.isdir(os.path.join(folder, d)) else "Default"
+
+
+def _prepare_profile(folder, pdir="Default"):
     """Unduhan ke drive murid, tanpa simpan kata sandi (PC dipakai bergantian)."""
-    path = os.path.join(folder, "Default", "Preferences")
+    path = os.path.join(folder, pdir, "Preferences")
     try:
         with open(path, encoding="utf-8") as f:
             prefs = json.load(f)
@@ -129,13 +293,9 @@ def _prepare_profile(folder):
         C.log(f"Web: profil Chrome tidak bisa diatur: {exc!r}")
 
 
-def _rules(sites, setup=False, profile="own"):
-    """Aturan host Chrome: selain host di sini gagal dimuat. Profil studio (akun guru) untuk
-    murid: host Google dipersempit (tanpa Gmail / Drive / myaccount / Search); profil murid
-    sendiri & setup login admin: penuh."""
-    narrow = profile == "studio" and not setup
-    hosts = list(getattr(C, "WEB_STUDENT_GOOGLE_HOSTS", C.WEB_LOGIN_HOSTS) if narrow
-                 else C.WEB_LOGIN_HOSTS)
+def _rules(sites):
+    """Aturan host jendela situs (Gemini / Flow): selain host di sini gagal dimuat."""
+    hosts = list(C.WEB_LOGIN_HOSTS)
     for s in sites:
         hosts += [h for h in s["allowed"] if h not in hosts]
     return "MAP * ~NOTFOUND, " + ", ".join(f"EXCLUDE {h}" for h in hosts)
@@ -159,22 +319,17 @@ def running():
     return p is not None and p.poll() is None
 
 
-def open_web(widget, student, key, profile="own"):
-    """Situs dibuka: jendelanya, atau tampilkan lagi kalau sudah terbuka. profile: "studio"
-    (Pinterest akun guru) / "own" (akun Google murid). Satu proses Chrome sekaligus: ganti
-    murid / ganti profil -> yang lama ditutup."""
+def open_web(widget, student, key):
+    """Situs dibuka: jendelanya, atau tampilkan lagi kalau sudah terbuka. Profil Chrome yang
+    terakhir dipakai murid. Satu proses Chrome sekaligus: ganti murid / Chrome biasa sedang
+    terbuka -> yang lama ditutup."""
     from elearning.i18n import L
     app = widget.winfo_toplevel()
     sites = sites_for(student)
     site = next((s for s in sites if s["key"] == key), None)
     if site is None:
         return False
-    ok = dict(profiles_for(student))
-    if profile == "studio" and not ok.get("studio"):
-        profile = "own"
-    if profile == "own" and not ok.get("own") and key == "pinterest":
-        return False                         # SUPERKIDS: hanya akun guru
-    if running() and (_state["sid"] != student["id"] or _state.get("profile") != profile):
+    if running() and (_state["sid"] != student["id"] or _state.get("mode") == "browser"):
         close()
     left = remaining(student["id"], key)
     if left is not None and left <= 0:
@@ -196,7 +351,7 @@ def open_web(widget, student, key, profile="own"):
         _message(app, site["title"], L("Google Chrome belum terpasang di PC ini. Hubungi guru / admin.",
                                        "Google Chrome is not installed on this PC. Please ask your teacher."))
         return False
-    folder = profile_dir(student["id"], profile)
+    folder = profile_dir(student["id"])
     x, y, w, h = _area(app)
     ww, hh = max(420, int(w * 0.42)), max(360, h - 24)
     n = len(_state["site_hwnd"]) if running() else 0          # jendela berikutnya sedikit bergeser
@@ -205,10 +360,11 @@ def open_web(widget, student, key, profile="own"):
             f"--window-position={x + w - ww - 12 - 24 * n},{y + 12 + 24 * n}"]
     first = not running()
     if first:   # proses browser baru: aturan situs & opsi hanya berlaku di peluncuran pertama
-        if profile == "studio":   # profil studio: tutup sisa Chrome lain (mis. setup admin)
-            _kill_profile(folder)
-        _prepare_profile(folder)
-        args += [f"--host-resolver-rules={_rules(sites, profile=profile)}", "--no-first-run",
+        _kill_profile(folder)     # sisa Chrome biasa murid ini (aturan host belum terpasang)
+        pdir = _last_profile(folder)
+        _prepare_profile(folder, pdir)
+        args += [f"--profile-directory={pdir}",
+                 f"--host-resolver-rules={_rules(sites)}", "--no-first-run",
                  "--no-default-browser-check", "--disable-extensions",
                  "--disable-features=Translate,MediaRouter", "--disable-background-networking"]
         if C.lite():   # mode ringan (iGPU + Blender): Chrome tidak memakai GPU
@@ -223,7 +379,7 @@ def open_web(widget, student, key, profile="own"):
         return False
     if first:      # peluncuran berikutnya diteruskan ke proses ini lalu langsung selesai
         _state.update(proc=proc, sid=student["id"], app=app, hwnds=set(), hidden=False,
-                      site_hwnd={}, pending=[], profile=profile, extra={})
+                      site_hwnd={}, pending=[], extra={}, mode="app", pdirs=set())
     _state["pending"].append((key, time.monotonic()))
     C.log(f"Web: {site['title']} dibuka untuk {student['id']}")
     if _state["job"] is None:
@@ -271,65 +427,8 @@ def _close_extra(now):
             C.log(f"Web: jendela tambahan ditutup ({title[:40]!r}) - hanya 1 jendela per situs")
 
 
-SEARCH_TITLES = ("google search", "penelusuran google", "telusuri dengan google")
-
-
-def _close_search():
-    """Akun studio dipakai murid: halaman Google Search / beranda Google tidak boleh dibuka
-    (www.google.com diizinkan hanya untuk login FedCM) -> jendela itu ditutup."""
-    u, _c, _w = _user32()
-    for hwnd in list(_state["hwnds"]):
-        if not u.IsWindow(hwnd):
-            continue
-        t = _title(hwnd).strip().lower()
-        if t == "google" or any(w in t for w in SEARCH_TITLES):
-            u.PostMessageW(hwnd, 0x0010, 0, 0)             # WM_CLOSE
-            _state["hwnds"].discard(hwnd)
-            for k, h in list(_state["site_hwnd"].items()):
-                if h == hwnd:
-                    _state["site_hwnd"].pop(k, None)
-            C.log(f"Web: halaman Google ditutup ({t[:40]!r}) - akun studio")
-
-
-def studio_login(widget):
-    """Admin / dev: buka Chrome profil studio (jendela biasa) untuk login akun Google studio
-    SEKALI di PC ini, lalu "Continue with Google" di Pinterest. Password diketik sendiri oleh
-    admin; tidak disimpan aplikasi (cookie login disimpan Chrome di profil studio)."""
-    from urllib.parse import quote
-    from elearning.i18n import L
-    app = widget.winfo_toplevel()
-    exe = chrome_path()
-    if exe is None:
-        _message(app, "Akun studio", L("Google Chrome belum terpasang di PC ini.",
-                                       "Google Chrome is not installed on this PC."))
-        return False
-    close()                                   # jendela murid (profil sama) ditutup dulu
-    folder = profile_dir("", "studio")
-    _kill_profile(folder)
-    _prepare_profile(folder)
-    acc = getattr(C, "WEB_STUDIO_ACCOUNT", "")
-    url = ("https://accounts.google.com/ServiceLogin?continue="
-           + quote("https://id.pinterest.com/login/", safe="") + "&Email=" + quote(acc))
-    args = [exe, f"--app={url}", f"--user-data-dir={folder}",
-            f"--host-resolver-rules={_rules(C.WEB_SITES, setup=True)}", "--no-first-run",
-            "--no-default-browser-check", "--disable-extensions"]
-    try:
-        subprocess.Popen(args, close_fds=True)
-    except OSError as exc:
-        C.log(f"Web: login akun studio gagal dibuka: {exc!r}")
-        return False
-    C.log("Web: jendela login akun studio dibuka")
-    _message(app, "Akun studio", L(
-        f"Login dengan {acc} di jendela Chrome, lalu di Pinterest pilih \"Continue with "
-        "Google\". Setelah masuk, tutup jendela itu. Cukup sekali di PC ini; semua murid "
-        "langsung memakai akun ini.",
-        f"Sign in with {acc} in the Chrome window, then choose \"Continue with Google\" "
-        "on Pinterest. Close that window when done. Once per PC."))
-    return True
-
-
 def _kill_profile(folder):
-    """Chrome lain yang memakai profil ini (mis. jendela setup admin yang aksesnya lebar)
+    """Chrome lain yang memakai folder data ini (mis. sisa jendela situs / Chrome biasa)
     ditutup: aturan host hanya berlaku saat proses Chrome pertama diluncurkan."""
     if sys.platform != "win32" or not os.path.isdir(folder):
         return
@@ -352,62 +451,83 @@ def _kill_profile(folder):
         C.log(f"Web: Chrome profil lama tidak bisa ditutup: {exc!r}")
 
 
-def _studio_rules():
-    """Profil akun guru: situs bebas, isi akun Google studio diblok, pencarian aman."""
-    parts = [f"MAP {h} ~NOTFOUND" for h in getattr(C, "WEB_STUDIO_BLOCK", ())]
-    parts += [f"MAP {a} {b}" for a, b in getattr(C, "WEB_SAFE_MAP", ())]
-    return ", ".join(parts)
+def _safe_rules(student):
+    """Program config.WEB_SAFE_PROGRAMS (SUPERKIDS): pencarian aman (SafeSearch Google / Bing /
+    DuckDuckGo, YouTube Restricted) lewat aturan host. Situs lain tetap bebas."""
+    if student.get("program") not in getattr(C, "WEB_SAFE_PROGRAMS", ()):
+        return ""
+    try:
+        from elearning import app_settings
+        if not app_settings.feature("safesearch"):
+            return ""
+    except Exception:
+        pass
+    return ", ".join(f"MAP {a} {b}" for a, b in getattr(C, "WEB_SAFE_MAP", ()))
 
 
-def open_browser(widget, student, profile="own"):
-    """Baris Chrome di sidebar murid: Google Chrome BIASA (tab, kolom alamat, semua situs),
-    profil "studio" (akun guru) / "own" (akun Google murid). Waktu browsing dibatasi per
-    hari (kunci "pinterest"): dihitung selama ada jendela Chrome yang tidak di-minimize."""
+def _browse_blocked(app, sid):
+    """Batas browsing habis / Chrome diblokir guru -> pesan + True."""
+    from elearning.i18n import L
+    left = remaining(sid, "pinterest")
+    if left is None or left > 0:
+        return False
+    lim = _limit("pinterest", sid)
+    r = reset_at(sid, "pinterest")
+    _message(app, "Chrome", L(
+        "Chrome tidak tersedia untukmu. Tanya guru." if lim == 0 else
+        f"Batas browsing habis. Bisa dipakai lagi pukul {r}.",
+        "Chrome is not available for you. Ask your teacher." if lim == 0 else
+        f"You've hit your browsing limit ({lim} min). It resets at {r}."))
+    return True
+
+
+def _front():
+    """Semua jendela Chrome murid dibawa ke depan (yang di-minimize dipulihkan)."""
+    if sys.platform != "win32" or not running():
+        return
+    u, _c, _w = _user32()
+    wins = _chrome_windows(_state["proc"].pid)
+    for hwnd in wins:
+        u.ShowWindow(hwnd, 9 if u.IsIconic(hwnd) else 5)    # RESTORE / SHOW
+    if wins:
+        u.SetForegroundWindow(wins[0])
+
+
+def open_browser(widget, student, pdir, url=None):
+    """Kartu profil di popup Chrome: Google Chrome BIASA (tab, kolom alamat, semua situs) dengan
+    profil murid itu (--profile-directory). Profil lain murid yang sama dibuka di proses Chrome
+    yang sudah jalan (jendela baru). Waktu browsing dibatasi per hari (kunci "pinterest"):
+    dihitung selama ada jendela Chrome yang tidak di-minimize."""
     from elearning.i18n import L
     app = widget.winfo_toplevel()
     if not any(s["key"] == "pinterest" for s in sites_for(student)):
         return False
-    ok = dict(profiles_for(student))
-    if profile == "studio" and not ok.get("studio"):
-        profile = "own"
-    if profile == "own" and not ok.get("own"):
-        return False                         # SUPERKIDS: hanya akun guru
-    if running() and (_state["sid"] != student["id"] or _state.get("profile") != profile
-                      or _state.get("mode") != "browser"):
+    if running() and (_state["sid"] != student["id"] or _state.get("mode") != "browser"):
         close()
-    left = remaining(student["id"], "pinterest")
-    if left is not None and left <= 0:
-        lim = _limit("pinterest", student["id"])
-        r = reset_at(student["id"], "pinterest")
-        _message(app, "Chrome", L(
-            "Chrome tidak tersedia untukmu. Tanya guru." if lim == 0 else
-            f"Batas browsing habis. Bisa dipakai lagi pukul {r}.",
-            "Chrome is not available for you. Ask your teacher." if lim == 0 else
-            f"You've hit your browsing limit ({lim} min). It resets at {r}."))
+    if _browse_blocked(app, student["id"]):
         return False
-    if running():                            # sudah terbuka: bawa ke depan
-        if sys.platform == "win32":
-            u, _c, _w = _user32()
-            wins = _chrome_windows(_state["proc"].pid)
-            for hwnd in wins:
-                u.ShowWindow(hwnd, 9 if u.IsIconic(hwnd) else 5)    # RESTORE / SHOW
-            if wins:
-                u.SetForegroundWindow(wins[0])
+    if running() and url is None and pdir in _state.get("pdirs", ()):
+        _front()                                     # profil ini sudah terbuka: ke depan
         return True
     exe = chrome_path()
     if exe is None:
         _message(app, "Chrome", L("Google Chrome belum terpasang di PC ini. Hubungi guru / admin.",
                                   "Google Chrome is not installed on this PC. Please ask your teacher."))
         return False
-    folder = profile_dir(student["id"], profile)
-    _kill_profile(folder)          # sisa Chrome profil ini (mis. setup admin) ditutup dulu
-    _prepare_profile(folder)
-    args = [exe, f"--user-data-dir={folder}", "--no-first-run", "--no-default-browser-check",
-            "--disable-features=Translate,MediaRouter"]
-    if profile == "studio":
-        args.append(f"--host-resolver-rules={_studio_rules()}")
+    folder = profile_dir(student["id"])
+    first = not running()
+    if first:
+        _kill_profile(folder)      # sisa Chrome murid ini (mis. jendela situs) ditutup dulu
+    _prepare_profile(folder, pdir)
+    args = [exe, f"--user-data-dir={folder}", f"--profile-directory={pdir}", "--no-first-run",
+            "--no-default-browser-check", "--disable-features=Translate,MediaRouter"]
+    rules = _safe_rules(student)
+    if rules:
+        args.append(f"--host-resolver-rules={rules}")
     if C.lite():   # mode ringan (iGPU + Blender): Chrome tidak memakai GPU
         args += ["--disable-gpu", "--disable-smooth-scrolling"]
+    if url:
+        args.append(url)
     flags = 0x00004000 if sys.platform == "win32" else 0   # BELOW_NORMAL_PRIORITY_CLASS
     try:
         proc = subprocess.Popen(args, creationflags=flags, close_fds=True)
@@ -416,9 +536,11 @@ def open_browser(widget, student, profile="own"):
         _message(app, "Chrome", L("Chrome tidak bisa dibuka. Coba lagi.",
                                   "Chrome could not be opened. Please try again."))
         return False
-    _state.update(proc=proc, sid=student["id"], app=app, hwnds=set(), hidden=False,
-                  site_hwnd={}, pending=[], profile=profile, extra={}, mode="browser")
-    C.log(f"Web: Chrome ({profile}) dibuka untuk {student['id']}")
+    if first:      # peluncuran berikutnya diteruskan ke proses ini lalu langsung selesai
+        _state.update(proc=proc, sid=student["id"], app=app, hwnds=set(), hidden=False,
+                      site_hwnd={}, pending=[], extra={}, mode="browser", pdirs=set())
+    _state["pdirs"].add(pdir)
+    C.log(f"Web: Chrome ({pdir}) dibuka untuk {student['id']}")
     if _state["job"] is None:
         _watch()
     return True
@@ -481,7 +603,7 @@ def close():
         else:
             p.terminate()
     _state.update(proc=None, sid=None, app=None, job=None, hwnds=set(), hidden=False,
-                  site_hwnd={}, pending=[], extra={}, profile=None, mode=None)
+                  site_hwnd={}, pending=[], extra={}, mode=None, pdirs=set())
 
 
 # --- Win32: jendela milik aplikasi -------------------------------------------------------
@@ -766,7 +888,7 @@ def _watch():
     if app is None or not running():
         if app is not None:
             _state.update(proc=None, sid=None, app=None, hwnds=set(), site_hwnd={},
-                          pending=[])
+                          pending=[], mode=None, pdirs=set())
         return
     try:
         if _state.get("mode") == "browser":      # Chrome biasa: hanya hitung waktu browsing
@@ -794,8 +916,6 @@ def _watch():
                         else:                   # dibuka dari dalam situs: diperiksa dulu
                             _state.setdefault("extra", {})[hwnd] = now
                 _close_extra(now)
-                if _state.get("profile") == "studio":
-                    _close_search()
             if visible == _state["hidden"]:      # aplikasi mengecil / kembali
                 _show(visible)
             if visible:

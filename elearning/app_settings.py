@@ -26,6 +26,7 @@ FEATURES = (
     ("fps60", "60 fps (PC kuat)"),
     ("animations", "Animasi & video latar (PC 4 thread: selalu mati)"),
     ("survey", "Survey trial"),
+    ("safesearch", "SafeSearch Chrome murid SUPERKIDS"),
 )
 # Warna aksen UI (tombol utama, sorotan). Berlaku penuh setelah aplikasi dibuka ulang.
 ACCENTS = {

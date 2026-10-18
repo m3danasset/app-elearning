@@ -130,37 +130,17 @@ WEB_LOGIN_HOSTS = ("accounts.google.com", "*.google.com", "*.gstatic.com", "*.go
                    # FedCM ("Continue with Google" di Chrome) membaca
                    # https://google.com/.well-known/web-identity: domain TANPA subdomain
                    "google.com")
-# Akun Google STUDIO dipakai bersama semua murid (satu profil Chrome "studio" per PC).
-# Admin / dev login SEKALI per PC (Jendela Dev > Settings / Ctrl+K admin); murid tidak pernah
-# melihat password. Kosong = profil per murid (login sendiri-sendiri, seperti dulu).
-WEB_STUDIO_ACCOUNT = "m3dan.asset@gmail.com"
-WEB_STUDIO_NAME = "M3DAN ASSET"          # nama di kartu profil "Teacher" (popup Chrome)
-# Program yang boleh memakai profil "Akun saya" (login Google sendiri). SUPERKIDS (kids) tidak:
-# hanya Pinterest akun guru (studio).
-WEB_OWN_PROFILE_PROGRAMS = ("adult",)
-# Host Google yang boleh dibuka MURID saat akun studio dipakai: hanya yang perlu untuk login /
-# "Continue with Google". Gmail, Drive, myaccount, Google Search (www.google.com) DIBLOK supaya
-# murid tidak bisa membuka isi akun studio. (Setup login admin memakai WEB_LOGIN_HOSTS penuh.)
-# www.google.com: FedCM membaca www.google.com/.well-known/web-identity (google.com
-# dialihkan ke sana). Halaman Google Search / beranda Google ditutup lewat judul jendela
-# (web_launcher._close_search).
-WEB_STUDENT_GOOGLE_HOSTS = ("accounts.google.com", "accounts.google.*", "google.com",
-                            "www.google.com",
-                            "ssl.gstatic.com", "www.gstatic.com", "fonts.gstatic.com",
-                            "*.googleapis.com", "lh3.googleusercontent.com",
-                            "www.recaptcha.net", "accounts.youtube.com")
-# Profil "studio" (akun guru, dipakai SUPERKIDS) di Chrome biasa: semua situs bebas, KECUALI
-# isi akun Google studio (diblok) + pencarian aman (SafeSearch Google / Bing / DuckDuckGo,
-# YouTube Restricted) lewat --host-resolver-rules (cara DNS resmi Google, tanpa ubah PC).
-WEB_STUDIO_BLOCK = ("mail.google.com", "drive.google.com", "docs.google.com",
-                    "myaccount.google.com", "photos.google.com", "contacts.google.com",
-                    "calendar.google.com", "keep.google.com", "takeout.google.com",
-                    "pay.google.com", "payments.google.com", "passwords.google.com",
-                    "admin.google.com", "gemini.google.com")
+# Baris "Chrome" di sidebar murid = Google Chrome BIASA (semua situs) dengan profil Chrome
+# MILIK MURID SENDIRI (pemilih profil gaya Chrome: kartu "Add" = akun Google baru, titik tiga =
+# hapus). Semua profil satu murid ada di %LOCALAPPDATA%\M3DAN\browser\<ID> (Default,
+# Profile 1, ...), akun murid lain tidak terlihat. Maks. profil per murid:
+WEB_MAX_PROFILES = 4
+# Program dengan pencarian aman di Chrome (fitur Dev "safesearch"): SafeSearch Google / Bing /
+# DuckDuckGo + YouTube Restricted lewat --host-resolver-rules (cara DNS resmi Google, tanpa
+# ubah PC). Situs lain tetap bebas.
+WEB_SAFE_PROGRAMS = ("kids",)
 WEB_SAFE_MAP = (("www.google.com", "forcesafesearch.google.com"),
-                ("google.com", "forcesafesearch.google.com"),
                 ("www.google.co.id", "forcesafesearch.google.com"),
-                ("google.co.id", "forcesafesearch.google.com"),
                 ("www.youtube.com", "restrictmoderate.youtube.com"),
                 ("m.youtube.com", "restrictmoderate.youtube.com"),
                 ("youtubei.googleapis.com", "restrictmoderate.youtube.com"),
