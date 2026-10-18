@@ -30,6 +30,10 @@ LIFT = 6                   # kartu di bawah kursor naik sedikit (tanpa animasi: 
 SCROLL_MS = 220            # lama animasi geser kiri/kanan
 FADE = 150                 # lebar memudar di tepi kiri & kanan (px)
 ARROW_ZONE = 46            # area klik panah < > di tepi
+USB_W, USB_H = 300, 96     # widget USB (gaya widget Dashboard admin / guru, 1 saja, tetap)
+USB_ON = "#3fb68b"
+USB_PAD = 28               # ruang bayangan di sekitar widget
+USB_POLL_MS = 1000         # cek huruf drive (murah); detail flashdisk dibaca di thread
 
 
 def _rgb(c):
@@ -101,7 +105,7 @@ class CourseDock(tk.Canvas):
 
     FRAME_MS = C.UI_FRAME_MS   # maks. 30 fps
 
-    def __init__(self, master, courses, allowed, on_open, title, hello, foot=None):
+    def __init__(self, master, courses, allowed, on_open, title, hello, foot=None, usb=False):
         super().__init__(master, bg=C.BG, highlightthickness=0, bd=0)
         # teks bawah kartu (terbuka, terkunci); resource trial memakai "Open in Blender" dst.
         self.foot = foot or ("Open course  →", "Locked  ·  ask your teacher")
@@ -135,7 +139,18 @@ class CourseDock(tk.Canvas):
             "title": tkfont.Font(family=C.FONT, size=15, weight="bold"),
             "desc": tkfont.Font(family=C.FONT, size=9),
             "foot": tkfont.Font(family=C.FONT, size=9, weight="bold"),
+            "wbig": tkfont.Font(family=C.FONT, size=14, weight="bold"),
+            "wsmall": tkfont.Font(family=C.FONT, size=9),
         }
+        # widget USB di atas judul (murid SK / PB / IC): tidak bisa diatur / dipindah
+        self.usb = usb
+        self._usb_drives = None      # None = sedang dicek; [(root, label, free, total)]
+        self._usb_rect = None
+        self._usb_mask = None
+        self._usb_box = []           # hasil thread -> diambil thread utama
+        self._usb_busy = False
+        self._usb_photo = None
+        self._usb_item = self.create_image(0, 0, anchor="nw")
         path = None
         try:
             from elearning.ui import video_background as VB
@@ -166,6 +181,8 @@ class CourseDock(tk.Canvas):
             top._dock_keys = True
         if self.video.ok:
             self.after(60, self._video_tick)
+        if self.usb:
+            self.after(50, self._usb_poll)
 
     # --- data -------------------------------------------------------------------------------
     def set_courses(self, courses, empty_text=""):
@@ -321,6 +338,7 @@ class CourseDock(tk.Canvas):
         self._text_x = self._start_x()
         self._apply_fades(force=True)
         self._compose_band()
+        self._usb_layout(top - 58)
 
     def _fit_title(self, s):
         longest = max((c["title"] for c in self.courses), key=len)
@@ -579,11 +597,152 @@ class CourseDock(tk.Canvas):
             self._set_base_photo()
             if self._anim is None:
                 self._compose_band()
+            self._compose_usb()
         if self.video.failed():
             C.log(f"Video latar beranda gagal: {self.video.player.error}")
             self.video.stop()
             return
         self.after(1000 // VIDEO_FPS, self._video_tick)
+
+    # --- widget USB ------------------------------------------------------------------------
+    def _usb_layout(self, title_y):
+        """Widget di tengah ruang kosong di atas judul; disembunyikan kalau ruangnya kurang."""
+        self.delete("usbw")
+        self._usb_rect = None
+        if not self.usb:
+            return
+        w = self._size[0]
+        ww = int(min(USB_W, w - 48))
+        bottom = title_y - 30
+        y = max(16, (bottom - USB_H) / 2)
+        if ww < 200 or bottom - y < USB_H:
+            self.itemconfigure(self._usb_item, image="")
+            return
+        x = (w - ww) / 2
+        self._usb_rect = (int(x), int(y), int(x) + ww, int(y) + USB_H)
+        self._compose_usb()
+        self._usb_text()
+
+    def _compose_usb(self):
+        """Potongan latar + bayangan + badan + cahaya warna + ikon -> satu gambar kecil."""
+        if self._usb_rect is None or self._base is None:
+            return
+        from elearning.ui.dashboard_view import DashboardView, _shadow
+        Image = photos.Image
+        x0, y0, x1, y1 = self._usb_rect
+        w, h = x1 - x0, y1 - y0
+        pad = USB_PAD
+        W, H = self._size
+        bx0, by0 = max(0, x0 - pad), max(0, y0 - pad)
+        bx1, by1 = min(W, x1 + pad), min(H, y1 + pad)
+        out = self._base.crop((bx0, by0, bx1, by1)).convert("RGBA")
+        on = bool(self._usb_drives)
+        color = USB_ON if on else C.MUTED
+        sh, sp = _shadow(w, h, 18, 12, 90)
+        self._paste_clipped(out, sh, x0 - sp - bx0, y0 - sp - by0 + 6)
+        key = ("usbbody", w, h)
+        body = I._img_cache.get(key)
+        if body is None:
+            body = Image.new("RGBA", (w, h), _rgb(C.BORDER) + (0,))
+            body.putalpha(I.round_mask(w, h, 16).point(lambda v: int(v * 0.93)))
+            inner = Image.new("RGBA", (w - 2, h - 2), _rgb(C.CARD) + (0,))
+            inner.putalpha(I.round_mask(w - 2, h - 2, 15).point(lambda v: int(v * 0.93)))
+            body.alpha_composite(inner, (1, 1))
+            I._img_cache[key] = body
+        self._paste_clipped(out, body, x0 - bx0, y0 - by0)
+        self._paste_clipped(out, DashboardView._tint(w, h, color, "todo" if on else "info"),
+                            x0 - bx0, y0 - by0)
+        key = ("usbicon", color)
+        icon = I._img_cache.get(key)
+        if icon is None:
+            disc = color if on else "#4a4842"
+            icon = I._render_icon("usb", "#ffffff", C.CARD, 38, disc=disc).convert("RGBA")
+            icon.putalpha(I.round_mask(38, 38, 19))
+            I._img_cache[key] = icon
+        self._paste_clipped(out, icon, x0 + 18 - bx0, y0 + (h - 38) // 2 - by0)
+        self._usb_photo = photos.to_photoimage(out.convert("RGB"))
+        self.coords(self._usb_item, bx0, by0)
+        self.itemconfigure(self._usb_item, image=self._usb_photo)
+
+    def _fit(self, text, font, width):
+        f = self.f[font]
+        if f.measure(text) <= width:
+            return text
+        while text and f.measure(text + "...") > width:
+            text = text[:-1]
+        return text.rstrip() + "..."
+
+    @staticmethod
+    def _size_text(n):
+        if n is None:
+            return ""
+        for unit in ("B", "KB", "MB", "GB", "TB"):
+            if n < 1024 or unit == "TB":
+                return f"{n:.0f} {unit}" if unit in ("B", "KB") else f"{n:.1f} {unit}"
+            n /= 1024.0
+
+    def _usb_text(self):
+        self.delete("usbw")
+        if self._usb_rect is None:
+            return
+        x0, y0, x1, y1 = self._usb_rect
+        tx = x0 + 18 + 38 + 14
+        tw = x1 - tx - 16
+        d = self._usb_drives
+        if d is None:
+            big, small, col = "Checking USB...", "", C.MUTED
+        elif not d:
+            big, small, col = "No USB plugged in", "Plug in a flashdisk to save work", C.MUTED
+        elif len(d) == 1:
+            root, label, free, _total = d[0]
+            name = f"{label} ({root[:2]})" if label else f"USB ({root[:2]})"
+            big = "USB plugged in"
+            small = name + (f"  ·  {self._size_text(free)} free" if free is not None else "")
+            col = USB_ON
+        else:
+            big = f"{len(d)} USB plugged in"
+            small = "  ·  ".join(r[:2] for r, *_ in d)
+            col = USB_ON
+        cy = (y0 + y1) / 2
+        if d:
+            big = "● " + big
+        self.create_text(tx, cy - 11, text=self._fit(big, "wbig", tw), anchor="w",
+                         font=self.f["wbig"], fill=col if d else C.TEXT, tags=("fg", "usbw"))
+        self.create_text(tx, cy + 14, text=self._fit(small, "wsmall", tw), anchor="w",
+                         font=self.f["wsmall"], fill=C.MUTED, tags=("fg", "usbw"))
+
+    def _usb_poll(self):
+        """Tiap detik: huruf drive berubah -> baca flashdisk di thread (nama, sisa ruang)."""
+        if self._closed:
+            return
+        from elearning.ui import usb_save
+        if self._usb_box:
+            drives = self._usb_box.pop()
+            self._usb_box.clear()
+            if drives != self._usb_drives:
+                changed = bool(drives) != bool(self._usb_drives) or self._usb_drives is None
+                self._usb_drives = drives
+                if changed:
+                    self._compose_usb()       # warna / ikon berubah
+                self._usb_text()
+        mask = usb_save.drive_mask()
+        if mask != self._usb_mask and not self._usb_busy:
+            self._usb_mask = mask
+            self._usb_busy = True
+            box = self._usb_box
+
+            def work():
+                try:
+                    out = [(r,) + usb_save.drive_info(r) for r in usb_save.removable_drives()]
+                except Exception as exc:
+                    C.log(f"Widget USB: {exc!r}")
+                    out = []
+                box.append(out)
+                self._usb_busy = False
+
+            import threading
+            threading.Thread(target=work, daemon=True).start()
+        self.after(USB_POLL_MS if self._usb_drives is not None else 100, self._usb_poll)
 
     def destroy(self):
         self._closed = True

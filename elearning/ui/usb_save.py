@@ -39,6 +39,36 @@ def removable_drives():
         return []
 
 
+def drive_info(root):
+    """(nama volume, sisa byte, total byte) flashdisk; nama kosong / angka None kalau gagal."""
+    label = ""
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            buf = ctypes.create_unicode_buffer(64)
+            if ctypes.windll.kernel32.GetVolumeInformationW(root, buf, 64, None, None, None,
+                                                             None, 0):
+                label = buf.value
+        except Exception:
+            pass
+    try:
+        du = shutil.disk_usage(root)
+        return label, du.free, du.total
+    except OSError:
+        return label, None, None
+
+
+def drive_mask():
+    """Bit huruf drive yang ada (murah, boleh dipanggil sering dari thread utama)."""
+    if sys.platform != "win32":
+        return 0
+    try:
+        import ctypes
+        return ctypes.windll.kernel32.GetLogicalDrives()
+    except Exception:
+        return 0
+
+
 def _start_folder():
     drives = removable_drives()
     try:

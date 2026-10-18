@@ -300,6 +300,12 @@ def _web_flow(x, y):   # layar + tombol putar: jendela web Flow (video AI) murid
                _lines(x, y, (8.4, 7.4), (13.0, 10), (8.4, 12.6), (8.4, 7.4)))
 
 
+def _usb(x, y):   # flashdisk: badan membulat + kepala colokan dengan 2 lubang
+    return min(_box(x, y, 5.6, 8.2, 14.4, 17.6, 2.2),
+               _lines(x, y, (7.4, 8.2), (7.4, 2.8), (12.6, 2.8), (12.6, 8.2)),
+               _seg(x, y, (9.0, 5.0), (9.0, 5.4)), _seg(x, y, (11.0, 5.0), (11.0, 5.4)))
+
+
 SHAPES = {
     "search": _search, "panel": _panel, "home": _home, "grid": _grid, "play": _play,
     "folder": _folder, "image": _image, "users": _users, "user": _user, "file": _file,
@@ -311,7 +317,7 @@ SHAPES = {
     "emo_keren": _emo_keren, "emo_capek": _emo_capek, "emo_bosan": _emo_bosan,
     "clock": _clock, "enter": _enter, "chev_left": _chev_left, "arrow_up": _arrow_up,
     "list": _list, "pen": _pen, "chev_up": _chev_up, "web_pin": _web_pin,
-    "web_gemini": _web_gemini, "web_flow": _web_flow,
+    "web_gemini": _web_gemini, "usb": _usb, "web_flow": _web_flow,
 }
 
 

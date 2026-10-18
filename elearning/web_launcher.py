@@ -33,14 +33,13 @@ _u32 = None
 
 def sites_for(student):
     """Situs yang boleh dibuka murid ini (urut config.WEB_SITES)."""
-    from elearning.courses import COURSES
+    from elearning.courses import COURSES, ai_only
     from elearning.trial import is_trial
     if not student or is_trial(student):
         return []
     group = {c["id"]: c.get("group") for c in COURSES}
-    opened = [group.get(cid) for cid in student.get("courses", [])]
-    ai = any(g in C.WEB_AI_GROUPS for g in opened)
-    other = not opened or any(g not in C.WEB_AI_GROUPS for g in opened)
+    ai = any(group.get(cid) in C.WEB_AI_GROUPS for cid in student.get("courses", []))
+    other = not ai_only(student)
     return [s for s in C.WEB_SITES if (ai if s["ai"] else other)]
 
 

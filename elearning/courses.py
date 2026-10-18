@@ -88,6 +88,14 @@ def has_video(course):
     return course.get("video", True)
 
 
+def ai_only(student):
+    """True kalau semua kursus yang dibuka murid ini grup AI (config.WEB_AI_GROUPS)."""
+    from elearning import config as C
+    group = {c["id"]: c.get("group") for c in COURSES}
+    opened = [group.get(cid) for cid in (student or {}).get("courses", [])]
+    return bool(opened) and all(g in C.WEB_AI_GROUPS for g in opened)
+
+
 def courses_for(program):
     """Kursus yang tampil untuk program tertentu ("adult" atau "kids")."""
     return [c for c in COURSES if c["program"] == program]
