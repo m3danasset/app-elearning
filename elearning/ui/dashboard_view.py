@@ -896,7 +896,9 @@ class DashboardView(tk.Canvas):
         Image = photos.Image
         W, H = self._size
         raw = self.video.raw if self.video.ok() else None
-        if raw is not None and raw.size == (W, H):
+        if raw is not None:      # ukuran baru (sidebar dilipat / dibuka): frame lama direntang
+            if raw.size != (W, H):
+                raw = raw.resize((W, H), photos.Image.BILINEAR)
             base = raw.convert("RGBA")
         else:
             base = Image.new("RGBA", (W, H), I._rgb(C.BG) + (255,))

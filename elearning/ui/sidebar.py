@@ -1122,11 +1122,12 @@ class AppSidebar(tk.Frame):
             return _Ref()
         return self._spec("note", text=text, dock=dock)
 
-    def footer(self, text, command, image=None, icon=None, extra=None):
+    def footer(self, text, command, image=None, icon=None, extra=None, right=None):
         """Item di dasar sidebar, tepat di atas profil (mis. Buka Blender).
-        extra = [(ikon, perintah, tip), ...]: tombol ikon kecil di sebelah kanannya."""
+        extra = [(ikon, perintah, tip), ...]: tombol ikon kecil di sebelah kanannya.
+        right = teks kecil di kanan (mis. sisa menit Pinterest)."""
         return self._spec("footer", text=text, command=command, image=image, icon=icon,
-                          extra=extra)
+                          extra=extra, right=right)
 
     def _build_nav(self, text, icon, command, active=False, primary=False, right=None):
         if self.collapsed:
@@ -1185,7 +1186,7 @@ class AppSidebar(tk.Frame):
         lbl.pack(fill="x", pady=(4, 4))
         return lbl
 
-    def _build_footer(self, text, command, image=None, icon=None, extra=None):
+    def _build_footer(self, text, command, image=None, icon=None, extra=None, right=None):
         if self.collapsed:
             b = IconButton(self._footer_box, icon or "play", command, tip=text, image=image)
             b.pack(pady=1)
@@ -1198,7 +1199,7 @@ class AppSidebar(tk.Frame):
             box.pack(fill="x")
             for ic, cmd, tip in reversed(extra):
                 IconButton(box, ic, cmd, tip=tip, size=(34, 36)).pack(side="right")
-        r = Row(box, text, command, image=image, icon=None if image else icon)
+        r = Row(box, text, command, image=image, icon=None if image else icon, right=right)
         r.pack(fill="x", side="left" if extra else "top", expand=bool(extra))
         return r
 
@@ -1332,14 +1333,35 @@ def blender_footer(sb):
     if "blender" not in _blender_cache:
         _blender_cache["blender"] = blender_icon.get_photo(22)
     student = getattr(sb.winfo_toplevel(), "_student", None)
-    # ikon situs di sebelah Blender: Pinterest (PB / IC / SK), Gemini + Flow (murid AI)
-    def tip(s):          # mis. "Pinterest · 8 min left" (batas seperti chat Claude)
+    # situs web murid = baris sendiri DI ATAS Blender: Pinterest (PB / IC / SK, logo asli),
+    # Gemini + Flow (murid AI). Kanan: sisa jatah (mis. "8 min left").
+    for s in web_launcher.sites_for(student):
         st = web_launcher.status_text(student["id"], s["key"]) if student else ""
-        return f"{s['title']} · {st}" if st else s["title"]
-    extra = [(s["icon"], lambda k=s["key"]: web_launcher.open_web(sb, student, k), tip(s))
-             for s in web_launcher.sites_for(student)]
+        sb.footer(s["title"], lambda k=s["key"]: web_launcher.open_web(sb, student, k),
+                  image=_site_logo(s["key"]), icon=s["icon"], right=st or None)
     sb.footer(L("Buka Blender", "Open Blender") + f" {blender_launcher.VERSION}", open_blender_now,
-              image=_blender_cache["blender"], icon="play", extra=extra)
+              image=_blender_cache["blender"], icon="play")
+
+
+def _site_logo(key, size=22):
+    """Logo asli situs (ui/img/<key>.png, bulat transparan, diperkecil halus) atau None."""
+    k = ("site", key, size)
+    if k not in _blender_cache:
+        ph = None
+        try:
+            import os
+            from PIL import Image, ImageTk
+            path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "img", f"{key}.png")
+            if os.path.isfile(path):
+                with Image.open(path) as im:
+                    img = im.convert("RGBA").resize((size, size), Image.LANCZOS)
+                bg = Image.new("RGBA", img.size, I._rgb(C.SIDEBAR) + (255,))
+                bg.alpha_composite(img)          # latar sidebar: tepi bulat halus
+                ph = ImageTk.PhotoImage(bg.convert("RGB"))
+        except Exception as exc:
+            C.log(f"Logo {key} tidak bisa dibuka: {exc!r}")
+        _blender_cache[k] = ph
+    return _blender_cache[k]
 
 
 

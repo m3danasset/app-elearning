@@ -381,3 +381,11 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   students.set_pinterest_limit, _valid menyimpan). Didahulukan dari bawaan Dev; dibaca launcher
   maks. 1x / 5 dtk (_own_limit), langsung berlaku.
   Belum diuji di Windows asli.
+- Situs web murid di sidebar = baris sendiri DI ATAS "Open Blender" (sidebar.blender_footer):
+  Pinterest pakai logo asli (elearning\ui\img\pinterest.png, bulat transparan, _site_logo),
+  Gemini / Flow ikon garis; kanan = sisa jatah. web_launcher: hanya SATU jendela per situs;
+  jendela yang dibuka dari dalam situs (tautan / tab baru) ditutup (_close_extra: judul berisi
+  nama situs = langsung, lainnya setelah 4 dtk); popup login Google (judul "Google"/"Sign in")
+  dibiarkan.
+- Dashboard: ukuran berubah (sidebar dilipat / dibuka) -> frame video terakhir direntang ke
+  ukuran baru (bukan latar polos), jadi latar tidak berkedip.

@@ -173,6 +173,39 @@ def open_web(widget, student, key):
     return True
 
 
+EXTRA_GRACE_S = 4.0     # jendela tambahan tanpa judul login Google -> ditutup setelah ini
+LOGIN_WORDS = ("google", "sign in", "masuk", "login", "log in", "akun", "account")
+
+
+def _title(hwnd):
+    u, ctypes, _w = _user32()
+    buf = ctypes.create_unicode_buffer(256)
+    u.GetWindowTextW(hwnd, buf, 256)
+    return buf.value
+
+
+def _close_extra(now):
+    """Murid hanya boleh SATU jendela per situs (anti spam): jendela yang dibuka dari dalam
+    situs (tautan / tab baru, mis. Pinterest) langsung ditutup; popup login Google boleh."""
+    extra = _state.setdefault("extra", {})
+    if not extra:
+        return
+    u, _c, _w = _user32()
+    for hwnd, t in list(extra.items()):
+        if not u.IsWindow(hwnd):
+            extra.pop(hwnd, None)
+            continue
+        title = _title(hwnd).lower()
+        if any(w in title for w in LOGIN_WORDS):
+            extra.pop(hwnd, None)            # popup login: dibiarkan (tetap milik aplikasi)
+            continue
+        if any(s["title"].lower() in title for s in C.WEB_SITES) or now - t > EXTRA_GRACE_S:
+            u.PostMessageW(hwnd, 0x0010, 0, 0)             # WM_CLOSE
+            extra.pop(hwnd, None)
+            _state["hwnds"].discard(hwnd)
+            C.log(f"Web: jendela tambahan ditutup ({title[:40]!r}) - hanya 1 jendela per situs")
+
+
 def close():
     """Tutup jendela web (logout, tutup aplikasi, ganti murid)."""
     if _usage["dirty"]:
@@ -192,7 +225,7 @@ def close():
         else:
             p.terminate()
     _state.update(proc=None, sid=None, app=None, job=None, hwnds=set(), hidden=False,
-                  site_hwnd={}, pending=[])
+                  site_hwnd={}, pending=[], extra={})
 
 
 # --- Win32: jendela milik aplikasi -------------------------------------------------------
@@ -207,6 +240,7 @@ def _user32():
                                   wintypes.LPARAM]
         u.GetWindowThreadProcessId.argtypes = [H, ctypes.POINTER(wintypes.DWORD)]
         u.GetClassNameW.argtypes = [H, wintypes.LPWSTR, ctypes.c_int]
+        u.GetWindowTextW.argtypes = [H, wintypes.LPWSTR, ctypes.c_int]
         u.IsWindowVisible.argtypes = [H]
         u.IsWindow.argtypes = [H]
         u.IsIconic.argtypes = [H]
@@ -468,6 +502,9 @@ def _watch():
                         _state["hwnds"].add(hwnd)
                         if _state["pending"]:   # jendela baru = situs yang terakhir diminta
                             _state["site_hwnd"][_state["pending"].pop(0)[0]] = hwnd
+                        else:                   # dibuka dari dalam situs: diperiksa dulu
+                            _state.setdefault("extra", {})[hwnd] = now
+                _close_extra(now)
             if visible == _state["hidden"]:      # aplikasi mengecil / kembali
                 _show(visible)
             if visible:
