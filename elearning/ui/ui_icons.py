@@ -306,6 +306,11 @@ def _usb(x, y):   # flashdisk: badan membulat + kepala colokan dengan 2 lubang
                _seg(x, y, (9.0, 5.0), (9.0, 5.4)), _seg(x, y, (11.0, 5.0), (11.0, 5.4)))
 
 
+def _eject(x, y):   # segitiga + garis: keluarkan flashdisk
+    return min(_lines(x, y, (10, 4.4), (15.4, 10.8), (4.6, 10.8), (10, 4.4)),
+               _seg(x, y, (4.8, 15.0), (15.2, 15.0)))
+
+
 SHAPES = {
     "search": _search, "panel": _panel, "home": _home, "grid": _grid, "play": _play,
     "folder": _folder, "image": _image, "users": _users, "user": _user, "file": _file,
@@ -317,7 +322,7 @@ SHAPES = {
     "emo_keren": _emo_keren, "emo_capek": _emo_capek, "emo_bosan": _emo_bosan,
     "clock": _clock, "enter": _enter, "chev_left": _chev_left, "arrow_up": _arrow_up,
     "list": _list, "pen": _pen, "chev_up": _chev_up, "web_pin": _web_pin,
-    "web_gemini": _web_gemini, "usb": _usb, "web_flow": _web_flow,
+    "web_gemini": _web_gemini, "usb": _usb, "eject": _eject, "web_flow": _web_flow,
 }
 
 

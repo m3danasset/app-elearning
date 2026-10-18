@@ -13,6 +13,8 @@ Video dibaca & digelapkan di thread terpisah dan dibatasi 12 fps supaya ringan.
 """
 
 import os
+import threading
+import time
 import tkinter as tk
 import tkinter.font as tkfont
 
@@ -30,9 +32,11 @@ LIFT = 6                   # kartu di bawah kursor naik sedikit (tanpa animasi: 
 SCROLL_MS = 220            # lama animasi geser kiri/kanan
 FADE = 150                 # lebar memudar di tepi kiri & kanan (px)
 ARROW_ZONE = 46            # area klik panah < > di tepi
-USB_W, USB_H = 300, 96     # widget USB (gaya widget Dashboard admin / guru, 1 saja, tetap)
+USB_W, USB_H = 340, 96     # widget USB (gaya widget Dashboard admin / guru, 1 saja, tetap)
 USB_ON = "#3fb68b"
 USB_PAD = 28               # ruang bayangan di sekitar widget
+USB_BTN = 34               # tombol eject bulat di kanan widget
+USB_RESCAN_S = 5.0         # baca ulang flashdisk berkala (sisa ruang, media dikeluarkan / masuk)
 USB_POLL_MS = 1000         # cek huruf drive (murah); detail flashdisk dibaca di thread
 
 
@@ -154,6 +158,10 @@ class CourseDock(tk.Canvas):
         self._usb_box = []           # hasil thread -> diambil thread utama
         self._usb_busy = False
         self._usb_photo = None
+        self._usb_hover = False      # kursor di atas tombol eject
+        self._usb_ejecting = False
+        self._usb_msg = None         # (teks, warna, sampai kapan) pesan eject gagal
+        self._usb_scan_t = 0.0
         self._usb_item = self.create_image(0, 0, anchor="nw")
         path = None
         try:
@@ -166,7 +174,8 @@ class CourseDock(tk.Canvas):
             C.log(f"Video latar beranda: {path}")
         self.bind("<Configure>", self._on_resize)
         self.bind("<Motion>", self._motion)
-        self.bind("<Leave>", lambda e: (self._set_hover(None), self._set_arrow_hover(None)))
+        self.bind("<Leave>", lambda e: (self._set_hover(None), self._set_arrow_hover(None),
+                                        self._usb_set_hover(False)))
         self.bind("<Button-1>", self._click)
         self.bind("<MouseWheel>", self._wheel)
         self.bind("<Shift-MouseWheel>", self._wheel)
@@ -521,6 +530,12 @@ class CourseDock(tk.Canvas):
                 self._compose_band()
 
     def _motion(self, e):
+        on = self._usb_on_btn(e.x, e.y)
+        self._usb_set_hover(on)
+        if on:
+            self._set_hover(None)
+            self.config(cursor="hand2")
+            return
         side = self._arrow_at(e.x, e.y)
         self._set_arrow_hover(side)
         if side is not None:
@@ -548,6 +563,9 @@ class CourseDock(tk.Canvas):
             self._compose_band()
 
     def _click(self, e):
+        if self._usb_on_btn(e.x, e.y):
+            self._usb_eject()
+            return
         side = self._arrow_at(e.x, e.y)
         if side is not None:
             self.scroll_by(side)
@@ -681,9 +699,76 @@ class CourseDock(tk.Canvas):
             icon.putalpha(I.round_mask(38, 38, 19))
             I._img_cache[key] = icon
         self._paste_clipped(out, icon, x0 + 18 - bx0, y0 + (h - 38) // 2 - by0)
+        if not self._usb_ejecting:          # tombol eject: lingkaran samar, terang saat disorot
+            key = ("usbeject", self._usb_hover)
+            btn = I._img_cache.get(key)
+            if btn is None:
+                fill = C.CARD_HOVER if self._usb_hover else C.CARD
+                disc = "#4f4c46" if self._usb_hover else "#3a3833"
+                btn = I._render_icon("eject", C.TEXT if self._usb_hover else C.MUTED, fill,
+                                     USB_BTN, disc=disc).convert("RGBA")
+                btn.putalpha(I.round_mask(USB_BTN, USB_BTN, USB_BTN / 2))
+                I._img_cache[key] = btn
+            bx, by = self._usb_btn_xy()
+            self._paste_clipped(out, btn, int(bx) - bx0, int(by) - by0)
         self._usb_photo = photos.to_photoimage(out.convert("RGB"))
         self.coords(self._usb_item, bx0, by0)
         self.itemconfigure(self._usb_item, image=self._usb_photo)
+
+    def _usb_btn_xy(self):
+        x0, y0, x1, y1 = self._usb_rect
+        return x1 - 16 - USB_BTN, (y0 + y1 - USB_BTN) / 2
+
+    def _usb_on_btn(self, x, y):
+        if self._usb_rect is None or self._usb_ejecting:
+            return False
+        bx, by = self._usb_btn_xy()
+        r = USB_BTN / 2
+        return (x - bx - r) ** 2 + (y - by - r) ** 2 <= (r + 3) ** 2
+
+    def _usb_set_hover(self, on):
+        if on != self._usb_hover:
+            self._usb_hover = on
+            self._compose_usb()
+
+    def _usb_eject(self):
+        """Keluarkan semua flashdisk di widget (di thread); berhasil -> widget hilang."""
+        from elearning.ui import usb_save
+        roots = [d[0] for d in self._usb_drives or ()]
+        if not roots or self._usb_ejecting:
+            return
+        self._usb_ejecting, self._usb_hover, self._usb_msg = True, False, None
+        self._compose_usb()
+        self._usb_text()
+        box = []
+
+        def work():
+            box.append([(r, usb_save.eject(r)) for r in roots])
+
+        def wait():
+            if self._closed:
+                return
+            if not box:
+                self.after(100, wait)
+                return
+            self._usb_ejecting = False
+            done = {r for r, err in box[0] if err is None}
+            errs = [err for _r, err in box[0] if err]
+            if errs:
+                self._usb_msg = (errs[0], C.ACCENT, time.monotonic() + 6)
+                self.after(6100, self._usb_text)
+            self._usb_mask = None          # baca ulang juga (sisa ruang, drive lain)
+            left = [d for d in self._usb_drives or () if d[0] not in done]
+            if done and not left:          # semua sudah dikeluarkan: widget langsung hilang
+                self._usb_drives = []
+                self._usb_layout(self._title_y if self.hero else self._title_y - 14)
+                return
+            self._usb_drives = left
+            self._compose_usb()
+            self._usb_text()
+
+        threading.Thread(target=work, daemon=True).start()
+        self.after(100, wait)
 
     def _fit(self, text, font, width):
         f = self.f[font]
@@ -708,7 +793,7 @@ class CourseDock(tk.Canvas):
             return
         x0, y0, x1, y1 = self._usb_rect
         tx = x0 + 18 + 38 + 14
-        tw = x1 - tx - 16
+        tw = x1 - tx - 16 - USB_BTN - 8
         d = self._usb_drives
         if not d:
             return
@@ -722,13 +807,19 @@ class CourseDock(tk.Canvas):
             big = f"{len(d)} USB plugged in"
             small = "  ·  ".join(r[:2] for r, *_ in d)
             col = USB_ON
+        if self._usb_ejecting:
+            small, smcol = "Ejecting... don't unplug yet", C.MUTED
+        elif self._usb_msg and time.monotonic() < self._usb_msg[2]:
+            small, smcol = self._usb_msg[0], self._usb_msg[1]
+        else:
+            smcol = C.MUTED
         cy = (y0 + y1) / 2
         if d:
             big = "● " + big
         self.create_text(tx, cy - 11, text=self._fit(big, "wbig", tw), anchor="w",
                          font=self.f["wbig"], fill=col if d else C.TEXT, tags=("fg", "usbw"))
         self.create_text(tx, cy + 14, text=self._fit(small, "wsmall", tw), anchor="w",
-                         font=self.f["wsmall"], fill=C.MUTED, tags=("fg", "usbw"))
+                         font=self.f["wsmall"], fill=smcol, tags=("fg", "usbw"))
 
     def _usb_poll(self):
         """Tiap detik: huruf drive berubah -> baca flashdisk di thread (nama, sisa ruang)."""
@@ -746,21 +837,23 @@ class CourseDock(tk.Canvas):
                 else:
                     self._usb_text()
         mask = usb_save.drive_mask()
-        if mask != self._usb_mask and not self._usb_busy:
+        rescan = time.monotonic() - self._usb_scan_t > USB_RESCAN_S
+        if (mask != self._usb_mask or rescan) and not self._usb_busy and not self._usb_ejecting:
             self._usb_mask = mask
+            self._usb_scan_t = time.monotonic()
             self._usb_busy = True
             box = self._usb_box
 
             def work():
                 try:
                     out = [(r,) + usb_save.drive_info(r) for r in usb_save.removable_drives()]
+                    out = [d for d in out if d[3] is not None]   # tanpa media (sudah eject)
                 except Exception as exc:
                     C.log(f"Widget USB: {exc!r}")
                     out = []
                 box.append(out)
                 self._usb_busy = False
 
-            import threading
             threading.Thread(target=work, daemon=True).start()
         busy = self._usb_busy or self._usb_box or self._usb_drives is None
         self.after(100 if busy else USB_POLL_MS, self._usb_poll)   # hasil thread cepat diambil

@@ -315,6 +315,10 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   courses.ai_only): SATU widget tetap (tidak bisa diatur) gaya widget Dashboard, di tengah ruang
   atas sapaan. HANYA tampil kalau ada USB tercolok (tanpa USB = tidak ada widget) dan ruang
   cukup. "USB plugged in" hijau + nama (E:) + sisa ruang, atau "2 USB plugged in".
+  Tombol eject bulat di kanan (ui_icons "eject"): usb_save.eject = kunci volume, flush,
+  dismount, IOCTL_STORAGE_EJECT_MEDIA (ctypes, di thread); berhasil -> widget langsung hilang;
+  gagal (file terbuka) -> pesan oranye 6 dtk. Drive tanpa media (sudah eject / card reader
+  kosong) tidak dihitung; baca ulang tiap 5 dtk (SetErrorMode: tanpa popup "insert disk").
   usb_save.drive_mask dicek tiap 1 dtk di thread utama; berubah -> removable_drives +
   drive_info di thread (hasil diambil tiap 100 ms selama berjalan). Gambar widget = potongan
   latar (ikut frame video), ~2,5 ms.

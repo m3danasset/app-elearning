@@ -39,12 +39,63 @@ def removable_drives():
         return []
 
 
+def eject(root):
+    """Keluarkan flashdisk dengan aman (seperti "Eject" di Explorer): kunci volume, tulis sisa
+    cache, lepas (dismount), keluarkan media. None = berhasil, atau pesan English kalau gagal
+    (mis. ada file yang masih terbuka). Panggil dari thread (bisa ~1 dtk)."""
+    if sys.platform != "win32":
+        return "Eject is only available on Windows."
+    import ctypes
+    import time
+    from ctypes import wintypes
+    k = ctypes.WinDLL("kernel32", use_last_error=True)      # salinan sendiri (argtypes)
+    k.CreateFileW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p,
+                              wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+    k.CreateFileW.restype = wintypes.HANDLE
+    k.DeviceIoControl.argtypes = [wintypes.HANDLE, wintypes.DWORD, ctypes.c_void_p,
+                                  wintypes.DWORD, ctypes.c_void_p, wintypes.DWORD,
+                                  ctypes.POINTER(wintypes.DWORD), ctypes.c_void_p]
+    k.FlushFileBuffers.argtypes = [wintypes.HANDLE]
+    k.CloseHandle.argtypes = [wintypes.HANDLE]
+    h = k.CreateFileW("\\\\.\\" + root[:2], 0xC0000000, 3, None, 3, 0, None)
+    if h is None or h == wintypes.HANDLE(-1).value:
+        return f"Can't eject {root[:2]}. Try again."
+    got = wintypes.DWORD()
+
+    def ioctl(code, inbuf=None, size=0):
+        return k.DeviceIoControl(h, code, inbuf, size, None, 0, ctypes.byref(got), None)
+
+    try:
+        k.FlushFileBuffers(h)
+        for _ in range(10):                          # FSCTL_LOCK_VOLUME (file masih terbuka?)
+            if ioctl(0x00090018):
+                break
+            time.sleep(0.2)
+        else:
+            return f"{root[:2]} is in use. Close its files first."
+        ioctl(0x00090020)                            # FSCTL_DISMOUNT_VOLUME
+        keep = ctypes.c_ubyte(0)                     # PREVENT_MEDIA_REMOVAL = FALSE
+        ioctl(0x002D4804, ctypes.byref(keep), 1)     # IOCTL_STORAGE_MEDIA_REMOVAL
+        if not ioctl(0x002D4808):                    # IOCTL_STORAGE_EJECT_MEDIA
+            return f"Can't eject {root[:2]}. Try again."
+        C.log(f"Flashdisk {root[:2]} dikeluarkan (eject)")
+        return None
+    finally:
+        k.CloseHandle(h)
+
+
+_quiet = []
+
+
 def drive_info(root):
     """(nama volume, sisa byte, total byte) flashdisk; nama kosong / angka None kalau gagal."""
     label = ""
     if sys.platform == "win32":
         try:
             import ctypes
+            if not _quiet:       # tanpa popup "Please insert a disk" untuk drive tanpa media
+                ctypes.windll.kernel32.SetErrorMode(0x0001)
+                _quiet.append(True)
             buf = ctypes.create_unicode_buffer(64)
             if ctypes.windll.kernel32.GetVolumeInformationW(root, buf, 64, None, None, None,
                                                              None, 0):
