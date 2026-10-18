@@ -309,12 +309,16 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 - Halaman utama murid (course_dock): kartu kursus 1:1 dengan cahaya gradasi warna kursus dari kiri-atas
   (_tint, sama gaya kartu Dashboard); terkunci = gradasi samar; hover sedikit lebih terang.
 
-## Jendela web Pinterest (murid PB / IC / SK; bukan trial, bukan murid AI)
-- elearning/web_launcher.py: ikon "web_pin" di sebelah "Buka Blender" (sidebar footer extra).
-  Google Chrome --app (bukan Edge, bukan browser tertanam: login Google diizinkan), profil per
-  murid %LOCALAPPDATA%\M3DAN\browser\<ID>, unduhan ke Z:\, tanpa simpan sandi.
-- Hanya situs config.WEB_ALLOWED (--host-resolver-rules; tidak berlaku kalau PC pakai proxy).
+## Jendela web murid: Pinterest (PB / IC / SK), Gemini + Flow (murid AI); bukan trial
+- elearning/web_launcher.py + config.WEB_SITES (key, title, icon, url, allowed, ai). Ikon di
+  sebelah "Buka Blender" (sidebar footer extra = daftar): web_pin / web_gemini / web_flow.
+  Murid AI = membuka kursus grup config.WEB_AI_GROUPS; murid campuran dapat semua.
+- Google Chrome --app (bukan Edge, bukan browser tertanam: login Google diizinkan). SATU
+  profil + satu proses Chrome per murid (%LOCALAPPDATA%\M3DAN\browser\<ID>); tiap situs =
+  jendela sendiri (klik lagi = tampilkan jendela itu). Unduhan ke Z:\, tanpa simpan sandi.
+- Hanya host situs milik murid + config.WEB_LOGIN_HOSTS (--host-resolver-rules, dipasang saat
+  proses pertama; tidak berlaku kalau PC pakai proxy). *.google.com selalu terbuka (login).
 - Hanya terlihat di aplikasi: jendela Chrome dijadikan milik jendela aplikasi (GWL_HWNDPARENT,
   tanpa taskbar), ditahan di area aplikasi, disembunyikan saat aplikasi mengecil / Blender,
   ditutup saat logout / tutup aplikasi. Pengawas after() 300 ms di thread utama.
-- Murid AI = semua kursus yang dibuka di grup config.WEB_EXCLUDED_GROUPS. Belum diuji di Windows asli.
+  Belum diuji di Windows asli.

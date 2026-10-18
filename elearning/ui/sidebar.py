@@ -1124,7 +1124,7 @@ class AppSidebar(tk.Frame):
 
     def footer(self, text, command, image=None, icon=None, extra=None):
         """Item di dasar sidebar, tepat di atas profil (mis. Buka Blender).
-        extra = (ikon, perintah, tip): tombol ikon kecil di sebelah kanannya."""
+        extra = [(ikon, perintah, tip), ...]: tombol ikon kecil di sebelah kanannya."""
         return self._spec("footer", text=text, command=command, image=image, icon=icon,
                           extra=extra)
 
@@ -1189,17 +1189,17 @@ class AppSidebar(tk.Frame):
         if self.collapsed:
             b = IconButton(self._footer_box, icon or "play", command, tip=text, image=image)
             b.pack(pady=1)
-            if extra is not None:
-                IconButton(self._footer_box, extra[0], extra[1], tip=extra[2]).pack(pady=1)
+            for ic, cmd, tip in extra or ():
+                IconButton(self._footer_box, ic, cmd, tip=tip).pack(pady=1)
             return b
         box = self._footer_box
-        if extra is not None:
+        if extra:
             box = tk.Frame(self._footer_box, bg=C.SIDEBAR)
             box.pack(fill="x")
-            IconButton(box, extra[0], extra[1], tip=extra[2]).pack(side="right")
+            for ic, cmd, tip in reversed(extra):
+                IconButton(box, ic, cmd, tip=tip, size=(34, 36)).pack(side="right")
         r = Row(box, text, command, image=image, icon=None if image else icon)
-        r.pack(fill="x", side="left" if extra is not None else "top",
-               expand=extra is not None)
+        r.pack(fill="x", side="left" if extra else "top", expand=bool(extra))
         return r
 
     # --- menu profil --------------------------------------------------------------------
@@ -1332,9 +1332,9 @@ def blender_footer(sb):
     if "blender" not in _blender_cache:
         _blender_cache["blender"] = blender_icon.get_photo(22)
     student = getattr(sb.winfo_toplevel(), "_student", None)
-    extra = None
-    if web_launcher.available(student):   # murid PB/IC/SK: ikon Pinterest di sebelah Blender
-        extra = ("web_pin", lambda: web_launcher.open_web(sb, student), C.WEB_TITLE)
+    # ikon situs di sebelah Blender: Pinterest (PB / IC / SK), Gemini + Flow (murid AI)
+    extra = [(s["icon"], lambda k=s["key"]: web_launcher.open_web(sb, student, k), s["title"])
+             for s in web_launcher.sites_for(student)]
     sb.footer(L("Buka Blender", "Open Blender") + f" {blender_launcher.VERSION}", open_blender_now,
               image=_blender_cache["blender"], icon="play", extra=extra)
 

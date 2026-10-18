@@ -290,6 +290,16 @@ def _web_pin(x, y):   # lingkaran + "P" garis halus: jendela web Pinterest murid
                _seg(x, y, (8.2, 11.5), (10.6, 11.5)))
 
 
+def _web_gemini(x, y):   # bintang 4 sudut (kilau): jendela web Gemini murid AI
+    return _lines(x, y, (10, 2.6), (11.5, 8.5), (17.4, 10), (11.5, 11.5), (10, 17.4),
+                  (8.5, 11.5), (2.6, 10), (8.5, 8.5), (10, 2.6))
+
+
+def _web_flow(x, y):   # layar + tombol putar: jendela web Flow (video AI) murid AI
+    return min(_box(x, y, 2.8, 4.2, 17.2, 15.8, 2.6),
+               _lines(x, y, (8.4, 7.4), (13.0, 10), (8.4, 12.6), (8.4, 7.4)))
+
+
 SHAPES = {
     "search": _search, "panel": _panel, "home": _home, "grid": _grid, "play": _play,
     "folder": _folder, "image": _image, "users": _users, "user": _user, "file": _file,
@@ -301,6 +311,7 @@ SHAPES = {
     "emo_keren": _emo_keren, "emo_capek": _emo_capek, "emo_bosan": _emo_bosan,
     "clock": _clock, "enter": _enter, "chev_left": _chev_left, "arrow_up": _arrow_up,
     "list": _list, "pen": _pen, "chev_up": _chev_up, "web_pin": _web_pin,
+    "web_gemini": _web_gemini, "web_flow": _web_flow,
 }
 
 

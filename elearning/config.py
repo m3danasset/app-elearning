@@ -100,18 +100,25 @@ STUDENT_DRIVE = "Z:\\"
 # Drive yang TIDAK BOLEH dibuka / ditulisi murid lewat aplikasi (B: = sistem e-learning,
 # C: = Windows).
 BLOCKED_DRIVES = ("B:", "C:")
-# Jendela web mengambang murid (ikon di sebelah "Buka Blender"). Tidak untuk trial dan murid
-# yang kursusnya hanya grup di WEB_EXCLUDED_GROUPS (murid AI).
-# Google Chrome mode aplikasi (tanpa kolom alamat), profil terpisah per ID murid. Hanya situs
-# di WEB_ALLOWED yang bisa dibuka (selain itu gagal dimuat); login Google ikut diizinkan.
-# Catatan: kalau PC memakai proxy, pembatasan situs ini tidak berlaku.
-WEB_URL = "https://id.pinterest.com/"
-WEB_TITLE = "Pinterest"
-WEB_ALLOWED = ("pinterest.com", "*.pinterest.com", "pinimg.com", "*.pinimg.com",
-               # login Google / email (+ reCAPTCHA)
-               "accounts.google.com", "*.google.com", "*.gstatic.com", "*.googleapis.com",
-               "*.googleusercontent.com", "www.recaptcha.net")
-WEB_EXCLUDED_GROUPS = ("AI",)
+# Jendela web mengambang murid (ikon di sebelah "Buka Blender"), tidak untuk trial.
+# Google Chrome mode aplikasi (tanpa kolom alamat), SATU profil per ID murid (login Google
+# dipakai bersama semua situs). Hanya host di "allowed" situs milik murid itu yang bisa dibuka;
+# login Google selalu diizinkan. Catatan: kalau PC memakai proxy, pembatasan situs tidak berlaku.
+# ai: True = hanya murid AI (membuka kursus grup WEB_AI_GROUPS), False = hanya murid non-AI
+# (PB / IC / SK, ada kursus di luar grup AI). Murid yang punya keduanya dapat semua.
+WEB_LOGIN_HOSTS = ("accounts.google.com", "*.google.com", "*.gstatic.com", "*.googleapis.com",
+                   "*.googleusercontent.com", "www.recaptcha.net")
+WEB_SITES = (
+    {"key": "pinterest", "title": "Pinterest", "icon": "web_pin", "ai": False,
+     "url": "https://id.pinterest.com/",
+     "allowed": ("pinterest.com", "*.pinterest.com", "pinimg.com", "*.pinimg.com")},
+    {"key": "gemini", "title": "Gemini", "icon": "web_gemini", "ai": True,
+     "url": "https://gemini.google.com/", "allowed": ("gemini.google.com",)},
+    {"key": "flow", "title": "Flow", "icon": "web_flow", "ai": True,
+     "url": "https://flow.google.com/",
+     "allowed": ("flow.google.com", "labs.google", "*.labs.google")},
+)
+WEB_AI_GROUPS = ("AI",)
 CHROME_PATH = ""   # kosong = cari otomatis (Program Files / AppData)
 LESSON_DIR = os.path.join(APP_DIR, "assets", "lessons")
 LOG_PATH = os.path.join(APP_DIR, "app.log")
