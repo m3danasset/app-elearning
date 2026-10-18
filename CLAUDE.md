@@ -176,6 +176,11 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   Pilihan di _PREF["sub"] ("Indonesia" / "English", bawaan Indonesia) dipakai semua pelajaran +
   mini player; video yang tidak punya bahasa itu memakai yang ada tanpa mengubah pilihan.
   mpv: _sub_opts (dibaca sekali saat termuat) + sub_label().
+- Emote SUPERKIDS (lesson_extras.EmoteBar, baris di bawah video): SEMUA emote tersembunyi;
+  muncul memudar (FADE_MS 160, maks. 30 fps, berbasis waktu, STEPS 8 tingkat warna dicampur ke
+  C.BG) saat kursor dalam NEAR 70 px dari baris emote, hilang lagi saat menjauh. Posisi kursor
+  dibaca winfo_pointerxy tiap 90 ms (mpv menelan event mouse). Klik saat belum tampil diabaikan.
+  Mode ringan: langsung muncul / hilang.
 
 ## Export Excel admin (fitur baru ikut)
 - excel_export.SHEETS + Jadwal (daftar: hari, jam, guru, catatan, warna, murid) & Jadwal Sesi
@@ -330,6 +335,19 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 - Halaman utama murid & trial = "Dashboard" (menu sidebar ikon home, juga di layar kursus &
   Ctrl+K), gaya Dashboard admin / guru: CourseDock(hero=True) = sapaan besar 40 pt ("Good
   morning, <nama depan>"; trial "Welcome!") + tanggal, kartu kursus di bawahnya (cy 0,60).
+- VIDEO TEASER kursus (CourseDock teaser=True dari home_screen, fitur Dev "teaser"): kursor diam
+  TEASER_SHOW_MS 220 di atas kartu kursus (terbuka / terkunci) -> kartu video 16:9 ukuran sedang
+  (TEASER_W 420, mengecil kalau ruang kurang, hilang kalau < 220) muncul memudar di TENGAH ruang
+  di atas sapaan; pindah kartu = video berganti (kartu tetap); keluar kartu / kanvas = memudar
+  hilang (TEASER_HIDE_MS 260). Video: assets\video\teaser\<id kursus atau judul>.mp4, kalau
+  tidak ada -> teaser*.mp4 (SAMPEL 8 dtk 960x540 24 fps: kubus 3D berputar, dibuat alat sekali
+  pakai dengan OpenCV + PIL, bukan kode app). ui/teaser.py: TeaserPlayer (VideoPlayer, thread)
+  menghasilkan frame RGBA bersudut bulat + alpha pudar; thread utama hanya PhotoImage.paste
+  (~1,2 ms / frame Full HD, jadwal tetap 30 fps; 12 fps di mode ringan, tanpa pudar). Tanpa
+  suara, diulang. Bayangan lembut (dashboard_view._shadow, 6 tingkat alpha). Widget USB:
+  bergeser ke KANAN kartu teaser (TEASER_GAP 24, SLIDE_MS 240 ease) selama teaser tampil, lalu
+  kembali ke tengah (_usb_cx + _usb_off). update.bat menyalin assets\video\teaser dengan /D
+  (file teaser yang diganti di dist dan lebih baru tidak ditimpa). BACA-SAYA.txt di folder itu.
 - Widget USB (course_dock, usb=True; murid SK / PB / IC, bukan trial, bukan murid AI =
   courses.ai_only): SATU widget tetap (tidak bisa diatur) gaya widget Dashboard, di tengah ruang
   atas sapaan. HANYA tampil kalau ada USB tercolok (tanpa USB = tidak ada widget) dan ruang

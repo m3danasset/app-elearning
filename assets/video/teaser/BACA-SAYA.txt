@@ -1,0 +1,11 @@
+Video teaser kursus (Dashboard murid)
+=====================================
+Muncul di atas sapaan Dashboard saat kursor diam di atas kartu kursus (tanpa suara, diulang).
+
+Nama file: <id kursus>.mp4, misalnya  basic-1.mp4, superkids-2.mp4, ai-character.mp4
+(judul kursus juga boleh, mis. "BASIC 1.mp4"). Kursus tanpa video sendiri memakai
+teaser.mp4 (sampel 8 detik). Hapus teaser.mp4 kalau kursus tanpa teaser tidak boleh
+menampilkan apa-apa.
+
+Saran: 16:9, 960x540 atau 1280x720, 5-10 detik, H.264 / MP4, ukuran kecil (< 5 MB).
+Di PC murid: dist\assets\video\teaser\ (update.bat hanya menyalin file baru / lebih baru).

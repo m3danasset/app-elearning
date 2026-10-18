@@ -10,6 +10,11 @@ Seluruh halaman digambar di SATU canvas: video + kartu digabung jadi satu gambar
 sedikit transparan di atas video), teks di atasnya. Tidak ada widget bertumpuk, jadi tidak
 ada potongan / blok hitam saat jendela berubah ukuran.
 Video dibaca & digelapkan di thread terpisah dan dibatasi 12 fps supaya ringan.
+
+Dashboard murid (hero, teaser=True): kursor diam di atas kartu kursus (TEASER_SHOW_MS) ->
+kartu video TEASER (ui/teaser.py) muncul memudar di atas sapaan, ukuran sedang (maks.
+TEASER_W). Kursor pindah ke kartu lain = videonya berganti; keluar dari kartu = memudar hilang.
+Widget USB (kalau ada) bergeser ke kanan kartu teaser selama teaser tampil.
 """
 
 import os
@@ -35,6 +40,12 @@ USB_W, USB_H = 340, 96     # widget USB (gaya widget Dashboard admin / guru, 1 s
 USB_ON = "#3fb68b"
 USB_PAD = 28               # ruang bayangan di sekitar widget
 USB_BTN = 34               # tombol eject bulat di kanan widget
+TEASER_W = 420             # lebar kartu video teaser (ukuran sedang, 16:9)
+TEASER_SHOW_MS = 220       # kursor diam sekian di atas kartu kursus -> teaser muncul
+TEASER_HIDE_MS = 260       # kursor keluar dari kartu -> teaser hilang (kecuali pindah kartu)
+TEASER_FADE_MS = 180       # pudar masuk / keluar
+TEASER_GAP = 24            # jarak kartu teaser -> widget USB
+SLIDE_MS = 240             # widget USB bergeser ke kanan / kembali
 
 
 def _rgb(c):
@@ -122,7 +133,7 @@ class CourseDock(tk.Canvas):
     FRAME_MS = C.UI_FRAME_MS   # maks. 30 fps
 
     def __init__(self, master, courses, allowed, on_open, title, hello, foot=None, usb=False,
-                 hero=False):
+                 hero=False, teaser=False):
         super().__init__(master, bg=C.BG, highlightthickness=0, bd=0)
         # teks bawah kartu (terbuka, terkunci); resource trial memakai "Open in Blender" dst.
         self.foot = foot or ("Open course  →", "Locked  ·  ask your teacher")
@@ -172,6 +183,17 @@ class CourseDock(tk.Canvas):
         self._usb_ejecting = False
         self._usb_msg = None         # (teks, warna, sampai kapan) pesan eject gagal
         self._usb_item = self.create_image(0, 0, anchor="nw")
+        self._usb_cx = 0             # x widget USB di tengah (tanpa geser)
+        self._usb_off = 0.0          # geser ke kanan saat teaser tampil (beranimasi)
+        self._usb_slide = None       # (dari, ke, waktu mulai)
+        # video teaser (Dashboard murid): bayangan + video RGBA bersudut bulat
+        self.teaser = teaser and hero
+        self._tz = None              # {"cid", "player", "rect", "photo", "a", "from", "to", "t0"}
+        self._tz_want = None         # id kursus di bawah kursor (setelah jeda)
+        self._tz_timer = None
+        self._tz_job = None
+        self._tz_sh_item = self.create_image(0, 0, anchor="nw")
+        self._tz_item = self.create_image(0, 0, anchor="nw")
         path = None
         try:
             from elearning.ui import video_background as VB
@@ -184,7 +206,7 @@ class CourseDock(tk.Canvas):
         self.bind("<Configure>", self._on_resize)
         self.bind("<Motion>", self._motion)
         self.bind("<Leave>", lambda e: (self._set_hover(None), self._set_arrow_hover(None),
-                                        self._usb_set_hover(False)))
+                                        self._usb_set_hover(False), self._tease(None)))
         self.bind("<Button-1>", self._click)
         self.bind("<MouseWheel>", self._wheel)
         self.bind("<Shift-MouseWheel>", self._wheel)
@@ -377,6 +399,7 @@ class CourseDock(tk.Canvas):
         self._compose_band()
         self._title_y = title_y
         self._usb_layout(title_y if self.hero else title_y - 14)
+        self._tz_relayout()
 
     def _fit_title(self, s):
         longest = max((c["title"] for c in self.courses), key=len)
@@ -540,6 +563,9 @@ class CourseDock(tk.Canvas):
                 self._compose_band()
 
     def _motion(self, e):
+        if self.teaser:
+            i = self._index_at(e.x, e.y)
+            self._tease(i if i is not None and self._shown(i) else None)
         on = self._usb_on_btn(e.x, e.y)
         self._usb_set_hover(on)
         if on:
@@ -671,6 +697,9 @@ class CourseDock(tk.Canvas):
             self.itemconfigure(self._usb_item, image="")
             return
         x = (w - ww) / 2
+        self._usb_cx = int(x)
+        self._usb_off = min(self._usb_off, max(0.0, w - 16 - ww - x))
+        x += self._usb_off
         self._usb_rect = (int(x), int(y), int(x) + ww, int(y) + USB_H)
         self._compose_usb()
         self._usb_text()
@@ -825,12 +854,216 @@ class CourseDock(tk.Canvas):
         self._usb_drives = drives
         if shown:                     # dicolok / dicabut semua: widget muncul / hilang
             self._usb_layout(self._title_y if self.hero else self._title_y - 14)
+            self._tz_relayout()       # teaser ikut menyesuaikan ruang (widget di kanannya)
         else:
             self._usb_text()
+
+    # --- video teaser (Dashboard murid) ---------------------------------------------------------
+    def _tease(self, i):
+        """Kursor di atas kartu i (None = tidak ada): teaser muncul / ganti / hilang setelah jeda."""
+        if not self.teaser or self._closed:
+            return
+        cid = self.courses[i]["id"] if i is not None and i < len(self.courses) else None
+        if cid == self._tz_want:
+            return
+        self._tz_want = cid
+        if self._tz_timer is not None:
+            self.after_cancel(self._tz_timer)
+        self._tz_timer = self.after(TEASER_SHOW_MS if cid else TEASER_HIDE_MS, self._tease_apply)
+
+    def _tease_apply(self):
+        self._tz_timer = None
+        if self._closed:
+            return
+        cid = self._tz_want
+        tz = self._tz
+        if cid is None:
+            self._tz_fade(0.0)
+            return
+        if tz is not None and tz["cid"] == cid:
+            self._tz_fade(1.0)
+            return
+        from elearning.ui import teaser as TZ
+        course = next((c for c in self.courses if c["id"] == cid), None)
+        path = TZ.teaser_path(course) if course else None
+        rect = self._tz_layout()
+        player = TZ.make_player(path, 12 if C.lite() else 24) if path and rect else None
+        if player is None:
+            self._tz_fade(0.0)
+            return
+        x, y, w, h = rect
+        player.set_target(w, h)
+        if tz is not None:                       # pindah kartu: video lama berhenti, kartu tetap
+            tz["player"].stop()
+            tz.update(cid=cid, player=player)
+        else:
+            self._tz = tz = {"cid": cid, "player": player, "rect": rect, "photo": None,
+                             "a": 0.0, "from": 0.0, "to": 0.0, "t0": 0.0, "sh": None}
+        player.alpha = tz["a"]
+        player.start()
+        self._tz_fade(1.0)
+
+    def _tz_layout(self):
+        """(x, y, w, h) kartu teaser: di tengah ruang di atas sapaan, ukuran sedang; widget USB
+        butuh ruang di kanannya. None kalau ruang tidak cukup."""
+        W = self._size[0]
+        bottom = self._title_y - 16
+        tw = min(TEASER_W, (bottom - 32) * 16 / 9, W - 48)
+        if self.usb and self._usb_drives:
+            tw = min(tw, W - 2 * (min(USB_W, W - 48) + TEASER_GAP + 16))
+        tw = int(tw)
+        if tw < 220:
+            return None
+        th = int(tw * 9 / 16)
+        return (int((W - tw) / 2), int(max(16, (bottom - th) / 2)), tw, th)
+
+    def _tz_relayout(self):
+        tz = self._tz
+        if tz is None:
+            return
+        rect = self._tz_layout()
+        if rect is None:
+            self._tz_clear()
+            return
+        if rect[2:] != tz["rect"][2:]:
+            tz["photo"] = None
+            tz["player"].set_target(rect[2], rect[3])
+        tz["rect"] = rect
+        tz["sh"] = None
+        self.coords(self._tz_item, rect[0], rect[1])
+        self._tz_draw_shadow()
+        self._usb_target()
+
+    def _tz_fade(self, to):
+        tz = self._tz
+        if tz is None:
+            return
+        if tz["to"] != to:
+            tz["from"], tz["to"], tz["t0"] = tz["a"], to, time.perf_counter()
+        self._usb_target()
+        if self._tz_job is None:
+            self._tz_job = self.after(1, self._tz_tick)
+
+    def _usb_target(self):
+        """Widget USB: geser ke kanan kartu teaser selama teaser tampil, kembali ke tengah."""
+        if self._usb_rect is None:
+            self._usb_off, self._usb_slide = 0.0, None
+            return
+        tz = self._tz
+        to = 0.0
+        if tz is not None and tz["to"] > 0:
+            x, _y, w, _h = tz["rect"]
+            ww = self._usb_rect[2] - self._usb_rect[0]
+            to = max(0.0, min(x + w + TEASER_GAP - self._usb_cx,
+                              self._size[0] - 16 - ww - self._usb_cx))
+        cur = self._usb_slide[1] if self._usb_slide is not None else self._usb_off
+        if cur == to:
+            return
+        if C.lite():
+            self._usb_slide = None
+            self._usb_set_off(to)
+        else:
+            self._usb_slide = (self._usb_off, to, time.perf_counter())
+            if self._tz_job is None:
+                self._tz_job = self.after(1, self._tz_tick)
+
+    def _usb_set_off(self, off):
+        if self._usb_rect is None:
+            return
+        self._usb_off = off
+        x0, y0, x1, y1 = self._usb_rect
+        x = int(self._usb_cx + off)
+        if x == x0:
+            return
+        self._usb_rect = (x, y0, x + (x1 - x0), y1)
+        self._compose_usb()
+        self._usb_text()
+
+    def _tz_draw_shadow(self):
+        tz = self._tz
+        if tz is None:
+            return
+        from elearning.ui.dashboard_view import _shadow
+        q = round(tz["a"] * 6) / 6
+        if tz["sh"] is not None and tz["sh"][0] == q:
+            return
+        x, y, w, h = tz["rect"]
+        if q <= 0:
+            self.itemconfigure(self._tz_sh_item, image="")
+            tz["sh"] = (q, None)
+            return
+        img, pad = _shadow(w, h, 16, 14, int(120 * q))
+        ph = photos.to_photoimage(img)
+        self.coords(self._tz_sh_item, x - pad, y - pad + 8)
+        self.itemconfigure(self._tz_sh_item, image=ph)
+        tz["sh"] = (q, ph)
+
+    def _tz_tick(self):
+        """Satu langkah (maks. 30 fps, jadwal tetap): pudar teaser, geser widget USB, frame
+        video terbaru dari thread ditempel ke PhotoImage."""
+        self._tz_job = None
+        if self._closed:
+            return
+        t_start = time.perf_counter()
+        busy = False
+        tz = self._tz
+        if tz is not None:
+            # kursor sudah keluar dari kanvas tanpa <Leave> (mis. jendela lain di depan)
+            try:
+                px, py = self.winfo_pointerxy()
+                inside = (self.winfo_rootx() <= px < self.winfo_rootx() + self.winfo_width()
+                          and self.winfo_rooty() <= py < self.winfo_rooty() + self.winfo_height())
+                if not inside or self.winfo_toplevel().state() == "iconic":
+                    self._tease(None)
+            except tk.TclError:
+                return
+            if C.lite():
+                a = tz["to"]
+            else:
+                t = min(1.0, (t_start - tz["t0"]) * 1000 / TEASER_FADE_MS)
+                a = tz["from"] + (tz["to"] - tz["from"]) * (1 - (1 - t) ** 2)
+            tz["a"] = a
+            tz["player"].alpha = a
+            img = tz["player"].get_latest()
+            x, y, w, h = tz["rect"]
+            if img is not None and img.size == (w, h):
+                if tz["photo"] is None:
+                    tz["photo"] = photos.to_photoimage(img)
+                    self.coords(self._tz_item, x, y)
+                    self.itemconfigure(self._tz_item, image=tz["photo"])
+                else:
+                    tz["photo"].paste(img)
+            self._tz_draw_shadow()
+            if tz["to"] <= 0 and a <= 0.001:
+                self._tz_clear()
+            else:
+                busy = True
+        sl = self._usb_slide
+        if sl is not None:
+            t = min(1.0, (t_start - sl[2]) * 1000 / SLIDE_MS)
+            self._usb_set_off(sl[0] + (sl[1] - sl[0]) * (1 - (1 - t) ** 3))
+            if t >= 1.0:
+                self._usb_slide = None
+            else:
+                busy = True
+        if busy:
+            spent = (time.perf_counter() - t_start) * 1000
+            self._tz_job = self.after(max(1, int(self.FRAME_MS - spent)), self._tz_tick)
+
+    def _tz_clear(self):
+        tz, self._tz = self._tz, None
+        if tz is not None:
+            tz["player"].stop()
+        self.itemconfigure(self._tz_item, image="")
+        self.itemconfigure(self._tz_sh_item, image="")
+        self._usb_target()
 
     def destroy(self):
         self._closed = True
         if self._usb_stop is not None:
             self._usb_stop()
         self.video.stop()
+        if self._tz is not None:
+            self._tz["player"].stop()
         super().destroy()
+

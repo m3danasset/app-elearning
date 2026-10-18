@@ -2,6 +2,7 @@
 
 NoteBox   : catatan singkat murid dewasa (maks. 30 kata, tersimpan otomatis per video).
 EmoteBar  : review SUPERKIDS: satu emote per video (satu canvas); pilihan lain abu-abu.
+            Semua emote TERSEMBUNYI; muncul halus saat kursor mendekat (NEAR px).
 QuizPopup : kuis isian dari guru, muncul setelah video selesai (hanya saat aplikasi di
             depan, bukan saat murid sedang di Blender).
 
@@ -9,6 +10,7 @@ Semua digambar dengan widget yang sudah dipakai di aplikasi (RoundEntry, RoundBu
 canvas tunggal) supaya tidak ada potongan / blok hitam saat jendela berubah ukuran.
 """
 
+import time
 import tkinter as tk
 import tkinter.font as tkfont
 
@@ -109,11 +111,26 @@ class NoteBox(tk.Frame):
 
 
 # --- emote (SUPERKIDS) ----------------------------------------------------------------------
+def _mix(color, t):
+    """Warna color dicampur ke latar C.BG sebanyak t (0 = latar, 1 = warna asli)."""
+    a, b = I._rgb(C.BG), I._rgb(color)
+    return "#%02x%02x%02x" % tuple(int(round(a[i] + (b[i] - a[i]) * t)) for i in range(3))
+
+
 class EmoteBar(tk.Canvas):
     """Review satu emote per video. Yang dipilih berwarna, sisanya abu-abu.
-    Klik emote lain = ganti pilihan (tetap satu)."""
+    Klik emote lain = ganti pilihan (tetap satu).
+
+    Semua emote TERSEMBUNYI sampai kursor mendekat (dalam NEAR px dari baris emote), lalu
+    muncul memudar (FADE_MS, maks. 30 fps, berbasis waktu) dan hilang lagi saat kursor menjauh.
+    Posisi kursor dibaca langsung (winfo_pointerxy) karena video mpv menelan event mouse.
+    Mode ringan: langsung muncul / hilang tanpa animasi."""
     SIZE = 32
     GAP = 34
+    NEAR = 70          # px: jarak kursor ke baris emote supaya emote muncul
+    FADE_MS = 160
+    STEPS = 8          # tingkat pudar (gambar ikon di-cache per tingkat)
+    IDLE_MS = 90       # periksa posisi kursor saat tidak beranimasi
 
     def __init__(self, master, get_pos=None):
         super().__init__(master, bg=C.BG, highlightthickness=0, bd=0, height=56)
@@ -123,10 +140,61 @@ class EmoteBar(tk.Canvas):
         self._msg = ""
         self._imgs = []
         self._font = tkfont.Font(family=C.FONT, size=9)
+        self._vis = 0.0            # 0 = tersembunyi, 1 = tampil penuh
+        self._from = self._to = 0.0
+        self._t0 = 0.0
+        self._job = None
         self.bind("<Configure>", lambda e: self._draw())
         self.bind("<Motion>", self._motion)
         self.bind("<Leave>", lambda e: self._set_hover(None))
         self.bind("<Button-1>", self._click)
+        self.bind("<Destroy>", lambda e: self._stop_job(), add="+")
+        self._job = self.after(self.IDLE_MS, self._watch)
+
+    # --- muncul saat kursor mendekat ---------------------------------------------------------
+    def _near(self):
+        try:
+            if not self.winfo_viewable():
+                return False
+            px, py = self.winfo_pointerxy()
+            x0, y0 = self.winfo_rootx(), self.winfo_rooty()
+            x1, y1 = x0 + self.winfo_width(), y0 + self.winfo_height()
+        except tk.TclError:
+            return False
+        dx = max(x0 - px, 0, px - x1)
+        dy = max(y0 - py, 0, py - y1)
+        return dx * dx + dy * dy <= self.NEAR * self.NEAR
+
+    def _watch(self):
+        self._job = None
+        try:
+            if not self.winfo_exists():
+                return
+        except tk.TclError:
+            return
+        want = 1.0 if self._near() else 0.0
+        now = time.perf_counter()
+        if want != self._to:                       # arah berubah: mulai dari posisi sekarang
+            self._from, self._to, self._t0 = self._vis, want, now
+        if self._vis != self._to:
+            if C.lite():
+                self._vis = self._to
+            else:
+                t = min(1.0, (now - self._t0) * 1000 / self.FADE_MS)
+                self._vis = self._from + (self._to - self._from) * (1 - (1 - t) ** 2)
+                if t >= 1.0:
+                    self._vis = self._to
+            self._draw()
+        busy = self._vis != self._to
+        self._job = self.after(C.UI_FRAME_MS if busy else self.IDLE_MS, self._watch)
+
+    def _stop_job(self):
+        if self._job is not None:
+            try:
+                self.after_cancel(self._job)
+            except Exception:
+                pass
+            self._job = None
 
     def set_lesson(self, key):
         self.key = key
@@ -144,15 +212,16 @@ class EmoteBar(tk.Canvas):
         self.delete("all")
         self._imgs = []
         w = self.winfo_width()
-        if w < 60:
-            return
+        a = round(self._vis * self.STEPS) / self.STEPS     # tingkat pudar (gambar di-cache)
+        if w < 60 or a <= 0:
+            return                                          # tersembunyi
         y = 3
         for x, k in self._slots():
             on = self.chosen is None or k == self.chosen or k == self._hover
             fg, disc = EMOTE_STYLE[k] if on else (USED_FG, USED_DISC)
             big = k == self._hover or k == self.chosen
             size = self.SIZE + 4 if big else self.SIZE
-            ph = I.icon("emo_" + k, fg, C.BG, size, disc=disc)
+            ph = I.icon("emo_" + k, _mix(fg, a), C.BG, size, disc=_mix(disc, a))
             if ph is not None:
                 self._imgs.append(ph)
                 self.create_image(x + self.SIZE / 2, y + self.SIZE / 2, image=ph)
@@ -160,7 +229,7 @@ class EmoteBar(tk.Canvas):
             on = k == self.chosen or k == self._hover
             self.create_text(x + self.SIZE / 2, y + self.SIZE + 11,
                              text=progress.EMOTE_LABEL_EN[k], font=self._font,
-                             fill=C.TEXT if on else C.MUTED)
+                             fill=_mix(C.TEXT if on else C.MUTED, a))
 
     def _at(self, x, y):
         for sx, k in self._slots():
@@ -179,7 +248,7 @@ class EmoteBar(tk.Canvas):
 
     def _click(self, e):
         k = self._at(e.x, e.y)
-        if k is None or self.key is None or k == self.chosen:
+        if k is None or self.key is None or k == self.chosen or self._vis < 0.5:
             return
         try:
             if progress.set_emote(*self.key, k):

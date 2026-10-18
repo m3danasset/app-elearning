@@ -119,8 +119,9 @@ class HomeScreen(SidebarLayout):
         # Kartu kursus mendatar di tengah (gaya Dock), latar video opsional; widget USB untuk
         # murid SUPERKIDS / BASIC / INTERMEDIATE (bukan trial, bukan murid AI)
         from elearning.courses import ai_only
+        from elearning.app_settings import feature
         self.dock = CourseDock(self.content, self.courses, self.allowed, self.on_open_course,
-                               title, hello, hero=True,
+                               title, hello, hero=True, teaser=feature("teaser"),
                                usb=not self.trial and not ai_only(self.student))
         self.dock.pack(fill="both", expand=True)
         self._build_grid()

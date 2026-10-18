@@ -22,6 +22,12 @@ if exist "assets\video\intro\intro.mp4" (
   copy /y "%CD%\assets\video\intro\intro.mp4" "%CD%\dist\assets\video\intro\intro.mp4" >nul
   if errorlevel 1 goto gagal
 )
+rem Video teaser kursus (Dashboard murid): file baru / lebih baru disalin (/D); video teaser
+rem yang sudah diganti di dist\assets\video\teaser\ (lebih baru) tidak ditimpa
+if exist "assets\video\teaser" (
+  xcopy "%CD%\assets\video\teaser" "%CD%\dist\assets\video\teaser" /E /I /Y /Q /D >nul
+  if errorlevel 1 goto gagal
+)
 rem Logo layar login: disalin tiap update (kecil), supaya logo baru langsung dipakai
 if exist "assets\logo.png" (
   if not exist "dist\assets" mkdir "dist\assets"

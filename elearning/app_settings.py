@@ -27,6 +27,7 @@ FEATURES = (
     ("animations", "Animasi & video latar (PC 4 thread: selalu mati)"),
     ("survey", "Survey trial"),
     ("safesearch", "SafeSearch Chrome murid SUPERKIDS"),
+    ("teaser", "Video teaser kursus di Dashboard murid"),
 )
 # Warna aksen UI (tombol utama, sorotan). Berlaku penuh setelah aplikasi dibuka ulang.
 ACCENTS = {
