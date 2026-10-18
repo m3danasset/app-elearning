@@ -1122,9 +1122,11 @@ class AppSidebar(tk.Frame):
             return _Ref()
         return self._spec("note", text=text, dock=dock)
 
-    def footer(self, text, command, image=None, icon=None):
-        """Item di dasar sidebar, tepat di atas profil (mis. Buka Blender)."""
-        return self._spec("footer", text=text, command=command, image=image, icon=icon)
+    def footer(self, text, command, image=None, icon=None, extra=None):
+        """Item di dasar sidebar, tepat di atas profil (mis. Buka Blender).
+        extra = (ikon, perintah, tip): tombol ikon kecil di sebelah kanannya."""
+        return self._spec("footer", text=text, command=command, image=image, icon=icon,
+                          extra=extra)
 
     def _build_nav(self, text, icon, command, active=False, primary=False, right=None):
         if self.collapsed:
@@ -1183,13 +1185,21 @@ class AppSidebar(tk.Frame):
         lbl.pack(fill="x", pady=(4, 4))
         return lbl
 
-    def _build_footer(self, text, command, image=None, icon=None):
+    def _build_footer(self, text, command, image=None, icon=None, extra=None):
         if self.collapsed:
             b = IconButton(self._footer_box, icon or "play", command, tip=text, image=image)
             b.pack(pady=1)
+            if extra is not None:
+                IconButton(self._footer_box, extra[0], extra[1], tip=extra[2]).pack(pady=1)
             return b
-        r = Row(self._footer_box, text, command, image=image, icon=None if image else icon)
-        r.pack(fill="x")
+        box = self._footer_box
+        if extra is not None:
+            box = tk.Frame(self._footer_box, bg=C.SIDEBAR)
+            box.pack(fill="x")
+            IconButton(box, extra[0], extra[1], tip=extra[2]).pack(side="right")
+        r = Row(box, text, command, image=image, icon=None if image else icon)
+        r.pack(fill="x", side="left" if extra is not None else "top",
+               expand=extra is not None)
         return r
 
     # --- menu profil --------------------------------------------------------------------
@@ -1314,13 +1324,20 @@ def blender_footer(sb):
     """Item "Buka Blender" di dasar sidebar murid (semua murid, termasuk trial)."""
     from elearning import blender_icon, blender_launcher
 
+    from elearning import web_launcher
+
     def open_blender_now():
         open_blender(sb)
 
     if "blender" not in _blender_cache:
         _blender_cache["blender"] = blender_icon.get_photo(22)
+    student = getattr(sb.winfo_toplevel(), "_student", None)
+    extra = None
+    if web_launcher.available(student):   # murid PB/IC/SK: ikon Pinterest di sebelah Blender
+        extra = ("web_pin", lambda: web_launcher.open_web(sb, student), C.WEB_TITLE)
     sb.footer(L("Buka Blender", "Open Blender") + f" {blender_launcher.VERSION}", open_blender_now,
-              image=_blender_cache["blender"], icon="play")
+              image=_blender_cache["blender"], icon="play", extra=extra)
+
 
 
 def course_items(sb, courses, allowed, current_id, on_open):

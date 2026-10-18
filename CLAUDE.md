@@ -308,3 +308,13 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 
 - Halaman utama murid (course_dock): kartu kursus 1:1 dengan cahaya gradasi warna kursus dari kiri-atas
   (_tint, sama gaya kartu Dashboard); terkunci = gradasi samar; hover sedikit lebih terang.
+
+## Jendela web Pinterest (murid PB / IC / SK; bukan trial, bukan murid AI)
+- elearning/web_launcher.py: ikon "web_pin" di sebelah "Buka Blender" (sidebar footer extra).
+  Google Chrome --app (bukan Edge, bukan browser tertanam: login Google diizinkan), profil per
+  murid %LOCALAPPDATA%\M3DAN\browser\<ID>, unduhan ke Z:\, tanpa simpan sandi.
+- Hanya situs config.WEB_ALLOWED (--host-resolver-rules; tidak berlaku kalau PC pakai proxy).
+- Hanya terlihat di aplikasi: jendela Chrome dijadikan milik jendela aplikasi (GWL_HWNDPARENT,
+  tanpa taskbar), ditahan di area aplikasi, disembunyikan saat aplikasi mengecil / Blender,
+  ditutup saat logout / tutup aplikasi. Pengawas after() 300 ms di thread utama.
+- Murid AI = semua kursus yang dibuka di grup config.WEB_EXCLUDED_GROUPS. Belum diuji di Windows asli.

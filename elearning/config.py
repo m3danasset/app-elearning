@@ -100,6 +100,19 @@ STUDENT_DRIVE = "Z:\\"
 # Drive yang TIDAK BOLEH dibuka / ditulisi murid lewat aplikasi (B: = sistem e-learning,
 # C: = Windows).
 BLOCKED_DRIVES = ("B:", "C:")
+# Jendela web mengambang murid (ikon di sebelah "Buka Blender"). Tidak untuk trial dan murid
+# yang kursusnya hanya grup di WEB_EXCLUDED_GROUPS (murid AI).
+# Google Chrome mode aplikasi (tanpa kolom alamat), profil terpisah per ID murid. Hanya situs
+# di WEB_ALLOWED yang bisa dibuka (selain itu gagal dimuat); login Google ikut diizinkan.
+# Catatan: kalau PC memakai proxy, pembatasan situs ini tidak berlaku.
+WEB_URL = "https://id.pinterest.com/"
+WEB_TITLE = "Pinterest"
+WEB_ALLOWED = ("pinterest.com", "*.pinterest.com", "pinimg.com", "*.pinimg.com",
+               # login Google / email (+ reCAPTCHA)
+               "accounts.google.com", "*.google.com", "*.gstatic.com", "*.googleapis.com",
+               "*.googleusercontent.com", "www.recaptcha.net")
+WEB_EXCLUDED_GROUPS = ("AI",)
+CHROME_PATH = ""   # kosong = cari otomatis (Program Files / AppData)
 LESSON_DIR = os.path.join(APP_DIR, "assets", "lessons")
 LOG_PATH = os.path.join(APP_DIR, "app.log")
 

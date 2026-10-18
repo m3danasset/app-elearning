@@ -5,7 +5,7 @@ import sys
 import tkinter as tk
 
 from elearning.i18n import L
-from elearning import config, sessions, splash
+from elearning import config, sessions, splash, web_launcher
 from elearning.trial import is_trial
 from elearning.ui.login_screen import LoginScreen
 from elearning.ui.home_screen import HomeScreen
@@ -142,6 +142,7 @@ class App(tk.Tk):
                       lambda: self._after_trial(self._quit))
 
     def _quit(self):
+        web_launcher.close()   # jendela Pinterest murid ikut ditutup
         self.badges.stop()
         self.blender_float.stop()
         sessions.end()
@@ -310,6 +311,7 @@ class App(tk.Tk):
             then()
 
     def _logout(self):
+        web_launcher.close()   # jendela Pinterest murid ikut ditutup
         self._account_id = None
         self.badges.stop()
         self._student = None

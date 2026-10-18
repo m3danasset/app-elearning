@@ -280,6 +280,16 @@ def _enter(x, y):   # panah Enter (kembali ke kiri): buka hasil terpilih
                _lines(x, y, (8.4, 8.2), (5.0, 11.6), (8.4, 15.0)))
 
 
+def _web_pin(x, y):   # lingkaran + "P" garis halus: jendela web Pinterest murid
+    if x >= 10.6:
+        bowl = _ring(x, y, 10.6, 8.6, 2.9)
+    else:
+        bowl = min(math.hypot(x - 10.6, y - 5.7), math.hypot(x - 10.6, y - 11.5)) - STROKE
+    return min(_ring(x, y, 10, 10, 7.4), bowl,
+               _lines(x, y, (10.6, 5.7), (8.2, 5.7), (8.2, 15.0)),
+               _seg(x, y, (8.2, 11.5), (10.6, 11.5)))
+
+
 SHAPES = {
     "search": _search, "panel": _panel, "home": _home, "grid": _grid, "play": _play,
     "folder": _folder, "image": _image, "users": _users, "user": _user, "file": _file,
@@ -290,7 +300,7 @@ SHAPES = {
     "emo_seru": _emo_seru, "emo_paham": _emo_paham, "emo_bingung": _emo_bingung,
     "emo_keren": _emo_keren, "emo_capek": _emo_capek, "emo_bosan": _emo_bosan,
     "clock": _clock, "enter": _enter, "chev_left": _chev_left, "arrow_up": _arrow_up,
-    "list": _list, "pen": _pen, "chev_up": _chev_up,
+    "list": _list, "pen": _pen, "chev_up": _chev_up, "web_pin": _web_pin,
 }
 
 
