@@ -120,6 +120,13 @@ def open_web(widget, student, key):
         return False
     if running() and _state["sid"] != student["id"]:
         close()
+    left = remaining(student["id"], key)
+    if left is not None and left <= 0:
+        _message(app, site["title"], L(
+            f"Waktu {site['title']} hari ini sudah habis ({_limit(key)} menit). Coba lagi besok.",
+            f"Your {site['title']} time for today is used up ({_limit(key)} min). "
+            "Come back tomorrow!"))
+        return False
     if running() and _alive(_state["site_hwnd"].get(key)):
         _show(True, focus=_state["site_hwnd"][key])
         return True
@@ -165,6 +172,9 @@ def open_web(widget, student, key):
 
 def close():
     """Tutup jendela web (logout, tutup aplikasi, ganti murid)."""
+    if _usage["dirty"]:
+        _save_usage()
+    _usage["last"] = None
     app, job = _state["app"], _state["job"]
     if app is not None and job is not None:
         try:
@@ -202,6 +212,7 @@ def _user32():
                                    ctypes.c_int, wintypes.UINT]
         u.ShowWindow.argtypes = [H, ctypes.c_int]
         u.SetForegroundWindow.argtypes = [H]
+        u.PostMessageW.argtypes = [H, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
         u.GetWindowLongPtrW.argtypes = [H, ctypes.c_int]
         u.GetWindowLongPtrW.restype = ctypes.c_ssize_t
         u.SetWindowLongPtrW.argtypes = [H, ctypes.c_int, ctypes.c_ssize_t]
@@ -274,6 +285,77 @@ def _show(visible, focus=None):
     _state["hidden"] = not visible
 
 
+# --- batas waktu harian (config.WEB_DAILY_LIMIT_MIN) ---------------------------------------
+USAGE_FILE = os.path.join(C.DATA_DIR, "web_usage.json")
+_usage = {"data": None, "dirty": 0.0, "last": None}
+
+
+def _limit(key):
+    return (getattr(C, "WEB_DAILY_LIMIT_MIN", {}) or {}).get(key)
+
+
+def _usage_data():
+    from datetime import date
+    if _usage["data"] is None:
+        try:
+            with open(USAGE_FILE, encoding="utf-8") as f:
+                _usage["data"] = json.load(f)
+        except Exception:
+            _usage["data"] = {}
+    today = date.today().isoformat()
+    if _usage["data"].get("date") != today:          # hari baru: semua mulai dari 0
+        _usage["data"] = {"date": today, "used": {}}
+    return _usage["data"]
+
+
+def _save_usage():
+    try:
+        os.makedirs(C.DATA_DIR, exist_ok=True)
+        tmp = USAGE_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(_usage_data(), f)
+        os.replace(tmp, USAGE_FILE)
+    except OSError as exc:
+        C.log(f"Web: pemakaian tidak tersimpan: {exc!r}")
+    _usage["dirty"] = 0.0
+
+
+def remaining(sid, key):
+    """Detik tersisa hari ini, atau None kalau situs tanpa batas."""
+    lim = _limit(key)
+    if not lim:
+        return None
+    used = _usage_data()["used"].get(f"{sid}:{key}", 0.0)
+    return max(0.0, lim * 60 - used)
+
+
+def _count_usage(app):
+    """Tambah waktu pakai situs berbatas yang jendelanya terbuka & terlihat; habis -> tutup."""
+    from elearning.i18n import L
+    now = time.monotonic()
+    dt = 0.0 if _usage["last"] is None else min(5.0, now - _usage["last"])
+    _usage["last"] = now
+    sid = _state["sid"]
+    for key, hwnd in list(_state["site_hwnd"].items()):
+        if not _limit(key) or not _alive(hwnd):
+            continue
+        used = _usage_data()["used"]
+        if not _state["hidden"]:
+            used[f"{sid}:{key}"] = used.get(f"{sid}:{key}", 0.0) + dt
+            _usage["dirty"] += dt
+        if remaining(sid, key) <= 0:
+            _user32()[0].PostMessageW(hwnd, 0x0010, 0, 0)          # WM_CLOSE
+            _state["site_hwnd"].pop(key, None)
+            _save_usage()
+            title = next((s["title"] for s in C.WEB_SITES if s["key"] == key), key)
+            C.log(f"Web: batas {title} {_limit(key)} menit habis untuk {sid}")
+            app.after(50, lambda t=title, k=key: _message(app, t, L(
+                f"Waktu {t} hari ini sudah habis ({_limit(k)} menit).",
+                f"Time's up! You've used your {_limit(k)} min of {t} for today.")))
+    if _usage["dirty"] >= 10:                    # simpan tiap ~10 dtk pemakaian
+        _save_usage()
+
+
 def _watch():
     app = _state["app"]
     _state["job"] = None
@@ -300,6 +382,7 @@ def _watch():
             if visible:
                 for hwnd in list(_state["hwnds"]):
                     _clamp(hwnd, app)
+            _count_usage(app)
         _state["job"] = app.after(WATCH_MS, _watch)
     except Exception as exc:
         C.log(f"Web: pengawas jendela berhenti: {exc!r}")
