@@ -45,10 +45,10 @@ TEASER_SHOW_MS = 220       # kursor diam sekian di atas kartu kursus -> teaser m
 TEASER_HIDE_MS = 260       # kursor keluar dari kartu -> teaser hilang (kecuali pindah kartu)
 TEASER_FADE_MS = 280       # pudar masuk / keluar (dihitung tiap frame UI, 30 fps)
 TEASER_RISE = 14           # kartu naik sekian px saat muncul (ikut pudar)
-HERO_CY_TEASER = 0.70      # Dashboard murid dengan teaser: kartu kursus lebih ke bawah
 TEASER_GAP = 30            # jarak kartu teaser -> widget USB (> ruang bayangan teaser)
-TEASER_BLUR = 10           # bayangan teaser: blur (ruang = 2x) & turun TEASER_SH_DY px
-TEASER_SH_DY = 8
+TEASER_BLUR = 12           # bayangan lembut seperti widget USB: blur (ruang = 2x), turun
+TEASER_SH_DY = 6           # TEASER_SH_DY px, kepekatan TEASER_SH_A
+TEASER_SH_A = 90
 SLIDE_MS = 340             # widget USB bergeser ke kanan / kembali (ease-in-out)
 
 
@@ -369,7 +369,7 @@ class CourseDock(tk.Canvas):
         w, h = self._size
         self._s = self._card_size()
         s = self._s
-        self._cy = h * ((HERO_CY_TEASER if self.teaser else 0.60) if self.hero else 0.54)
+        self._cy = h * (0.60 if self.hero else 0.54)
         self._band = (int(self._cy - s / 2 - LIFT - 2), int(s + LIFT + 6))
         self.coords(self._band_item, 0, self._band[0])
         self.delete("fg")
@@ -1025,7 +1025,7 @@ class CourseDock(tk.Canvas):
         if mask is None or mask.size != frame.size:
             return
         Image = photos.Image
-        simg, pad = _shadow(w, h, 18, TEASER_BLUR, 140)
+        simg, pad = _shadow(w, h, 18, TEASER_BLUR, TEASER_SH_A)
         W, H = self._size
         # area gambar = kartu + ruang bayangan, dipotong tepi kanvas
         x0, y0 = max(0, x - pad), max(0, yy - pad + TEASER_SH_DY)

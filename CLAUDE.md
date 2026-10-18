@@ -338,7 +338,8 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 - VIDEO TEASER kursus (CourseDock teaser=True dari home_screen, fitur Dev "teaser"): kursor diam
   TEASER_SHOW_MS 220 di atas kartu kursus (terbuka / terkunci) -> kartu video 16:9 BESAR
   (TEASER_W 840, maks. 720p; mengecil kalau ruang kurang, hilang kalau < 220) muncul memudar +
-  naik 14 px di TENGAH ruang di atas sapaan (kartu kursus diturunkan: HERO_CY_TEASER 0.70); pindah
+  naik 14 px di TENGAH ruang di atas sapaan (sapaan & kartu kursus TETAP di posisi biasa, cy 0.60;
+  bayangan lembut seperti widget USB: blur 12, turun 6, kepekatan 90); pindah
   kartu = video berganti (ditukar saat frame pertamanya siap, tanpa kedip); keluar kartu / kanvas
   = memudar hilang (TEASER_HIDE_MS 260). Video: assets\video\teaser\<id kursus atau judul>.mp4,
   kalau tidak ada -> teaser*.mp4 (SAMPEL 8 dtk 1280x720 24 fps: kubus 3D berputar, alat sekali
