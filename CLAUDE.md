@@ -336,18 +336,26 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   Ctrl+K), gaya Dashboard admin / guru: CourseDock(hero=True) = sapaan besar 40 pt ("Good
   morning, <nama depan>"; trial "Welcome!") + tanggal, kartu kursus di bawahnya (cy 0,60).
 - VIDEO TEASER kursus (CourseDock teaser=True dari home_screen, fitur Dev "teaser"): kursor diam
-  TEASER_SHOW_MS 220 di atas kartu kursus (terbuka / terkunci) -> kartu video 16:9 ukuran sedang
-  (TEASER_W 420, mengecil kalau ruang kurang, hilang kalau < 220) muncul memudar di TENGAH ruang
-  di atas sapaan; pindah kartu = video berganti (kartu tetap); keluar kartu / kanvas = memudar
-  hilang (TEASER_HIDE_MS 260). Video: assets\video\teaser\<id kursus atau judul>.mp4, kalau
-  tidak ada -> teaser*.mp4 (SAMPEL 8 dtk 960x540 24 fps: kubus 3D berputar, dibuat alat sekali
-  pakai dengan OpenCV + PIL, bukan kode app). ui/teaser.py: TeaserPlayer (VideoPlayer, thread)
-  menghasilkan frame RGBA bersudut bulat + alpha pudar; thread utama hanya PhotoImage.paste
-  (~1,2 ms / frame Full HD, jadwal tetap 30 fps; 12 fps di mode ringan, tanpa pudar). Tanpa
-  suara, diulang. Bayangan lembut (dashboard_view._shadow, 6 tingkat alpha). Widget USB:
-  bergeser ke KANAN kartu teaser (TEASER_GAP 24, SLIDE_MS 240 ease) selama teaser tampil, lalu
-  kembali ke tengah (_usb_cx + _usb_off). update.bat menyalin assets\video\teaser dengan /D
-  (file teaser yang diganti di dist dan lebih baru tidak ditimpa). BACA-SAYA.txt di folder itu.
+  TEASER_SHOW_MS 220 di atas kartu kursus (terbuka / terkunci) -> kartu video 16:9 BESAR
+  (TEASER_W 840, maks. 720p; mengecil kalau ruang kurang, hilang kalau < 220) muncul memudar +
+  naik 14 px di TENGAH ruang di atas sapaan (kartu kursus diturunkan: HERO_CY_TEASER 0.70); pindah
+  kartu = video berganti (ditukar saat frame pertamanya siap, tanpa kedip); keluar kartu / kanvas
+  = memudar hilang (TEASER_HIDE_MS 260). Video: assets\video\teaser\<id kursus atau judul>.mp4,
+  kalau tidak ada -> teaser*.mp4 (SAMPEL 8 dtk 1280x720 24 fps: kubus 3D berputar, alat sekali
+  pakai OpenCV + PIL, bukan kode app). Tanpa suara, diulang.
+- Teaser MULUS 30 fps (diukur: jarak frame 33-35 ms saat muncul): (1) video dibuka di thread
+  SEBELUM tampil (saat kursor menyentuh kartu), pudar mulai setelah frame pertama siap; (2) pudar
+  dihitung di thread utama tiap frame UI (jadwal tetap, ease-in-out kubik _ease), bukan per frame
+  video; (3) kartu = SATU gambar RGB solid (potongan latar + bayangan + video bersudut bulat,
+  lapisan bawah di-cache) -> Tk menempel RGB ~0,5 ms, sedangkan gambar bertransparansi sebesar
+  ini ~7 ms; (4) selama teaser tampil / widget USB bergeser, video LATAR beranda tidak diganti
+  (mengganti gambar latar layar penuh ~20 ms di thread utama, 12x/dtk = penyebab patah-patah).
+  ui/teaser.py: TeaserPlayer (VideoPlayer) -> frame RGB <= 720p + .mask sudut bulat.
+- Widget USB: gambar RGBA TRANSPARAN (tidak menyalin latar, di-cache per keadaan), jadi geser =
+  pindah koordinat (+ move teks "usbw"), tidak disusun ulang tiap frame. Bergeser ke KANAN
+  teaser (TEASER_GAP 30, SLIDE_MS 340 ease-in-out) selama teaser tampil, lalu kembali ke tengah.
+  update.bat menyalin assets\video\teaser dengan /D (file teaser yang diganti di dist dan lebih
+  baru tidak ditimpa). BACA-SAYA.txt di folder itu.
 - Widget USB (course_dock, usb=True; murid SK / PB / IC, bukan trial, bukan murid AI =
   courses.ai_only): SATU widget tetap (tidak bisa diatur) gaya widget Dashboard, di tengah ruang
   atas sapaan. HANYA tampil kalau ada USB tercolok (tanpa USB = tidak ada widget) dan ruang
