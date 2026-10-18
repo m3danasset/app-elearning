@@ -394,3 +394,12 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   Aturan host hanya berlaku saat Chrome murid diluncurkan pertama (tutup Chrome profil M3DAN\browser dulu).
   FedCM ("Continue with Google") butuh domain google.com TANPA subdomain (*.google.com tidak mencakupnya)
   -> WEB_LOGIN_HOSTS berisi "google.com". Diuji headless dengan flag aplikasi: popup Sign in muncul.
+- AKUN GOOGLE STUDIO (config.WEB_STUDIO_ACCOUNT = m3dan.asset@gmail.com, keputusan pemilik studio):
+  semua murid memakai SATU profil Chrome "studio" per PC (%LOCALAPPDATA%\M3DAN\browser\studio).
+  Admin login SEKALI per PC lewat Jendela Dev > Settings > Akun web murid / Ctrl+K admin
+  (web_launcher.studio_login: jendela Chrome biasa, host Google penuh; password diketik admin,
+  tidak disimpan app). Murid: host Google dipersempit (WEB_STUDENT_GOOGLE_HOSTS: Gmail, Drive,
+  myaccount, YouTube diblok; www.google.com hanya untuk FedCM, jendela Google Search ditutup
+  lewat judul = _close_search). Peluncuran murid pertama menutup sisa Chrome profil studio
+  (_kill_profile, PowerShell) supaya aturan sempit berlaku. Kosongkan WEB_STUDIO_ACCOUNT =
+  kembali ke profil per murid.

@@ -166,6 +166,10 @@ def admin_sources(screen):
          "sub": "Sabtu & Minggu (jadwal hasil impor lama diganti)",
          "action": screen.import_schedule},
         {"title": "Muat ulang", "icon": "refresh", "action": screen._reload},
+        {"title": "Login akun Google studio (Pinterest murid)", "icon": "user",
+         "sub": "Sekali per PC; semua murid memakai akun ini",
+         "action": lambda: __import__("elearning.web_launcher",
+                                      fromlist=["x"]).studio_login(screen)},
         {"title": "Keluar", "icon": "logout", "action": app.logout},
     ]
     return {"user": screen.admin_id, "tabs": [("all", "Semua"), ("students", "Murid"),

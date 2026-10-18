@@ -842,6 +842,16 @@ class DevPanel(tk.Toplevel):
                            ).grid(row=n // 3, column=n % 3, sticky="w", padx=(0, 6))
         self._item(row, "warna aksen accent color " + " ".join(
             f"{k} {v[0]}" for k, v in S.ACCENTS.items()))
+        self._group("Akun web murid")
+        from elearning import web_launcher as WL
+        acc = getattr(C, "WEB_STUDIO_ACCOUNT", "") or "(profil per murid)"
+        self._item(tk.Label(self.body, text=f"Akun Google studio: {acc}", bg=BG, fg=MUTED,
+                            font=FONT, anchor="w"), "akun google studio pinterest web login")
+        self._item(tk.Button(self.body, text="Login akun studio di PC ini (sekali)", font=FONT,
+                             relief="flat", bg=FIELD, fg=FG, activebackground="#3a3a3a",
+                             activeforeground=FG, command=lambda: WL.studio_login(self.app),
+                             state="normal" if WL.shared() else "disabled"),
+                   "login akun studio google pinterest chrome")
         self._group("Fitur")
         for key, label in S.FEATURES:
             v = tk.BooleanVar(value=S.feature(key))

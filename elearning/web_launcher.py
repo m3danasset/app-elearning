@@ -56,9 +56,15 @@ def chrome_path():
     return next((p for p in cands if p and os.path.isfile(p)), None)
 
 
+def shared():
+    """True: semua murid memakai akun Google studio (satu profil "studio" per PC)."""
+    return bool(getattr(C, "WEB_STUDIO_ACCOUNT", ""))
+
+
 def profile_dir(student_id):
     base = os.environ.get("LOCALAPPDATA") or os.path.join(C.APP_DIR, "data")
-    safe = "".join(ch for ch in str(student_id) if ch.isalnum()) or "murid"
+    safe = "studio" if shared() else \
+        ("".join(ch for ch in str(student_id) if ch.isalnum()) or "murid")
     return os.path.join(base, "M3DAN", "browser", safe)
 
 
@@ -85,8 +91,11 @@ def _prepare_profile(folder):
         C.log(f"Web: profil Chrome tidak bisa diatur: {exc!r}")
 
 
-def _rules(sites):
-    hosts = list(C.WEB_LOGIN_HOSTS)
+def _rules(sites, setup=False):
+    """Aturan host Chrome: selain host di sini gagal dimuat. Murid + akun studio: host Google
+    dipersempit (tanpa Gmail / Drive / myaccount / Search); setup login admin: penuh."""
+    hosts = list(C.WEB_LOGIN_HOSTS if (setup or not shared())
+                 else getattr(C, "WEB_STUDENT_GOOGLE_HOSTS", C.WEB_LOGIN_HOSTS))
     for s in sites:
         hosts += [h for h in s["allowed"] if h not in hosts]
     return "MAP * ~NOTFOUND, " + ", ".join(f"EXCLUDE {h}" for h in hosts)
@@ -149,6 +158,8 @@ def open_web(widget, student, key):
             f"--window-position={x + w - ww - 12 - 24 * n},{y + 12 + 24 * n}"]
     first = not running()
     if first:   # proses browser baru: aturan situs & opsi hanya berlaku di peluncuran pertama
+        if shared():          # profil studio: tutup sisa Chrome lain (mis. setup admin)
+            _kill_profile(folder)
         _prepare_profile(folder)
         args += [f"--host-resolver-rules={_rules(sites)}", "--no-first-run",
                  "--no-default-browser-check", "--disable-extensions",
@@ -211,6 +222,79 @@ def _close_extra(now):
             extra.pop(hwnd, None)
             _state["hwnds"].discard(hwnd)
             C.log(f"Web: jendela tambahan ditutup ({title[:40]!r}) - hanya 1 jendela per situs")
+
+
+SEARCH_TITLES = ("google search", "penelusuran google", "telusuri dengan google")
+
+
+def _close_search():
+    """Akun studio dipakai murid: halaman Google Search / beranda Google tidak boleh dibuka
+    (www.google.com diizinkan hanya untuk login FedCM) -> jendela itu ditutup."""
+    u, _c, _w = _user32()
+    for hwnd in list(_state["hwnds"]):
+        if not u.IsWindow(hwnd):
+            continue
+        t = _title(hwnd).strip().lower()
+        if t == "google" or any(w in t for w in SEARCH_TITLES):
+            u.PostMessageW(hwnd, 0x0010, 0, 0)             # WM_CLOSE
+            _state["hwnds"].discard(hwnd)
+            for k, h in list(_state["site_hwnd"].items()):
+                if h == hwnd:
+                    _state["site_hwnd"].pop(k, None)
+            C.log(f"Web: halaman Google ditutup ({t[:40]!r}) - akun studio")
+
+
+def studio_login(widget):
+    """Admin / dev: buka Chrome profil studio (jendela biasa) untuk login akun Google studio
+    SEKALI di PC ini, lalu "Continue with Google" di Pinterest. Password diketik sendiri oleh
+    admin; tidak disimpan aplikasi (cookie login disimpan Chrome di profil studio)."""
+    from urllib.parse import quote
+    from elearning.i18n import L
+    app = widget.winfo_toplevel()
+    exe = chrome_path()
+    if exe is None:
+        _message(app, "Akun studio", L("Google Chrome belum terpasang di PC ini.",
+                                       "Google Chrome is not installed on this PC."))
+        return False
+    close()                                   # jendela murid (profil sama) ditutup dulu
+    _kill_profile(profile_dir(""))
+    folder = profile_dir("")
+    _prepare_profile(folder)
+    acc = getattr(C, "WEB_STUDIO_ACCOUNT", "")
+    url = ("https://accounts.google.com/ServiceLogin?continue="
+           + quote("https://id.pinterest.com/login/", safe="") + "&Email=" + quote(acc))
+    args = [exe, f"--app={url}", f"--user-data-dir={folder}",
+            f"--host-resolver-rules={_rules(C.WEB_SITES, setup=True)}", "--no-first-run",
+            "--no-default-browser-check", "--disable-extensions"]
+    try:
+        subprocess.Popen(args, close_fds=True)
+    except OSError as exc:
+        C.log(f"Web: login akun studio gagal dibuka: {exc!r}")
+        return False
+    C.log("Web: jendela login akun studio dibuka")
+    _message(app, "Akun studio", L(
+        f"Login dengan {acc} di jendela Chrome, lalu di Pinterest pilih \"Continue with "
+        "Google\". Setelah masuk, tutup jendela itu. Cukup sekali di PC ini; semua murid "
+        "langsung memakai akun ini.",
+        f"Sign in with {acc} in the Chrome window, then choose \"Continue with Google\" "
+        "on Pinterest. Close that window when done. Once per PC."))
+    return True
+
+
+def _kill_profile(folder):
+    """Chrome lain yang memakai profil ini (mis. jendela setup admin yang aksesnya lebar)
+    ditutup: aturan host hanya berlaku saat proses Chrome pertama diluncurkan."""
+    if sys.platform != "win32" or not os.path.isdir(folder):
+        return
+    ps = ("Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" | Where-Object { "
+          "$_.CommandLine -and $_.CommandLine.ToLower().Contains('" + folder.lower().replace("'", "''")
+          + "') } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force "
+          "-ErrorAction SilentlyContinue }")
+    try:
+        subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+                       capture_output=True, creationflags=0x08000000, timeout=15)
+    except Exception as exc:
+        C.log(f"Web: Chrome profil lama tidak bisa ditutup: {exc!r}")
 
 
 def close():
@@ -512,6 +596,8 @@ def _watch():
                         else:                   # dibuka dari dalam situs: diperiksa dulu
                             _state.setdefault("extra", {})[hwnd] = now
                 _close_extra(now)
+                if shared():
+                    _close_search()
             if visible == _state["hidden"]:      # aplikasi mengecil / kembali
                 _show(visible)
             if visible:
