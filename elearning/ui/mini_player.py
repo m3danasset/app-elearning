@@ -363,6 +363,8 @@ class MiniPlayer(tk.Toplevel):
             self._fallback_to_cv("mpv gagal memuat video")
             return
         self.has_video = True
+        if hasattr(e, "set_speed"):      # kecepatan sama dengan pemutar utama (1x / 0.75x / 0.5x)
+            e.set_speed(LV._PREF.get("speed", 1.0))
         self._refresh()
 
     def _ensure_engine(self):
