@@ -120,6 +120,132 @@ def drive_mask():
         return 0
 
 
+class UsbMonitor:
+    """Pemantau flashdisk SATU per jendela (widget USB Dashboard murid + menu USB sidebar).
+    Thread utama: cek huruf drive tiap 1 dtk (murah). Berubah, atau tiap 5 dtk: baca
+    flashdisk di thread (nama, sisa ruang; tanpa media = tidak dihitung). Pendengar dipanggil
+    di thread utama dengan daftar [(root, label, free, total)] setiap isinya berubah."""
+
+    POLL_MS, RESCAN_S = 1000, 5.0
+
+    def __init__(self, top):
+        self.top = top
+        self.drives = None             # None = belum pernah dibaca
+        self._subs = []
+        self._mask = None
+        self._box = []
+        self._busy = False
+        self._scan_t = 0.0
+        self._job = None
+
+    def subscribe(self, fn):
+        """fn(drives) dipanggil saat berubah (dan segera kalau sudah ada data).
+        Mengembalikan fungsi untuk berhenti mendengar."""
+        self._subs.append(fn)
+        if self.drives is not None:
+            self.top.after_idle(lambda: fn in self._subs and fn(self.drives))
+        if self._job is None:
+            self._job = self.top.after(10, self._poll)
+
+        def stop():
+            if fn in self._subs:
+                self._subs.remove(fn)
+        return stop
+
+    def refresh(self):
+        """Baca ulang secepatnya (mis. sesudah eject)."""
+        self._mask = None
+
+    def drop(self, roots):
+        """Flashdisk yang baru dikeluarkan: langsung hilang dari daftar."""
+        if self.drives:
+            self._set([d for d in self.drives if d[0] not in roots])
+        self.refresh()
+
+    def _set(self, drives):
+        if drives == self.drives:
+            return
+        self.drives = drives
+        for fn in list(self._subs):
+            try:
+                fn(drives)
+            except Exception as exc:
+                C.log(f"Pemantau USB: pendengar gagal: {exc!r}")
+
+    def _poll(self):
+        import time
+        self._job = None
+        if not self._subs:
+            return                     # tidak ada yang mendengar: berhenti (hemat)
+        try:
+            if not self.top.winfo_exists():
+                return
+        except tk.TclError:
+            return
+        if self._box:
+            self._set(self._box.pop())
+            self._box.clear()
+        mask = drive_mask()
+        now = time.monotonic()
+        if (mask != self._mask or now - self._scan_t > self.RESCAN_S) and not self._busy:
+            self._mask, self._scan_t, self._busy = mask, now, True
+            box = self._box
+
+            def work():
+                try:
+                    out = [(r,) + drive_info(r) for r in removable_drives()]
+                    out = [d for d in out if d[3] is not None]   # tanpa media (sudah eject)
+                except Exception as exc:
+                    C.log(f"Pemantau USB: {exc!r}")
+                    out = []
+                box.append(out)
+                self._busy = False
+
+            threading.Thread(target=work, daemon=True).start()
+        wait = 100 if (self._busy or self._box or self.drives is None) else self.POLL_MS
+        self._job = self.top.after(wait, self._poll)
+
+
+def monitor(widget):
+    top = widget.winfo_toplevel()
+    m = getattr(top, "_usb_monitor", None)
+    if m is None:
+        m = top._usb_monitor = UsbMonitor(top)
+    return m
+
+
+def eject_async(widget, roots, on_done):
+    """Eject di thread; sesudahnya (thread utama): yang berhasil dibuang dari pemantau lalu
+    on_done(daftar pesan gagal)."""
+    box = []
+    mon = monitor(widget)
+
+    def work():
+        box.append([(r, eject(r)) for r in roots])
+
+    def wait():
+        try:
+            if not widget.winfo_exists():
+                return
+        except tk.TclError:
+            return
+        if not box:
+            widget.after(100, wait)
+            return
+        done = {r for r, err in box[0] if err is None}
+        if done:
+            mon.drop(done)
+        on_done([err for _r, err in box[0] if err])
+
+    threading.Thread(target=work, daemon=True).start()
+    widget.after(100, wait)
+
+
+def drive_name(d):
+    """'KINGSTON (E:)' / 'USB (E:)' dari (root, label, free, total)."""
+    return f"{d[1]} ({d[0][:2]})" if d[1] else f"USB ({d[0][:2]})"
+
+
 def _start_folder():
     drives = removable_drives()
     try:

@@ -22,6 +22,11 @@ class HomeScreen(SidebarLayout):
         # "courses", atau "resource" (trial: satu halaman Resources untuk semua kelas trial)
         self.view = "resource" if (self.trial and view == "resource") else "courses"
         self.dock = None
+        # menu flashdisk (murid SK / PB / IC, bukan trial / murid AI): satu menu per USB
+        from elearning.courses import ai_only
+        self.usb_ok = not self.trial and not ai_only(student)
+        self.drives = []
+        self._usb_stop = None
 
         self.sb = AppSidebar(self, student, student_subtitle(student), on_logout,
                              self._populate, placeholder="Search", palette=True,
@@ -29,6 +34,9 @@ class HomeScreen(SidebarLayout):
         self.attach(self.sb)
         # tanpa kolom cari di bawah: search palette dibuka dari kolom cari sidebar / Ctrl+K
         self._render_view()
+        if self.usb_ok:
+            from elearning.ui import usb_save
+            self._usb_stop = usb_save.monitor(self).subscribe(self._drives_changed)
 
     def search_sources(self):
         from elearning.ui.search_sources import student_sources
@@ -39,11 +47,34 @@ class HomeScreen(SidebarLayout):
         # Badge berlaku per kursus: menu Badges ada di sidebar layar kursus, bukan di sini
         sb.nav("Dashboard", "home", lambda: self._set_view("courses"),
                active=self.view == "courses")
+        from elearning.ui.usb_save import drive_name
+        for d in self.drives:           # nama flashdisk, mis. "KINGSTON (E:)"
+            sb.nav(drive_name(d), "usb", lambda r=d[0]: self._set_view("usb:" + r),
+                   active=self.view == "usb:" + d[0])
         if self.trial:   # trial: SATU menu Resources untuk semua kelas (folder resources/trial)
             sb.nav("Resources", "folder", lambda: self._set_view("resource"),
                    active=self.view == "resource")
         course_items(sb, self.courses, self.allowed, None, self.on_open_course)
         blender_footer(sb)
+
+    def _drives_changed(self, drives):
+        """Flashdisk dicolok / dicabut / dikeluarkan: menu sidebar ikut berubah."""
+        old = [(d[0], d[1]) for d in self.drives]
+        self.drives = list(drives)
+        if self.view.startswith("usb:") and \
+                not any("usb:" + d[0] == self.view for d in self.drives):
+            from elearning.ui.search_palette import close_palette
+            close_palette()               # file browser USB yang terbuka ikut ditutup
+            self.view = "courses"
+            self._render_view()
+            self.sb.refresh()
+        elif [(d[0], d[1]) for d in self.drives] != old:
+            self.sb.refresh()
+
+    def destroy(self):
+        if self._usb_stop is not None:
+            self._usb_stop()
+        super().destroy()
 
     def _on_search(self, _query):
         self.sb.refresh(keep_scroll=False)
@@ -62,6 +93,13 @@ class HomeScreen(SidebarLayout):
         for w in self.content.winfo_children():
             w.destroy()
         self.dock = None
+        if self.view.startswith("usb:"):
+            from elearning.ui.file_browser import UsbPage
+            drive = next((d for d in self.drives if "usb:" + d[0] == self.view), None)
+            if drive is not None:
+                UsbPage(self.content, drive).pack(fill="both", expand=True)
+                return
+            self.view = "courses"
         if self.view == "resource":
             from elearning.ui.resource_list import ResourceList
             # trial: daftar file langsung (klik = buka, .blend di Blender), tanpa file browser

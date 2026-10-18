@@ -430,6 +430,9 @@ class FileBrowser(OverlayPanel):
             if not _inside(path, roots):
                 C.log(f"File browser: akses ditolak {path!r}")
                 return                  # murid hanya boleh drive lokal murid & flashdisk
+        if not self.pick and self.root and not _inside(path, [("", self.root)]):
+            C.log(f"File browser: di luar {self.root!r} ditolak {path!r}")
+            return                      # resource / USB: shortcut & junction ke luar ditolak
         if remember and self.cur is not None and _norm(path) != _norm(self.cur):
             self.history.append(self.cur)
         self.cur = path
@@ -1140,3 +1143,109 @@ class ResourcePage(tk.Frame):
             except tk.TclError:
                 pass
         usb_save.save_items(self, items, done, subfolder=f"{self.course['title']} - Resource")
+
+
+# --- halaman USB (sidebar murid: satu menu per flashdisk) -----------------------------------
+# File yang bisa menjalankan program tidak dibuka dari flashdisk
+RUN_EXTS = (".exe", ".bat", ".cmd", ".com", ".scr", ".msi", ".lnk", ".ps1", ".vbs", ".vbe",
+            ".js", ".jse", ".wsf", ".hta", ".reg", ".pif", ".cpl", ".jar")
+
+
+class UsbPage(tk.Frame):
+    """Halaman flashdisk: nama, sisa ruang, "Open files" (file browser HANYA di dalam
+    flashdisk itu, hanya baca) dan "Eject". File browser langsung dibuka saat halaman tampil."""
+
+    def __init__(self, master, drive, on_gone=None, open_now=True):
+        super().__init__(master, bg=C.BG)
+        from elearning.ui import usb_save
+        from elearning.ui.controls import RoundButton
+        from elearning.ui.widgets import add_hover
+        self.drive = drive
+        self.root = drive[0]
+        self.on_gone = on_gone
+        self.name = usb_save.drive_name(drive)
+        box = tk.Frame(self, bg=C.BG)
+        box.place(relx=0.5, rely=0.42, anchor="center")
+        ic = I.icon("usb", C.MUTED, C.BG, 40)
+        if ic is not None:
+            lb = tk.Label(box, image=ic, bg=C.BG, bd=0)
+            lb.image = ic
+            lb.pack(pady=(0, 10))
+        tk.Label(box, text=self.name, bg=C.BG, fg=C.TEXT, font=(C.FONT, 18, "bold")).pack()
+        self.info = tk.Label(box, text=self._space(drive), bg=C.BG, fg=C.MUTED,
+                             font=(C.FONT, 10))
+        self.info.pack(pady=(4, 16))
+        row = tk.Frame(box, bg=C.BG)
+        row.pack()
+        self.btn = RoundButton(row, text="Open files", command=self.open_browser, bg=C.ACCENT,
+                               fg="white", activebackground=C.ACCENT_HOVER,
+                               activeforeground="white", font=(C.FONT, 11, "bold"),
+                               padx=22, pady=8)
+        add_hover(self.btn, C.ACCENT, C.ACCENT_HOVER)
+        self.btn.pack(side="left", padx=(0, 10))
+        self.eject_btn = RoundButton(row, text="Eject", command=self.eject, bg=C.CARD,
+                                     fg=C.TEXT, activebackground=C.CARD_HOVER,
+                                     activeforeground=C.TEXT, font=(C.FONT, 11),
+                                     padx=22, pady=8)
+        add_hover(self.eject_btn, C.CARD, C.CARD_HOVER)
+        self.eject_btn.pack(side="left")
+        self.status = tk.Label(box, text="", bg=C.BG, fg=C.MUTED, font=(C.FONT, 10),
+                               wraplength=520, justify="center")
+        self.status.pack(pady=(12, 0))
+        self._ejecting = False
+        self._stop = usb_save.monitor(self).subscribe(self._changed)
+        if open_now:
+            self.after(60, self.open_browser)
+
+    @staticmethod
+    def _space(d):
+        from elearning.ui.course_dock import CourseDock
+        if d[2] is None:
+            return "Flash drive"
+        return (f"{CourseDock._size_text(d[2])} free of {CourseDock._size_text(d[3])}"
+                "  ·  open and view files")
+
+    def _changed(self, drives):
+        cur = next((d for d in drives if d[0] == self.root), None)
+        if cur is None:                       # dicabut / dikeluarkan
+            if self.on_gone is not None:
+                self.on_gone()
+            return
+        self.drive = cur
+        try:
+            self.info.config(text=self._space(cur))
+        except tk.TclError:
+            pass
+
+    def open_browser(self):
+        if not os.path.isdir(self.root):
+            self.status.config(text="The flash drive is not available.", fg=C.ERROR)
+            return
+        open_file_browser(self, mode="resource", root=self.root, title=self.name,
+                          on_open=self._open)
+
+    def _open(self, path):
+        if os.path.splitext(path)[1].lower() in RUN_EXTS:
+            self.status.config(text="Programs can't be opened from a flash drive.", fg=C.ERROR)
+            return
+        portfolio.open_file(path)
+
+    def eject(self):
+        from elearning.ui import usb_save
+        if self._ejecting:
+            return
+        self._ejecting = True
+        self.status.config(text="Ejecting... don't unplug yet", fg=C.MUTED)
+
+        def done(errs):
+            self._ejecting = False
+            try:
+                if errs:
+                    self.status.config(text=errs[0], fg=C.ERROR)
+            except tk.TclError:
+                pass
+        usb_save.eject_async(self, [self.root], done)
+
+    def destroy(self):
+        self._stop()
+        super().destroy()

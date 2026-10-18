@@ -13,7 +13,6 @@ Video dibaca & digelapkan di thread terpisah dan dibatasi 12 fps supaya ringan.
 """
 
 import os
-import threading
 import time
 import tkinter as tk
 import tkinter.font as tkfont
@@ -36,8 +35,6 @@ USB_W, USB_H = 340, 96     # widget USB (gaya widget Dashboard admin / guru, 1 s
 USB_ON = "#3fb68b"
 USB_PAD = 28               # ruang bayangan di sekitar widget
 USB_BTN = 34               # tombol eject bulat di kanan widget
-USB_RESCAN_S = 5.0         # baca ulang flashdisk berkala (sisa ruang, media dikeluarkan / masuk)
-USB_POLL_MS = 1000         # cek huruf drive (murah); detail flashdisk dibaca di thread
 
 
 def _rgb(c):
@@ -154,14 +151,11 @@ class CourseDock(tk.Canvas):
         self._title_y = 0
         self._usb_drives = None      # None = sedang dicek; [(root, label, free, total)]
         self._usb_rect = None
-        self._usb_mask = None
-        self._usb_box = []           # hasil thread -> diambil thread utama
-        self._usb_busy = False
+        self._usb_stop = None        # berhenti mendengar usb_save.monitor
         self._usb_photo = None
         self._usb_hover = False      # kursor di atas tombol eject
         self._usb_ejecting = False
         self._usb_msg = None         # (teks, warna, sampai kapan) pesan eject gagal
-        self._usb_scan_t = 0.0
         self._usb_item = self.create_image(0, 0, anchor="nw")
         path = None
         try:
@@ -195,7 +189,8 @@ class CourseDock(tk.Canvas):
         if self.video.ok:
             self.after(60, self._video_tick)
         if self.usb:
-            self.after(50, self._usb_poll)
+            from elearning.ui import usb_save
+            self._usb_stop = usb_save.monitor(self).subscribe(self._usb_changed)
 
     # --- data -------------------------------------------------------------------------------
     def set_courses(self, courses, empty_text=""):
@@ -740,35 +735,18 @@ class CourseDock(tk.Canvas):
         self._usb_ejecting, self._usb_hover, self._usb_msg = True, False, None
         self._compose_usb()
         self._usb_text()
-        box = []
 
-        def work():
-            box.append([(r, usb_save.eject(r)) for r in roots])
-
-        def wait():
+        def done(errs):
             if self._closed:
                 return
-            if not box:
-                self.after(100, wait)
-                return
             self._usb_ejecting = False
-            done = {r for r, err in box[0] if err is None}
-            errs = [err for _r, err in box[0] if err]
             if errs:
                 self._usb_msg = (errs[0], C.ACCENT, time.monotonic() + 6)
                 self.after(6100, self._usb_text)
-            self._usb_mask = None          # baca ulang juga (sisa ruang, drive lain)
-            left = [d for d in self._usb_drives or () if d[0] not in done]
-            if done and not left:          # semua sudah dikeluarkan: widget langsung hilang
-                self._usb_drives = []
-                self._usb_layout(self._title_y if self.hero else self._title_y - 14)
-                return
-            self._usb_drives = left
             self._compose_usb()
             self._usb_text()
 
-        threading.Thread(target=work, daemon=True).start()
-        self.after(100, wait)
+        usb_save.eject_async(self, roots, done)
 
     def _fit(self, text, font, width):
         f = self.f[font]
@@ -821,44 +799,20 @@ class CourseDock(tk.Canvas):
         self.create_text(tx, cy + 14, text=self._fit(small, "wsmall", tw), anchor="w",
                          font=self.f["wsmall"], fill=smcol, tags=("fg", "usbw"))
 
-    def _usb_poll(self):
-        """Tiap detik: huruf drive berubah -> baca flashdisk di thread (nama, sisa ruang)."""
+    def _usb_changed(self, drives):
+        """Pemantau USB (usb_save.monitor): daftar flashdisk berubah."""
         if self._closed:
             return
-        from elearning.ui import usb_save
-        if self._usb_box:
-            drives = self._usb_box.pop()
-            self._usb_box.clear()
-            if drives != self._usb_drives:
-                shown = bool(drives) != bool(self._usb_drives)
-                self._usb_drives = drives
-                if shown:                     # dicolok / dicabut semua: widget muncul / hilang
-                    self._usb_layout(self._title_y if self.hero else self._title_y - 14)
-                else:
-                    self._usb_text()
-        mask = usb_save.drive_mask()
-        rescan = time.monotonic() - self._usb_scan_t > USB_RESCAN_S
-        if (mask != self._usb_mask or rescan) and not self._usb_busy and not self._usb_ejecting:
-            self._usb_mask = mask
-            self._usb_scan_t = time.monotonic()
-            self._usb_busy = True
-            box = self._usb_box
-
-            def work():
-                try:
-                    out = [(r,) + usb_save.drive_info(r) for r in usb_save.removable_drives()]
-                    out = [d for d in out if d[3] is not None]   # tanpa media (sudah eject)
-                except Exception as exc:
-                    C.log(f"Widget USB: {exc!r}")
-                    out = []
-                box.append(out)
-                self._usb_busy = False
-
-            threading.Thread(target=work, daemon=True).start()
-        busy = self._usb_busy or self._usb_box or self._usb_drives is None
-        self.after(100 if busy else USB_POLL_MS, self._usb_poll)   # hasil thread cepat diambil
+        shown = bool(drives) != bool(self._usb_drives)
+        self._usb_drives = drives
+        if shown:                     # dicolok / dicabut semua: widget muncul / hilang
+            self._usb_layout(self._title_y if self.hero else self._title_y - 14)
+        else:
+            self._usb_text()
 
     def destroy(self):
         self._closed = True
+        if self._usb_stop is not None:
+            self._usb_stop()
         self.video.stop()
         super().destroy()

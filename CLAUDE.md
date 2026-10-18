@@ -319,9 +319,17 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   dismount, IOCTL_STORAGE_EJECT_MEDIA (ctypes, di thread); berhasil -> widget langsung hilang;
   gagal (file terbuka) -> pesan oranye 6 dtk. Drive tanpa media (sudah eject / card reader
   kosong) tidak dihitung; baca ulang tiap 5 dtk (SetErrorMode: tanpa popup "insert disk").
-  usb_save.drive_mask dicek tiap 1 dtk di thread utama; berubah -> removable_drives +
-  drive_info di thread (hasil diambil tiap 100 ms selama berjalan). Gambar widget = potongan
-  latar (ikut frame video), ~2,5 ms.
+  Pemantau bersama usb_save.monitor(widget) (UsbMonitor, satu per jendela, berhenti kalau tak
+  ada pendengar): drive_mask tiap 1 dtk di thread utama; berubah / tiap 5 dtk ->
+  removable_drives + drive_info di thread (hasil diambil tiap 100 ms selama berjalan);
+  subscribe(fn) -> fungsi berhenti; eject_async + drop (yang dikeluarkan langsung hilang).
+  Gambar widget = potongan latar (ikut frame video), ~2,5 ms.
+- Menu USB sidebar Dashboard murid (aturan sama dengan widget): satu menu per flashdisk,
+  label = nama volume "KINGSTON (E:)" (ikon usb), muncul / hilang otomatis. Halaman
+  file_browser.UsbPage: nama, sisa ruang, "Open files" (FileBrowser mode resource, root = akar
+  flashdisk: tidak bisa naik / junction keluar; dibuka otomatis), "Eject". File program
+  (RUN_EXTS: .exe, .bat, .lnk, ...) tidak dibuka. Dicabut / dikeluarkan -> kembali ke Dashboard
+  + file browser ditutup.
 
 ## Jendela web murid: Pinterest (PB / IC / SK), Gemini + Flow (murid AI); bukan trial
 - elearning/web_launcher.py + config.WEB_SITES (key, title, icon, url, allowed, ai). Ikon di
