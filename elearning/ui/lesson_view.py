@@ -63,7 +63,8 @@ OV_FULL = 120     # ... dan saat layar penuh
 OV_IDLE = 2.2     # detik kursor diam saat video diputar -> tombol disembunyikan
 
 # Pilihan murid diingat selama aplikasi terbuka (tidak reset saat pindah pelajaran)
-_PREF = {"volume": 80, "mute": False, "sub": None}   # sub: None/"off" = mati, atau nama label
+_PREF = {"volume": 80, "mute": False, "sub": None, "speed": 1.0}
+SPEEDS = (1.0, 0.75, 0.5)   # tombol kecepatan: klik = berikutnya (tanpa submenu)   # sub: None/"off" = mati, atau nama label
 
 # Subtitle "naik" (on/off): supaya timeline Blender di video tidak tertutup subtitle.
 # Disimpan di data\\subtitle.json, berlaku untuk semua video di PC ini.
@@ -441,6 +442,13 @@ class _MpvEngine:
         except Exception as exc:
             C.log(f"mpv volume: {exc!r}")
 
+    # --- kecepatan putar ---
+    def set_speed(self, speed):
+        try:
+            self.mp.speed = float(speed)
+        except Exception as exc:
+            C.log(f"mpv speed: {exc!r}")
+
     # --- subtitle ---
     def set_sub_up(self, on):
         """Subtitle naik (di atas timeline Blender) atau di posisi normal."""
@@ -607,6 +615,12 @@ class LessonPlayer(tk.Frame):
                             bd=0, cursor="hand2")
         self.cc.pack(side="right", padx=(2, 2), pady=6)
         self.cc.bind("<Button-1>", lambda e: self._open_sub_menu())
+
+        # Kecepatan putar 1.0x -> 0.75x -> 0.5x (klik = berikutnya, tanpa submenu)
+        self.spd = tk.Canvas(bar, width=48, height=36, bg=C.CARD, highlightthickness=0,
+                             bd=0, cursor="hand2")
+        self.spd.pack(side="right", padx=(2, 0), pady=6)
+        self.spd.bind("<Button-1>", lambda e: self._cycle_speed())
 
         # Subtitle naik on/off (supaya timeline Blender di video tidak tertutup)
         self.up = tk.Canvas(bar, width=36, height=36, bg=C.CARD, highlightthickness=0,
@@ -861,6 +875,7 @@ class LessonPlayer(tk.Frame):
         if not self.engine.has_audio:    # pemutar cadangan: sembunyikan volume & CC
             self.vol_box.pack_forget()
             self.cc.pack_forget()
+            self.spd.pack_forget()
             self.up.pack_forget()
         self._refresh()
 
@@ -883,6 +898,7 @@ class LessonPlayer(tk.Frame):
             self.load(path, hint, subs)
             return
         self.load(INTRO_PATH)
+        self._apply_speed(intro=True)
         if not self.has_video or self.engine is None:
             self.load(path, hint, subs)
             return
@@ -907,6 +923,7 @@ class LessonPlayer(tk.Frame):
         (path, hint, subs), self._intro = self._intro, None
         resume = self._resume          # lanjut tonton tetap berlaku untuk video pelajaran
         self.load(path, hint, subs)
+        self._apply_speed()
         self._resume = resume
         if self.has_video and self.engine is not None:
             try:
@@ -921,6 +938,7 @@ class LessonPlayer(tk.Frame):
         self._bar_cover.place_forget()
         self._resume = 0.0
         self._ensure_engine()
+        self._apply_speed(intro=(path == INTRO_PATH))   # kecepatan murid tetap; intro 1.0x
         e = self.engine
         self.playing = False
         self.pos = self.dur = 0.0
@@ -969,6 +987,7 @@ class LessonPlayer(tk.Frame):
         self.engine = _CvEngine()
         self.vol_box.pack_forget()
         self.cc.pack_forget()
+        self.spd.pack_forget()
         self.up.pack_forget()
         self.notice = f"Sound & subtitles are off: {why} (see app.log)"
         self.engine.load(path, size=(self.screen.winfo_width(), self.screen.winfo_height()))
@@ -1103,6 +1122,7 @@ class LessonPlayer(tk.Frame):
         self._draw_button()
         self._draw_volume()
         self._draw_cc()
+        self._draw_speed()
         self._draw_up()
         self._draw_fs()
         self._update_time()
@@ -1163,6 +1183,32 @@ class LessonPlayer(tk.Frame):
             bar.create_image(round(x), y, image=knob)
         else:
             bar.create_oval(x - 5, y - 5, x + 5, y + 5, fill=C.TEXT, outline="")
+
+    def _apply_speed(self, intro=False):
+        """Kecepatan murid untuk video pelajaran; intro selalu 1.0x."""
+        e = self.engine
+        if e is not None and hasattr(e, "set_speed"):
+            e.set_speed(1.0 if intro else _PREF["speed"])
+
+    def _cycle_speed(self):
+        if not self.has_video or self._intro is not None:
+            return
+        i = SPEEDS.index(_PREF["speed"]) if _PREF["speed"] in SPEEDS else 0
+        _PREF["speed"] = SPEEDS[(i + 1) % len(SPEEDS)]
+        self._apply_speed()
+        self._draw_speed()
+
+    def _draw_speed(self):
+        c = self.spd
+        c.delete("all")
+        enabled = self.has_video
+        sp = _PREF["speed"]
+        col = (self.color if sp != 1.0 else C.TEXT) if enabled else C.LOCKED
+        ph = _icon(("pl-spd", col), [(AA.rrect_ring(4, 9, 44, 27, 2.5, 1.0), col)], 48, 36)
+        if ph is not None:
+            c.create_image(0, 0, image=ph, anchor="nw")
+        text = "1x" if sp == 1.0 else f"{sp:g}x"          # 1x / 0.75x / 0.5x
+        c.create_text(24, 18, text=text, fill=col, font=(C.FONT, 9, "bold"))
 
     def _draw_cc(self):
         c = self.cc

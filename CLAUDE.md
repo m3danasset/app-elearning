@@ -166,6 +166,10 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   putar/jeda overlay disembunyikan; klik / spasi = lewati intro. Tiap ganti pelajaran
   (Selanjutnya / Sebelumnya / sidebar) intro diputar lagi. Trial (student_id None) tanpa intro.
 
+- Tombol kecepatan (sebelah kiri CC, tanpa submenu): klik = 1x -> 0.75x -> 0.5x -> 1x
+  (lesson_view.SPEEDS, _PREF["speed"], mpv speed; oranye kalau bukan 1x). Berlaku di semua
+  pelajaran selama app terbuka; intro selalu 1x. Pemutar cadangan OpenCV: tombol disembunyikan.
+
 ## Export Excel admin (fitur baru ikut)
 - excel_export.SHEETS + Jadwal (daftar: hari, jam, guru, catatan, warna, murid) & Jadwal Sesi
   (seperti tampilan Sesi), Kehadiran Jadwal (per murid per jadwal yang sudah selesai; aturan
