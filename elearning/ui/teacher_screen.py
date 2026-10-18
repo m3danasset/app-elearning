@@ -256,7 +256,7 @@ class TeacherScreen(SidebarLayout):
         self.photo_del_btn = self._small_button(btns, "Hapus foto", self._remove_photo)
         self.photo_del_btn.pack(side="left", padx=(8, 0))
         # batas Pinterest murid ini (hanya murid yang punya akses Pinterest)
-        self.pin_btn = self._small_button(btns, "Pinterest…", self._pinterest_limit)
+        self.pin_btn = self._small_button(btns, "Chrome…", self._pinterest_limit)
 
         tabs = tk.Frame(self.right, bg=C.BG)
         tabs.pack(fill="x", pady=(10, 0))
@@ -641,8 +641,8 @@ class TeacherScreen(SidebarLayout):
             self.pin_btn.pack_forget()
             return
         lim = st.get("pinterest_limit")
-        text = ("Pinterest: bawaan" if lim is None else "Pinterest: diblokir" if lim == 0
-                else "Pinterest: tanpa batas" if lim < 0 else f"Pinterest: {lim} mnt")
+        text = ("Chrome: bawaan" if lim is None else "Chrome: diblokir" if lim == 0
+                else "Chrome: tanpa batas" if lim < 0 else f"Chrome: {lim} mnt")
         self.pin_btn.config(text=text)
         if not self.pin_btn.winfo_ismapped():
             self.pin_btn.pack(side="left", padx=(8, 0))

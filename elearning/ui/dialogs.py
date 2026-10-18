@@ -896,7 +896,7 @@ class PinterestLimitDialog(tk.Toplevel):
 
     def __init__(self, master, name, current, default, used_min, on_submit):
         super().__init__(master, bg=C.CARD, highlightthickness=1, highlightbackground=C.BORDER)
-        self.title("Batas Pinterest")
+        self.title("Batas Chrome")
         self.resizable(False, False)
         self.transient(master.winfo_toplevel())
         dark_titlebar(self)
@@ -916,7 +916,7 @@ class PinterestLimitDialog(tk.Toplevel):
             cur = f"{current} menit"
         body = tk.Frame(self, bg=C.CARD, padx=28, pady=22)
         body.pack(fill="both", expand=True)
-        tk.Label(body, text="Batas Pinterest", bg=C.CARD, fg=C.TEXT,
+        tk.Label(body, text="Batas browsing Chrome", bg=C.CARD, fg=C.TEXT,
                  font=(C.FONT, 14, "bold"), anchor="w").pack(fill="x")
         tk.Label(body, text=name, bg=C.CARD, fg=C.MUTED, font=(C.FONT, 10),
                  anchor="w").pack(fill="x", pady=(2, 14))

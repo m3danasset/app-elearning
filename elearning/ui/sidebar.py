@@ -176,9 +176,10 @@ class Row(tk.Canvas):
                 self._imgs.append(ph)
                 self.create_image(x + 10, cy, image=ph, tags="deco")
             x += 30
-        elif self.image is not None:
-            self.create_image(x + 10, cy, image=self.image, tags="deco")
-            x += 30
+        elif self.image is not None:      # gambar (ikon Blender / Chrome): ikut lebarnya sendiri
+            iw = int(self.image.width())
+            self.create_image(x + iw / 2, cy, image=self.image, tags="deco")
+            x += iw + 12
         elif self.dot:
             ph = I.dot(self.dot, fill)
             if ph is not None:
@@ -1249,7 +1250,8 @@ class AppSidebar(tk.Frame):
     def _build_footer(self, text, command, image=None, icon=None, extra=None, right=None,
                       right_ring=None):
         if self.collapsed:
-            b = IconButton(self._footer_box, icon or "play", command, tip=text, image=image)
+            b = IconButton(self._footer_box, icon or "play", command, tip=text, image=image,
+                           size=(44, 42) if image is not None else (40, 36))
             b.pack(pady=1)
             for ic, cmd, tip in extra or ():
                 IconButton(self._footer_box, ic, cmd, tip=tip).pack(pady=1)
@@ -1261,7 +1263,7 @@ class AppSidebar(tk.Frame):
             for ic, cmd, tip in reversed(extra):
                 IconButton(box, ic, cmd, tip=tip, size=(34, 36)).pack(side="right")
         r = Row(box, text, command, image=image, icon=None if image else icon, right=right,
-                right_ring=right_ring)
+                right_ring=right_ring, height=42 if image is not None else ROW_H)
         r.pack(fill="x", side="left" if extra else "top", expand=bool(extra))
         return r
 
@@ -1393,7 +1395,7 @@ def blender_footer(sb):
         open_blender(sb)
 
     if "blender" not in _blender_cache:
-        _blender_cache["blender"] = blender_icon.get_photo(22)
+        _blender_cache["blender"] = blender_icon.get_photo(FOOT_ICON)
     student = getattr(sb.winfo_toplevel(), "_student", None)
     # situs web murid = baris sendiri DI ATAS Blender. Pinterest -> baris "Chrome" (logo
     # Chrome asli dari PC) yang membuka popup profil (akun guru / akun saya); Gemini + Flow
@@ -1409,7 +1411,8 @@ def blender_footer(sb):
                           student["id"], "pinterest") if student else None)
             continue
         sb.footer(s["title"], lambda k=s["key"]: web_launcher.open_web(sb, student, k),
-                  image=_site_logo(s["key"]), icon=s["icon"], right=st or None)
+                  image=_site_logo(s["key"]) or _glyph_logo(s["icon"]), icon=s["icon"],
+                  right=st or None)
     sb.footer(L("Buka Blender", "Open Blender") + f" {blender_launcher.VERSION}", open_blender_now,
               image=_blender_cache["blender"], icon="play")
 
@@ -1436,7 +1439,10 @@ def _usage_ring(frac, bg, size=18):
     return _blender_cache[k]
 
 
-def _chrome_logo(size=22):
+FOOT_ICON = 32      # ikon shortcut (Chrome / Blender) = ukuran foto murid di profil sidebar
+
+
+def _chrome_logo(size=FOOT_ICON):
     """Logo Chrome asli dari instalasi Chrome di PC (di atas warna sidebar) atau None."""
     k = ("chrome", size)
     if k not in _blender_cache:
@@ -1445,17 +1451,35 @@ def _chrome_logo(size=22):
             from PIL import Image, ImageTk
             from elearning import web_launcher
             img = web_launcher.chrome_logo(size)
-            if img is not None:
-                bg = Image.new("RGBA", img.size, I._rgb(C.SIDEBAR) + (255,))
-                bg.alpha_composite(img)
-                ph = ImageTk.PhotoImage(bg.convert("RGB"))
+            if img is not None:       # RGBA transparan: tanpa kotak saat baris disorot
+                ph = ImageTk.PhotoImage(img)
         except Exception as exc:
             C.log(f"Logo Chrome tidak bisa dibuat: {exc!r}")
         _blender_cache[k] = ph
     return _blender_cache[k]
 
 
-def _site_logo(key, size=22):
+def _glyph_logo(name, size=FOOT_ICON, inner=20):
+    """Ikon garis (mis. Gemini / Flow) di kotak transparan selebar ikon shortcut lain, supaya
+    teks semua baris shortcut sejajar. Bentuk putih di atas hitam -> kecerahan jadi alpha."""
+    k = ("glyph", name, size, inner)
+    if k not in _blender_cache:
+        ph = None
+        try:
+            from PIL import Image, ImageTk
+            a = I._render_icon(name, "#ffffff", "#000000", inner).convert("L")
+            img = Image.new("RGBA", (size, size), I._rgb(C.TEXT) + (0,))
+            alpha = Image.new("L", (size, size), 0)
+            alpha.paste(a, ((size - inner) // 2, (size - inner) // 2))
+            img.putalpha(alpha)
+            ph = ImageTk.PhotoImage(img)
+        except Exception as exc:
+            C.log(f"Ikon {name} tidak bisa dibuat: {exc!r}")
+        _blender_cache[k] = ph
+    return _blender_cache[k]
+
+
+def _site_logo(key, size=FOOT_ICON):
     """Logo asli situs (ui/img/<key>.png, bulat transparan, diperkecil halus) atau None."""
     k = ("site", key, size)
     if k not in _blender_cache:
@@ -1467,9 +1491,7 @@ def _site_logo(key, size=22):
             if os.path.isfile(path):
                 with Image.open(path) as im:
                     img = im.convert("RGBA").resize((size, size), Image.LANCZOS)
-                bg = Image.new("RGBA", img.size, I._rgb(C.SIDEBAR) + (255,))
-                bg.alpha_composite(img)          # latar sidebar: tepi bulat halus
-                ph = ImageTk.PhotoImage(bg.convert("RGB"))
+                ph = ImageTk.PhotoImage(img)     # RGBA transparan (tanpa kotak saat disorot)
         except Exception as exc:
             C.log(f"Logo {key} tidak bisa dibuka: {exc!r}")
         _blender_cache[k] = ph

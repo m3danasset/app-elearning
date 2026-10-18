@@ -149,8 +149,29 @@ WEB_STUDENT_GOOGLE_HOSTS = ("accounts.google.com", "accounts.google.*", "google.
                             "ssl.gstatic.com", "www.gstatic.com", "fonts.gstatic.com",
                             "*.googleapis.com", "lh3.googleusercontent.com",
                             "www.recaptcha.net", "accounts.youtube.com")
+# Profil "studio" (akun guru, dipakai SUPERKIDS) di Chrome biasa: semua situs bebas, KECUALI
+# isi akun Google studio (diblok) + pencarian aman (SafeSearch Google / Bing / DuckDuckGo,
+# YouTube Restricted) lewat --host-resolver-rules (cara DNS resmi Google, tanpa ubah PC).
+WEB_STUDIO_BLOCK = ("mail.google.com", "drive.google.com", "docs.google.com",
+                    "myaccount.google.com", "photos.google.com", "contacts.google.com",
+                    "calendar.google.com", "keep.google.com", "takeout.google.com",
+                    "pay.google.com", "payments.google.com", "passwords.google.com",
+                    "admin.google.com", "gemini.google.com")
+WEB_SAFE_MAP = (("www.google.com", "forcesafesearch.google.com"),
+                ("google.com", "forcesafesearch.google.com"),
+                ("www.google.co.id", "forcesafesearch.google.com"),
+                ("google.co.id", "forcesafesearch.google.com"),
+                ("www.youtube.com", "restrictmoderate.youtube.com"),
+                ("m.youtube.com", "restrictmoderate.youtube.com"),
+                ("youtubei.googleapis.com", "restrictmoderate.youtube.com"),
+                ("youtube.googleapis.com", "restrictmoderate.youtube.com"),
+                ("www.youtube-nocookie.com", "restrictmoderate.youtube.com"),
+                ("www.bing.com", "strict.bing.com"),
+                ("duckduckgo.com", "safe.duckduckgo.com"))
 WEB_SITES = (
-    {"key": "pinterest", "title": "Pinterest", "icon": "web_pin", "ai": False,
+    # "pinterest" = baris Chrome di sidebar murid: Chrome BIASA (semua situs), batas waktu
+    # browsing harian (kunci data tetap "pinterest" supaya batas guru & pemakaian lama aman)
+    {"key": "pinterest", "title": "Chrome", "icon": "web_pin", "ai": False,
      "url": "https://id.pinterest.com/",
      "allowed": ("pinterest.com", "*.pinterest.com", "pinimg.com", "*.pinimg.com")},
     {"key": "gemini", "title": "Gemini", "icon": "web_gemini", "ai": True,

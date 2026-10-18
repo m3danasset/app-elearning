@@ -56,6 +56,21 @@ def _tint(s, color, strength):
     return img
 
 
+def cover_resize(img, size):
+    """Frame lama -> ukuran baru TANPA melar: diperbesar proporsional lalu dipotong di tengah
+    (cara "cover" yang sama dengan video latar), jadi saat sidebar dilipat / dibuka latar
+    tidak meloncat ketika frame video ukuran baru datang."""
+    W, H = size
+    w, h = img.size
+    if (w, h) == (W, H) or w < 2 or h < 2:
+        return img
+    k = max(W / w, H / h)
+    nw, nh = max(W, int(round(w * k))), max(H, int(round(h * k)))
+    big = img.resize((nw, nh), photos.Image.BILINEAR)
+    x0, y0 = (nw - W) // 2, (nh - H) // 2
+    return big.crop((x0, y0, x0 + W, y0 + H))
+
+
 class _BgVideo:
     """Video latar yang sudah dicampur dengan warna latar (opacity rendah), di thread."""
 
@@ -207,7 +222,7 @@ class CourseDock(tk.Canvas):
         self._size = (e.width, e.height)
         self.video.set_size(e.width, e.height)
         if self._base is not None and self.video.ok:
-            self._base = self._base.resize(self._size)     # frame lama sampai frame baru tiba
+            self._base = cover_resize(self._base, self._size)   # frame lama, proporsional
         else:
             self._base = photos.Image.new("RGB", self._size, _rgb(C.BG))
         self.target = self._clamp(self.target)

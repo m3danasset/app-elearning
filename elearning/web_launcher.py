@@ -333,6 +333,14 @@ def _kill_profile(folder):
     ditutup: aturan host hanya berlaku saat proses Chrome pertama diluncurkan."""
     if sys.platform != "win32" or not os.path.isdir(folder):
         return
+    lock = os.path.join(folder, "lockfile")     # ada & terkunci = Chrome profil ini jalan
+    if not os.path.exists(lock):
+        return
+    try:
+        os.remove(lock)                         # bisa dihapus = tidak ada Chrome yang jalan
+        return
+    except OSError:
+        pass
     ps = ("Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" | Where-Object { "
           "$_.CommandLine -and $_.CommandLine.ToLower().Contains('" + folder.lower().replace("'", "''")
           + "') } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force "
@@ -342,6 +350,116 @@ def _kill_profile(folder):
                        capture_output=True, creationflags=0x08000000, timeout=15)
     except Exception as exc:
         C.log(f"Web: Chrome profil lama tidak bisa ditutup: {exc!r}")
+
+
+def _studio_rules():
+    """Profil akun guru: situs bebas, isi akun Google studio diblok, pencarian aman."""
+    parts = [f"MAP {h} ~NOTFOUND" for h in getattr(C, "WEB_STUDIO_BLOCK", ())]
+    parts += [f"MAP {a} {b}" for a, b in getattr(C, "WEB_SAFE_MAP", ())]
+    return ", ".join(parts)
+
+
+def open_browser(widget, student, profile="own"):
+    """Baris Chrome di sidebar murid: Google Chrome BIASA (tab, kolom alamat, semua situs),
+    profil "studio" (akun guru) / "own" (akun Google murid). Waktu browsing dibatasi per
+    hari (kunci "pinterest"): dihitung selama ada jendela Chrome yang tidak di-minimize."""
+    from elearning.i18n import L
+    app = widget.winfo_toplevel()
+    if not any(s["key"] == "pinterest" for s in sites_for(student)):
+        return False
+    ok = dict(profiles_for(student))
+    if profile == "studio" and not ok.get("studio"):
+        profile = "own"
+    if profile == "own" and not ok.get("own"):
+        return False                         # SUPERKIDS: hanya akun guru
+    if running() and (_state["sid"] != student["id"] or _state.get("profile") != profile
+                      or _state.get("mode") != "browser"):
+        close()
+    left = remaining(student["id"], "pinterest")
+    if left is not None and left <= 0:
+        lim = _limit("pinterest", student["id"])
+        r = reset_at(student["id"], "pinterest")
+        _message(app, "Chrome", L(
+            "Chrome tidak tersedia untukmu. Tanya guru." if lim == 0 else
+            f"Batas browsing habis. Bisa dipakai lagi pukul {r}.",
+            "Chrome is not available for you. Ask your teacher." if lim == 0 else
+            f"You've hit your browsing limit ({lim} min). It resets at {r}."))
+        return False
+    if running():                            # sudah terbuka: bawa ke depan
+        if sys.platform == "win32":
+            u, _c, _w = _user32()
+            wins = _chrome_windows(_state["proc"].pid)
+            for hwnd in wins:
+                u.ShowWindow(hwnd, 9 if u.IsIconic(hwnd) else 5)    # RESTORE / SHOW
+            if wins:
+                u.SetForegroundWindow(wins[0])
+        return True
+    exe = chrome_path()
+    if exe is None:
+        _message(app, "Chrome", L("Google Chrome belum terpasang di PC ini. Hubungi guru / admin.",
+                                  "Google Chrome is not installed on this PC. Please ask your teacher."))
+        return False
+    folder = profile_dir(student["id"], profile)
+    _kill_profile(folder)          # sisa Chrome profil ini (mis. setup admin) ditutup dulu
+    _prepare_profile(folder)
+    args = [exe, f"--user-data-dir={folder}", "--no-first-run", "--no-default-browser-check",
+            "--disable-features=Translate,MediaRouter"]
+    if profile == "studio":
+        args.append(f"--host-resolver-rules={_studio_rules()}")
+    if C.lite():   # mode ringan (iGPU + Blender): Chrome tidak memakai GPU
+        args += ["--disable-gpu", "--disable-smooth-scrolling"]
+    flags = 0x00004000 if sys.platform == "win32" else 0   # BELOW_NORMAL_PRIORITY_CLASS
+    try:
+        proc = subprocess.Popen(args, creationflags=flags, close_fds=True)
+    except OSError as exc:
+        C.log(f"Web: Chrome gagal dibuka: {exc!r}")
+        _message(app, "Chrome", L("Chrome tidak bisa dibuka. Coba lagi.",
+                                  "Chrome could not be opened. Please try again."))
+        return False
+    _state.update(proc=proc, sid=student["id"], app=app, hwnds=set(), hidden=False,
+                  site_hwnd={}, pending=[], profile=profile, extra={}, mode="browser")
+    C.log(f"Web: Chrome ({profile}) dibuka untuk {student['id']}")
+    if _state["job"] is None:
+        _watch()
+    return True
+
+
+def _count_browser(app, active):
+    """Waktu browsing (kunci "pinterest"): bertambah selama ada jendela Chrome terbuka & tidak
+    di-minimize. Sisa 2 menit -> peringatan; habis -> Chrome ditutup + jam reset."""
+    from elearning.i18n import L
+    now = time.monotonic()
+    dt = 0.0 if _usage["last"] is None else min(5.0, now - _usage["last"])
+    _usage["last"] = now
+    sid, key = _state["sid"], "pinterest"
+    if _limit(key, sid) is None:
+        return
+    if active:
+        e = _slot(sid, key, create=True)
+        e["secs"] += dt
+        _usage["dirty"] += dt
+    left = remaining(sid, key)
+    e = _slot(sid, key)
+    if 0 < left <= WARN_S and e and not e.get("warned"):
+        e["warned"] = True
+        _save_usage()
+        app.after(50, lambda m=getattr(C, "WEB_RESET_MIN", 10): _message(app, "Chrome", L(
+            f"Sisa waktu browsing 2 menit. Setelah habis, istirahat {m} menit.",
+            f"2 minutes of browsing left. After that, take a {m}-minute break.")))
+    if left <= 0:
+        e = _slot(sid, key, create=True)
+        if not e.get("hit"):
+            e["hit"] = time.time()
+        _save_usage()
+        r = reset_at(sid, key)
+        C.log(f"Web: batas browsing habis untuk {sid}, reset {r}")
+        close()                                                  # seluruh Chrome ditutup
+        app.after(50, lambda r=r: _message(app, "Chrome", L(
+            f"Batas browsing habis. Bisa dipakai lagi pukul {r}.",
+            f"You've hit your browsing limit. It resets at {r}.")))
+        return
+    if _usage["dirty"] >= 10:
+        _save_usage()
 
 
 def close():
@@ -363,7 +481,7 @@ def close():
         else:
             p.terminate()
     _state.update(proc=None, sid=None, app=None, job=None, hwnds=set(), hidden=False,
-                  site_hwnd={}, pending=[], extra={}, profile=None)
+                  site_hwnd={}, pending=[], extra={}, profile=None, mode=None)
 
 
 # --- Win32: jendela milik aplikasi -------------------------------------------------------
@@ -571,6 +689,7 @@ def usage_ring(sid, key):
     if lim is None:
         return None
     title = next((s["title"] for s in C.WEB_SITES if s["key"] == key), key)
+    what = "browsing" if key == "pinterest" else title
     if lim == 0:
         return (1.0, f"{title} is not available", "Ask your teacher")
     used = used_secs(sid, key)
@@ -582,7 +701,7 @@ def usage_ring(sid, key):
                            - time.time()) // 60) + 1)
         return (1.0, "Limit reached", f"Resets in {wait} min")
     m = int(left // 60 + (1 if left % 60 else 0))
-    return (frac, f"{round(frac * 100)}% of {title} limit", f"{m} min left of {lim} min")
+    return (frac, f"{round(frac * 100)}% of {what} limit", f"{m} min left of {lim} min")
 
 
 def status_text(sid, key):
@@ -650,6 +769,16 @@ def _watch():
                           pending=[])
         return
     try:
+        if _state.get("mode") == "browser":      # Chrome biasa: hanya hitung waktu browsing
+            if sys.platform == "win32":
+                u = _user32()[0]
+                active = any(not u.IsIconic(h) for h in _chrome_windows(_state["proc"].pid))
+            else:
+                active = True
+            _count_browser(app, active)
+            if _state["app"] is not None:
+                _state["job"] = app.after(WATCH_MS, _watch)
+            return
         if sys.platform == "win32":
             owner = int(app.wm_frame(), 16)
             visible = app.state() == "normal" and app.winfo_viewable()

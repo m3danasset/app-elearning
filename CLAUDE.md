@@ -420,3 +420,20 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   right_ring -> web_launcher.usage_ring: biru, >= 80 % oranye, habis merah; chart_art.donut
   18 px), tooltip 2 baris saat kursor di atas cincin ("46% of Pinterest limit" / "6 min left
   of 10 min", atau "Limit reached" / "Resets in 7 min"); diperbarui tiap 30 dtk.
+- CHROME BIASA (ganti ide lagi): kartu profil membuka web_launcher.open_browser = Google Chrome
+  BIASA (tab, kolom alamat, SEMUA situs), bukan --app Pinterest. Profil "studio" (akun guru,
+  wajib untuk SUPERKIDS): --host-resolver-rules dari _studio_rules() = isi akun Google studio
+  diblok (config.WEB_STUDIO_BLOCK: Gmail, Drive, Docs, myaccount, Photos, ...) + pencarian aman
+  (config.WEB_SAFE_MAP: forcesafesearch.google.com, restrictmoderate.youtube.com, strict.bing,
+  safe.duckduckgo). Profil "own" (murid dewasa) tanpa aturan. Sudah terbuka -> jendela dibawa
+  ke depan. _state mode="browser": _watch hanya menghitung WAKTU BROWSING (_count_browser,
+  kunci data tetap "pinterest" supaya batas guru / Dev lama berlaku) selama ada jendela Chrome
+  yang tidak di-minimize; sisa 2 mnt = peringatan, habis = seluruh Chrome ditutup + pesan.
+  Label: guru "Chrome: 20 mnt", dialog "Batas browsing Chrome", cincin "x% of browsing limit".
+  SafeSearch belum bisa dibuktikan headless (captcha Google); cek manual di PC studio.
+- Ikon shortcut sidebar (Chrome, Gemini, Flow, Blender) = sidebar.FOOT_ICON 32 px (= foto murid),
+  RGBA transparan (tanpa kotak saat baris disorot); ikon garis Gemini / Flow lewat _glyph_logo
+  (kotak 32 px, ikon 20 di tengah) supaya teks semua baris sejajar. Baris 42 px, rail 44x42.
+- Latar video (course_dock, dashboard_view) saat ukuran berubah (sidebar dilipat / dibuka,
+  windowed <-> fullscreen): frame lama di-"cover" (course_dock.cover_resize: skala proporsional
+  + potong tengah), BUKAN ditarik paksa, jadi tidak meloncat saat frame baru datang.

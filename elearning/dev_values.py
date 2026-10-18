@@ -17,7 +17,7 @@ from elearning import config as C
 
 VALUES = (
     # --- Web murid ---
-    ("pinterest_limit", "Web murid", "Batas Pinterest per hari (menit, 0 = tanpa batas)", "int",
+    ("pinterest_limit", "Web murid", "Batas browsing Chrome per hari (menit, 0 = tanpa batas)", "int",
      [("elearning.config", "PINTEREST_LIMIT_MIN")]),
     ("web_reset_min", "Web murid", "Jeda reset setelah batas habis (menit)", "int",
      [("elearning.config", "WEB_RESET_MIN")]),

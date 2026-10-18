@@ -896,9 +896,10 @@ class DashboardView(tk.Canvas):
         Image = photos.Image
         W, H = self._size
         raw = self.video.raw if self.video.ok() else None
-        if raw is not None:      # ukuran baru (sidebar dilipat / dibuka): frame lama direntang
+        if raw is not None:      # ukuran baru (sidebar dilipat / dibuka): frame lama proporsional
             if raw.size != (W, H):
-                raw = raw.resize((W, H), photos.Image.BILINEAR)
+                from elearning.ui.course_dock import cover_resize
+                raw = cover_resize(raw, (W, H))
             base = raw.convert("RGBA")
         else:
             base = Image.new("RGBA", (W, H), I._rgb(C.BG) + (255,))

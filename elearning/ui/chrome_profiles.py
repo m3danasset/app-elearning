@@ -198,8 +198,9 @@ class ChromeProfiles(OverlayPanel):
         cv.create_text(W_ / 2, cy + 62, text="Who's using Chrome?", font=self.f["h"], fill=TEXT)
         cv.create_text(W_ / 2, cy + 106, font=self.f["sub"], fill=SUB, justify="center",
                        width=min(470, W_ - 80),
-                       text="Choose a profile to open Pinterest. Your teacher's profile is "
-                            "for everyone; your own Google account is for adult students.")
+                       text="Choose a profile to open Chrome. Your teacher's profile has "
+                            "SafeSearch on for kids; your own Google account is for adult "
+                            "students.")
         x = (W_ - (n * CARD_W + (n - 1) * GAP)) / 2
         y = cy + 160
         for i, c in enumerate(self.cards):
@@ -224,7 +225,7 @@ class ChromeProfiles(OverlayPanel):
         cv.tag_bind("close", "<Leave>", lambda e: cv.config(cursor=""))
         st = W.status_text(self.student.get("id"), "pinterest") if self.student else ""
         cv.create_text(W_ - 36, by + bh / 2, anchor="e", font=self.f["sub"], fill=SUB,
-                       text=f"Pinterest  ·  {st}" if st else "Pinterest")
+                       text=f"Browsing  ·  {st}" if st else "Browsing")
         cv.bind("<Motion>", self._motion)
         cv.bind("<Leave>", lambda e: self._set_hover(None))
         cv.bind("<Button-1>", self._click)
@@ -351,4 +352,4 @@ class ChromeProfiles(OverlayPanel):
         key = self.cards[i]["key"]
         widget, student = self.widget, self.student
         self.close()
-        W.open_web(widget, student, "pinterest", profile=key)
+        W.open_browser(widget, student, profile=key)
