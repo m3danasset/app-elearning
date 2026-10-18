@@ -108,6 +108,10 @@ def _low_priority():
 
 
 _low_priority()
+# Latar beranda / Dashboard / login = GAMBAR STATIS (satu frame dari video latar, tidak bergerak).
+# False = video bergerak seperti dulu. Teaser kursus tetap video.
+STATIC_BG = True
+STATIC_BG_AT = 0.4         # posisi frame yang diambil (0..1 dari panjang video)
 HOME_VIDEO_OPACITY = 0.22  # video latar halaman utama murid (assets\\video\\home): 0 = tak terlihat, 1 = penuh
 # Video pelajaran, DI LUAR .exe juga: <folder .exe>\assets\lessons\<id kursus>\01.mp4, 02.mp4, ...
 # File browser murid (upload Portfolio / Assignment): murid HANYA bisa membuka drive ini

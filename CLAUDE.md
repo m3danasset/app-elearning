@@ -335,6 +335,13 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 - Halaman utama murid & trial = "Dashboard" (menu sidebar ikon home, juga di layar kursus &
   Ctrl+K), gaya Dashboard admin / guru: CourseDock(hero=True) = sapaan besar 40 pt ("Good
   morning, <nama depan>"; trial "Welcome!") + tanggal, kartu kursus di bawahnya (cy 0,60).
+- LATAR STATIS (config.STATIC_BG = True, STATIC_BG_AT 0.4): latar login, Dashboard murid /
+  admin / guru = SATU frame dari video latar (tidak bergerak). video_background.VideoPlayer
+  static: baca satu frame, disiapkan ulang hanya saat ukuran berubah (pemanggil tetap memakai
+  get_latest, tidak berubah). Teaser memakai static=False. Mode ringan tetap tanpa latar video.
+- Bayangan lembut seperti widget USB (dashboard_view._shadow; SH_BLUR 12, SH_DY 6, SH_ALPHA 90)
+  di bawah kartu kursus (dicampur ke pita kartu; pita diperpanjang untuk ruang bayangan) dan di
+  bawah sapaan + baris tanggal (kapsul ter-blur seukuran teks, CourseDock._text_shadows).
 - VIDEO TEASER kursus (CourseDock teaser=True dari home_screen, fitur Dev "teaser"): kursor diam
   TEASER_SHOW_MS 220 di atas kartu kursus (terbuka / terkunci) -> kartu video 16:9 BESAR
   (TEASER_W 840, maks. 720p; mengecil kalau ruang kurang, hilang kalau < 220) muncul memudar +

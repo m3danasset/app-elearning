@@ -1,5 +1,9 @@
 """Latar video yang berputar terus (loop), dipakai di layar login.
 
+STATIS (config.STATIC_BG, bawaan): pemutar hanya membaca SATU frame (config.STATIC_BG_AT) lalu
+menyiapkannya ulang hanya saat ukuran berubah -> latar diam, hampir tanpa CPU. Pemanggil tidak
+perlu tahu (get_latest tetap dipakai). Teaser kursus memakai static=False.
+
 - Video dicari otomatis di folder assets/video (lihat config.VIDEO_DIR).
 - Video diputar di thread terpisah supaya jendela tetap responsif.
 - Kalau video tidak ada / gagal dibuka, latar jadi warna polos (aplikasi tetap jalan).
@@ -56,8 +60,9 @@ def find_video(folder):
 class VideoPlayer(threading.Thread):
     """Membaca video terus-menerus dan menyiapkan frame terbaru (sudah pas ukuran jendela)."""
 
-    def __init__(self, path, dim=0.5, max_fps=30):
+    def __init__(self, path, dim=0.5, max_fps=30, static=None):
         super().__init__(daemon=True)
+        self.static = getattr(C, "STATIC_BG", False) if static is None else static
         self.path = path
         self.dim = dim
         self.max_fps = max_fps
@@ -83,6 +88,9 @@ class VideoPlayer(threading.Thread):
 
     # --- berjalan di thread sendiri ---
     def run(self):
+        if self.static:
+            self._run_static()
+            return
         cap = cv2.VideoCapture(self.path)
         try:
             if not cap.isOpened():
@@ -120,6 +128,44 @@ class VideoPlayer(threading.Thread):
             self._fail(repr(exc))
         finally:
             cap.release()
+
+    def _run_static(self):
+        """Satu frame saja; disiapkan ulang hanya kalau ukuran berubah."""
+        cap = cv2.VideoCapture(self.path)
+        try:
+            if not cap.isOpened():
+                self._fail("Video tidak bisa dibuka (format/codec tidak didukung?)")
+                return
+            n = cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0
+            if n > 1:
+                cap.set(cv2.CAP_PROP_POS_FRAMES, int(n * getattr(C, "STATIC_BG_AT", 0.4)))
+            ok, frame = cap.read()
+            if not ok:
+                cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                ok, frame = cap.read()
+            if not ok:
+                self._fail("Video kosong / rusak")
+                return
+        except Exception as exc:
+            self._fail(repr(exc))
+            return
+        finally:
+            cap.release()
+        done = None
+        while not self._stop_event.is_set():
+            with self._lock:
+                size = self._size
+            if size != done:
+                try:
+                    img = self._prepare(frame)
+                except Exception as exc:
+                    self._fail(repr(exc))
+                    return
+                with self._lock:
+                    if self._size == size:
+                        self._latest = img
+                        done = size
+            self._stop_event.wait(0.1)
 
     def _fail(self, message):
         self.failed = True

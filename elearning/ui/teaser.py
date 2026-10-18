@@ -58,6 +58,6 @@ def make_player(path, fps, w, h):
             self_.mask = I.round_mask(tw, th, RADIUS).copy()
             self_.set_size(tw, th)
 
-    p = TeaserPlayer(path, dim=1.0, max_fps=fps)
+    p = TeaserPlayer(path, dim=1.0, max_fps=fps, static=False)
     p.set_target(w, h)
     return p

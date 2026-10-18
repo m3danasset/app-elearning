@@ -40,6 +40,9 @@ USB_W, USB_H = 340, 96     # widget USB (gaya widget Dashboard admin / guru, 1 s
 USB_ON = "#3fb68b"
 USB_PAD = 28               # ruang bayangan di sekitar widget
 USB_BTN = 34               # tombol eject bulat di kanan widget
+# Bayangan lembut seperti widget USB (dashboard_view._shadow): kartu kursus & sapaan
+SH_BLUR, SH_DY, SH_ALPHA = 12, 6, 90
+TEXT_SH_ALPHA = (85, 60)   # sapaan besar, baris kecil di bawahnya
 TEASER_W = 840             # lebar kartu video teaser (16:9; mengecil kalau ruang kurang)
 TEASER_SHOW_MS = 220       # kursor diam sekian di atas kartu kursus -> teaser muncul
 TEASER_HIDE_MS = 260       # kursor keluar dari kartu -> teaser hilang (kecuali pindah kartu)
@@ -370,7 +373,8 @@ class CourseDock(tk.Canvas):
         self._s = self._card_size()
         s = self._s
         self._cy = h * (0.60 if self.hero else 0.54)
-        self._band = (int(self._cy - s / 2 - LIFT - 2), int(s + LIFT + 6))
+        self._band = (int(self._cy - s / 2 - LIFT - 2),
+                      int(s + LIFT + 6 + 2 * SH_BLUR + SH_DY))   # + ruang bayangan
         self.coords(self._band_item, 0, self._band[0])
         self.delete("fg")
         self._items, self._fades = [], []
@@ -382,10 +386,11 @@ class CourseDock(tk.Canvas):
                 if f.measure(self.title_text) <= w - 80:
                     break
             title_y = top - 42 - f.metrics("linespace")
-            self.create_text(w / 2, title_y, text=self.title_text, font=f, anchor="n",
-                             fill=C.TEXT, tags="fg")
-            self.create_text(w / 2, top - 28, text=self.hello_text, font=self.f["hello"],
-                             fill=C.MUTED, tags="fg")
+            t1 = self.create_text(w / 2, title_y, text=self.title_text, font=f, anchor="n",
+                                  fill=C.TEXT, tags="fg")
+            t2 = self.create_text(w / 2, top - 28, text=self.hello_text, font=self.f["hello"],
+                                  fill=C.MUTED, tags="fg")
+            self._text_shadows(((t1, TEXT_SH_ALPHA[0]), (t2, TEXT_SH_ALPHA[1])))
             title_y -= 2
         else:
             title_y = top - 58
@@ -408,6 +413,24 @@ class CourseDock(tk.Canvas):
         self._title_y = title_y
         self._usb_layout(title_y if self.hero else title_y - 14)
         self._tz_relayout()
+
+    def _text_shadows(self, items):
+        """Bayangan lembut (kapsul ter-blur seukuran teks, seperti widget) di bawah teks."""
+        from elearning.ui.dashboard_view import _shadow
+        self._tsh = []
+        for item, alpha in items:
+            bb = self.bbox(item)
+            if not bb:
+                continue
+            x0, y0, x1, y1 = bb
+            tw, th = x1 - x0, max(8, y1 - y0 - 6)
+            blur = max(8, th // 3)
+            img, pad = _shadow(tw + 12, th, th // 2, blur, alpha)
+            ph = photos.to_photoimage(img)
+            self._tsh.append(ph)
+            sid = self.create_image(x0 - 6 - pad, y0 + 3 - pad + SH_DY, image=ph, anchor="nw",
+                                    tags="fg")
+            self.tag_lower(sid, item)
 
     def _fit_title(self, s):
         longest = max((c["title"] for c in self.courses), key=len)
@@ -506,6 +529,10 @@ class CourseDock(tk.Canvas):
                 continue
             hov = i == self.hover and self._open(i) and self._shown(i)
             c = self.courses[i]
+            from elearning.ui.dashboard_view import _shadow
+            sh, sp = _shadow(s, s, RADIUS, SH_BLUR, SH_ALPHA)      # bayangan lembut (widget)
+            self._paste_clipped(out, sh, int(round(x0)) - sp,
+                                int(round(y0)) - by - sp + SH_DY)
             self._paste_clipped(out, self._card_img(s, hov, c.get("color"),
                                                     c["id"] in self.allowed), int(round(x0)),
                                 int(round(y0)) - by)
