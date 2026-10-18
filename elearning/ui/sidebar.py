@@ -115,6 +115,7 @@ class Row(tk.Canvas):
 
     def __init__(self, master, text, command=None, *, icon=None, icon_color=None,
                  icon_disc=None, image=None, dot=None, right=None, right_icon=None,
+                 right_ring=None,
                  active=False, dim=False, indent=0, marquee=False, height=ROW_H,
                  bg=C.SIDEBAR, hover=C.SIDEBAR_HOVER, sel=C.SIDEBAR_ACTIVE,
                  font=None, fg=None):
@@ -123,6 +124,11 @@ class Row(tk.Canvas):
         self.text, self.command = text, command
         self.icon, self.icon_color, self.icon_disc = icon, icon_color, icon_disc
         self.image, self.dot, self.right, self.right_icon = image, dot, right, right_icon
+        # right_ring() -> (0..1 terpakai, baris 1, baris 2) atau None: cincin pemakaian bulat
+        # (gaya batas Claude) di kanan + tooltip saat kursor di atasnya
+        self.right_ring = right_ring
+        self._ring_tip = None
+        self._ring_job = None
         self.active, self.dim, self.indent, self.marquee = active, dim, indent, marquee
         self.colors = (bg, hover, sel)
         self.fg = fg or (C.LOCKED if dim else C.TEXT)
@@ -182,6 +188,17 @@ class Row(tk.Canvas):
         else:
             x += 2
         right_edge = w - 10
+        ring = self.right_ring() if self.right_ring else None
+        if ring is not None:
+            ph = _usage_ring(ring[0], fill)
+            if ph is not None:
+                self._imgs.append(ph)
+                self.create_image(right_edge - 8, cy, image=ph, tags=("deco", "ring"))
+                self.tag_bind("ring", "<Enter>", lambda e: self._show_ring_tip())
+                self.tag_bind("ring", "<Leave>", lambda e: self._hide_ring_tip())
+            right_edge -= 24
+            if self._ring_job is None:      # angka ikut diperbarui selama baris tampil
+                self._ring_job = self.after(30_000, self._ring_tick)
         if self.right_icon:
             ph = I.icon(self.right_icon, C.LOCKED if self.dim else C.MUTED, fill, 16)
             if ph is not None:
@@ -196,6 +213,47 @@ class Row(tk.Canvas):
         self._item = self.create_text(x, cy, anchor="w", font=self._font, fill=self.fg,
                                       text=_fit_text(self._font, self.text, self._avail))
 
+    def _ring_tick(self):
+        self._ring_job = None
+        try:
+            if self.winfo_exists():
+                self._draw()
+        except tk.TclError:
+            pass
+
+    def _show_ring_tip(self):
+        """Tooltip di atas cincin (gaya Claude): baris 1 terang, baris 2 redup."""
+        self._hide_ring_tip()
+        ring = self.right_ring() if self.right_ring else None
+        if ring is None:
+            return
+        try:
+            win = self._ring_tip = tk.Toplevel(self)
+            win.overrideredirect(True)
+            win.attributes("-topmost", True)
+            win.configure(bg=C.BORDER)
+            box = tk.Frame(win, bg="#141413", padx=12, pady=8)
+            box.pack(padx=1, pady=1)
+            tk.Label(box, text=ring[1], bg="#141413", fg=C.TEXT, font=_font(10, "bold"),
+                     anchor="w").pack(fill="x")
+            if ring[2]:
+                tk.Label(box, text=ring[2], bg="#141413", fg=C.MUTED, font=_font(9),
+                         anchor="w").pack(fill="x")
+            win.update_idletasks()
+            x = self.winfo_rootx() + self.winfo_width() - 18 - win.winfo_reqwidth() // 2
+            y = self.winfo_rooty() - win.winfo_reqheight() - 6
+            win.geometry(f"+{max(0, x)}+{max(0, y)}")
+        except Exception:
+            self._ring_tip = None
+
+    def _hide_ring_tip(self):
+        if self._ring_tip is not None:
+            try:
+                self._ring_tip.destroy()
+            except Exception:
+                pass
+            self._ring_tip = None
+
     def _enter(self, _e):
         self._hover = True
         self._draw()
@@ -204,6 +262,7 @@ class Row(tk.Canvas):
 
     def _leave(self, _e):
         self._hover = False
+        self._hide_ring_tip()
         self._draw()
 
     # --- teks berjalan (nama pelajaran panjang) --------------------------------------
@@ -1122,12 +1181,13 @@ class AppSidebar(tk.Frame):
             return _Ref()
         return self._spec("note", text=text, dock=dock)
 
-    def footer(self, text, command, image=None, icon=None, extra=None, right=None):
+    def footer(self, text, command, image=None, icon=None, extra=None, right=None,
+               right_ring=None):
         """Item di dasar sidebar, tepat di atas profil (mis. Buka Blender).
         extra = [(ikon, perintah, tip), ...]: tombol ikon kecil di sebelah kanannya.
         right = teks kecil di kanan (mis. sisa menit Pinterest)."""
         return self._spec("footer", text=text, command=command, image=image, icon=icon,
-                          extra=extra, right=right)
+                          extra=extra, right=right, right_ring=right_ring)
 
     def _build_nav(self, text, icon, command, active=False, primary=False, right=None):
         if self.collapsed:
@@ -1186,7 +1246,8 @@ class AppSidebar(tk.Frame):
         lbl.pack(fill="x", pady=(4, 4))
         return lbl
 
-    def _build_footer(self, text, command, image=None, icon=None, extra=None, right=None):
+    def _build_footer(self, text, command, image=None, icon=None, extra=None, right=None,
+                      right_ring=None):
         if self.collapsed:
             b = IconButton(self._footer_box, icon or "play", command, tip=text, image=image)
             b.pack(pady=1)
@@ -1199,7 +1260,8 @@ class AppSidebar(tk.Frame):
             box.pack(fill="x")
             for ic, cmd, tip in reversed(extra):
                 IconButton(box, ic, cmd, tip=tip, size=(34, 36)).pack(side="right")
-        r = Row(box, text, command, image=image, icon=None if image else icon, right=right)
+        r = Row(box, text, command, image=image, icon=None if image else icon, right=right,
+                right_ring=right_ring)
         r.pack(fill="x", side="left" if extra else "top", expand=bool(extra))
         return r
 
@@ -1342,12 +1404,36 @@ def blender_footer(sb):
             def pick(sb=sb, student=student):
                 from elearning.ui.chrome_profiles import open_chrome_profiles
                 open_chrome_profiles(sb, student)
-            sb.footer("Chrome", pick, image=_chrome_logo(), icon=s["icon"], right=st or None)
+            sb.footer("Chrome", pick, image=_chrome_logo(), icon=s["icon"],
+                      right_ring=lambda student=student: web_launcher.usage_ring(
+                          student["id"], "pinterest") if student else None)
             continue
         sb.footer(s["title"], lambda k=s["key"]: web_launcher.open_web(sb, student, k),
                   image=_site_logo(s["key"]), icon=s["icon"], right=st or None)
     sb.footer(L("Buka Blender", "Open Blender") + f" {blender_launcher.VERSION}", open_blender_now,
               image=_blender_cache["blender"], icon="play")
+
+
+def _usage_ring(frac, bg, size=18):
+    """Cincin pemakaian kecil (gaya batas Claude): lintasan abu + busur terpakai, antialias
+    (chart_art.donut). Biru; >= 80 % oranye; habis merah."""
+    frac = max(0.0, min(1.0, frac))
+    step = round(frac * 40) / 40               # dibulatkan: gambar bisa dipakai ulang
+    color = "#ff6b6b" if step >= 1 else C.ACCENT if step >= 0.8 else "#7cc8ff"
+    k = ("ring", size, step, bg, color)
+    if k not in _blender_cache:
+        ph = None
+        try:
+            from PIL import ImageTk
+            from elearning.ui import chart_art as CA
+            parts = [(step, color), (1 - step, "#4a4945")] if 0 < step < 1 else \
+                [(1, color if step >= 1 else "#4a4945")]
+            img = CA.donut(size, parts, bg, 2.6, "#4a4945", gap_px=0)
+            ph = ImageTk.PhotoImage(img) if img is not None else None
+        except Exception as exc:
+            C.log(f"Cincin pemakaian gagal: {exc!r}")
+        _blender_cache[k] = ph
+    return _blender_cache[k]
 
 
 def _chrome_logo(size=22):

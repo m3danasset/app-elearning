@@ -414,3 +414,9 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   config.WEB_OWN_PROFILE_PROGRAMS ("adult"); SUPERKIDS: kartu Personal terkunci "Adults only".
   web_launcher.open_web(..., profile): satu proses Chrome sekaligus, ganti profil / murid ->
   yang lama ditutup. Gemini / Flow (murid AI) tetap baris sendiri, profil murid sendiri.
+- Popup profil Chrome: TANPA latar gelap & tanpa fade (dim dihancurkan, alpha 1 langsung);
+  logo + judul + kartu di tengah panel; bingkai fokus biru hanya setelah tombol panah.
+- Baris "Chrome" di sidebar: cincin pemakaian bulat gaya Claude di kanan (sidebar.Row
+  right_ring -> web_launcher.usage_ring: biru, >= 80 % oranye, habis merah; chart_art.donut
+  18 px), tooltip 2 baris saat kursor di atas cincin ("46% of Pinterest limit" / "6 min left
+  of 10 min", atau "Limit reached" / "Resets in 7 min"); diperbarui tiap 30 dtk.

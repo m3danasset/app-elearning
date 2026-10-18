@@ -171,10 +171,25 @@ class ChromeProfiles(OverlayPanel):
                                    "color": "#455a64"})
         n = len(self.cards)
         self._make_window(top, 1000, 700, min_w=640, min_h=560)
+        # seperti pemilih profil Chrome asli: TANPA layar gelap di belakang & tanpa fade
+        # (langsung tampil utuh, tidak pernah tertahan setengah redup)
+        if self.dim is not None:
+            try:
+                self.dim.destroy()
+            except Exception:
+                pass
+            self.dim = None
+        try:
+            self.attributes("-alpha", 1.0)
+        except Exception:
+            pass
+        self._kb = False              # bingkai fokus biru hanya setelah tombol panah
         cv = self.cv
         W_, H_ = self.W, self.H
         cv.create_image(0, 0, image=_background(W_, H_), anchor="nw")
-        cy = max(50, int(H_ * 0.09))
+        # blok logo + judul + paragraf + kartu di TENGAH panel (di atas baris tombol bawah)
+        block = 46 + 40 + 44 + 52 + CARD_H
+        cy = int(max(46, (H_ - 76 - block) / 2 + 23))
         logo = W.chrome_logo(46)
         if logo is not None:
             ph = photos.to_photoimage(logo)            # RGBA di atas latar bergradasi
@@ -259,7 +274,7 @@ class ChromeProfiles(OverlayPanel):
             else:                         # terkunci: kartu putus-putus seperti "Add"
                 cv.create_image(x0, y0, anchor="nw", tags="card",
                                 image=_dashed_ring(w, h, "#8e9399", CARD_R))
-            if ok and i == self.sel and self.hover is None:
+            if ok and i == self.sel and self._kb and self.hover is None:
                 cv.create_image(x0 - 3, y0 - 3, anchor="nw", tags="card",
                                 image=_ring(w + 6, h + 6, BLUE, CARD_R + 3, 2))
             cv.create_text(cx, y0 + 24, text=c["tag"], font=self.f["tag"],
@@ -296,6 +311,8 @@ class ChromeProfiles(OverlayPanel):
         if i == self.hover:
             return
         self.hover = i
+        if i is not None:
+            self._kb = False          # mouse dipakai: bingkai fokus keyboard disembunyikan
         ok = i is not None and self.cards[i]["ok"]
         self.cv.config(cursor="hand2" if ok else "")
         self._draw_cards()
@@ -306,10 +323,18 @@ class ChromeProfiles(OverlayPanel):
             return
         self._set_hover(self._index_at(e.x, e.y))
 
+    def _fade(self):
+        """Tanpa animasi muncul: panel langsung penuh (lihat _build)."""
+        try:
+            self.attributes("-alpha", 1.0)
+        except Exception:
+            pass
+
     def _move(self, d):
         ok = [i for i, c in enumerate(self.cards) if c["ok"]]
         if not ok:
             return
+        self._kb = True
         cur = ok.index(self.sel) if self.sel in ok else 0
         self.sel = ok[(cur + d) % len(ok)]
         self.hover = None

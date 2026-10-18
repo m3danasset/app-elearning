@@ -563,6 +563,28 @@ def remaining(sid, key):
     return max(0.0, lim * 60 - used_secs(sid, key))
 
 
+def usage_ring(sid, key):
+    """(0..1 terpakai, baris 1, baris 2) untuk cincin di sidebar, atau None (tanpa batas).
+    Mis. (0.46, "46% of Pinterest limit", "6 min left") / (1, "Limit reached",
+    "Resets in 43 min")."""
+    lim = _limit(key, sid)
+    if lim is None:
+        return None
+    title = next((s["title"] for s in C.WEB_SITES if s["key"] == key), key)
+    if lim == 0:
+        return (1.0, f"{title} is not available", "Ask your teacher")
+    used = used_secs(sid, key)
+    frac = min(1.0, used / (lim * 60))
+    left = remaining(sid, key) or 0.0
+    if left <= 0:
+        e = _slot(sid, key)
+        wait = max(0, int(((e["hit"] if e and e.get("hit") else time.time()) + _reset_s()
+                           - time.time()) // 60) + 1)
+        return (1.0, "Limit reached", f"Resets in {wait} min")
+    m = int(left // 60 + (1 if left % 60 else 0))
+    return (frac, f"{round(frac * 100)}% of {title} limit", f"{m} min left of {lim} min")
+
+
 def status_text(sid, key):
     """Ringkas untuk tooltip ikon: '8 min left' / 'Limit reached · resets 15:30'."""
     left = remaining(sid, key)
