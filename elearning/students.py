@@ -80,6 +80,9 @@ def _valid(data):
             if isinstance(hidden, list) and hidden:
                 clean[str(sid).strip().upper()]["hidden"] = [c for c in hidden
                                                              if isinstance(c, str)]
+            pin = d.get("pinterest_limit")     # batas Pinterest khusus murid (diatur guru)
+            if isinstance(pin, int) and not isinstance(pin, bool) and -1 <= pin <= 600:
+                clean[str(sid).strip().upper()]["pinterest_limit"] = pin
     return clean
 
 
@@ -154,7 +157,11 @@ def _entry(sid, data):
             "status": data.get("status") if data.get("status") in STATUSES
             else STATUS_ACTIVE,
             "birth": data.get("birth") or "",
-            "hidden": list(data.get("hidden") or [])}
+            "hidden": list(data.get("hidden") or []),
+            # batas Pinterest per hari (menit) khusus murid ini, diatur guru:
+            # None = ikut bawaan (config / Dev), -1 = tanpa batas, 0 = diblokir
+            "pinterest_limit": data.get("pinterest_limit")
+            if isinstance(data.get("pinterest_limit"), int) else None}
 
 
 # --- tanggal lahir & umur -------------------------------------------------------------
@@ -197,6 +204,20 @@ def set_birth(student_id, birth):
         data[sid]["birth"] = birth
     else:
         data[sid].pop("birth", None)
+    _write(data)
+    return lookup_student(sid)
+
+
+def set_pinterest_limit(student_id, minutes):
+    """Guru: batas Pinterest murid ini (menit; None = bawaan, -1 = tanpa batas, 0 = blokir)."""
+    sid = student_id.strip().upper()
+    data = _load()
+    if sid not in data:
+        raise ValueError(f"Murid {sid} tidak ditemukan.")
+    if minutes is None:
+        data[sid].pop("pinterest_limit", None)
+    else:
+        data[sid]["pinterest_limit"] = max(-1, min(600, int(minutes)))
     _write(data)
     return lookup_student(sid)
 

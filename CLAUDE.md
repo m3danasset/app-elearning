@@ -361,4 +361,9 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   hanya saat jendela situs terbuka & terlihat (aplikasi mengecil / Blender = jeda), disimpan di
   data\web_usage.json (reset tiap hari). Habis -> jendela ditutup (WM_CLOSE) + pesan; klik ikon
   lagi -> "time's up, come back tomorrow".
+  Guru (detail murid, tombol "Pinterest: bawaan / 20 mnt / diblokir / tanpa batas", hanya murid
+  yang punya akses Pinterest): PinterestLimitDialog (WheelPicker: Bawaan, Diblokir, 5-120 menit,
+  Tanpa batas) -> students.json "pinterest_limit" (None bawaan, 0 blokir, -1 tanpa batas;
+  students.set_pinterest_limit, _valid menyimpan). Didahulukan dari bawaan Dev; dibaca launcher
+  maks. 1x / 5 dtk (_own_limit), langsung berlaku.
   Belum diuji di Windows asli.

@@ -122,10 +122,12 @@ def open_web(widget, student, key):
         close()
     left = remaining(student["id"], key)
     if left is not None and left <= 0:
+        lim = _limit(key, student["id"])
         _message(app, site["title"], L(
-            f"Waktu {site['title']} hari ini sudah habis ({_limit(key)} menit). Coba lagi besok.",
-            f"Your {site['title']} time for today is used up ({_limit(key)} min). "
-            "Come back tomorrow!"))
+            f"{site['title']} tidak tersedia untukmu hari ini. Tanya guru." if lim == 0 else
+            f"Waktu {site['title']} hari ini sudah habis ({lim} menit). Coba lagi besok.",
+            f"{site['title']} is not available for you. Ask your teacher." if lim == 0 else
+            f"Your {site['title']} time for today is used up ({lim} min). Come back tomorrow!"))
         return False
     if running() and _alive(_state["site_hwnd"].get(key)):
         _show(True, focus=_state["site_hwnd"][key])
@@ -290,9 +292,29 @@ USAGE_FILE = os.path.join(C.DATA_DIR, "web_usage.json")
 _usage = {"data": None, "dirty": 0.0, "last": None}
 
 
-def _limit(key):
-    """Menit per hari, atau None (tanpa batas). Dibaca saat dipakai (nilai Dev langsung berlaku)."""
+_own = {}   # sid -> (waktu baca, batas khusus): students.json dibaca maks. 1x / 5 dtk
+
+
+def _own_limit(sid):
+    hit = _own.get(sid)
+    if hit is not None and time.monotonic() - hit[0] < 5.0:
+        return hit[1]
+    try:
+        from elearning.students import lookup_student
+        val = (lookup_student(sid) or {}).get("pinterest_limit")
+    except Exception:
+        val = None
+    _own[sid] = (time.monotonic(), val)
+    return val
+
+
+def _limit(key, sid=None):
+    """Menit per hari, atau None (tanpa batas). Dibaca saat dipakai (nilai Dev langsung berlaku).
+    Pinterest: batas khusus murid dari guru (students.json "pinterest_limit") didahulukan."""
     if key == "pinterest":
+        own = _own_limit(sid) if sid else None
+        if own is not None:
+            return None if own < 0 else own          # -1 = tanpa batas, 0 = diblokir
         return getattr(C, "PINTEREST_LIMIT_MIN", 10) or None
     return (getattr(C, "WEB_DAILY_LIMIT_MIN", {}) or {}).get(key) or None
 
@@ -325,8 +347,8 @@ def _save_usage():
 
 def remaining(sid, key):
     """Detik tersisa hari ini, atau None kalau situs tanpa batas."""
-    lim = _limit(key)
-    if not lim:
+    lim = _limit(key, sid)
+    if lim is None:
         return None
     used = _usage_data()["used"].get(f"{sid}:{key}", 0.0)
     return max(0.0, lim * 60 - used)
@@ -340,7 +362,7 @@ def _count_usage(app):
     _usage["last"] = now
     sid = _state["sid"]
     for key, hwnd in list(_state["site_hwnd"].items()):
-        if not _limit(key) or not _alive(hwnd):
+        if _limit(key, sid) is None or not _alive(hwnd):
             continue
         used = _usage_data()["used"]
         if not _state["hidden"]:
@@ -351,10 +373,11 @@ def _count_usage(app):
             _state["site_hwnd"].pop(key, None)
             _save_usage()
             title = next((s["title"] for s in C.WEB_SITES if s["key"] == key), key)
-            C.log(f"Web: batas {title} {_limit(key)} menit habis untuk {sid}")
-            app.after(50, lambda t=title, k=key: _message(app, t, L(
-                f"Waktu {t} hari ini sudah habis ({_limit(k)} menit).",
-                f"Time's up! You've used your {_limit(k)} min of {t} for today.")))
+            lim = _limit(key, sid)
+            C.log(f"Web: batas {title} {lim} menit habis untuk {sid}")
+            app.after(50, lambda t=title, m=lim: _message(app, t, L(
+                f"Waktu {t} hari ini sudah habis ({m} menit).",
+                f"Time's up! You've used your {m} min of {t} for today.")))
     if _usage["dirty"] >= 10:                    # simpan tiap ~10 dtk pemakaian
         _save_usage()
 

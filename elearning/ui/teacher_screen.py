@@ -255,6 +255,8 @@ class TeacherScreen(SidebarLayout):
         self.photo_btn.pack(side="left", padx=(8, 0))
         self.photo_del_btn = self._small_button(btns, "Hapus foto", self._remove_photo)
         self.photo_del_btn.pack(side="left", padx=(8, 0))
+        # batas Pinterest murid ini (hanya murid yang punya akses Pinterest)
+        self.pin_btn = self._small_button(btns, "Pinterest…", self._pinterest_limit)
 
         tabs = tk.Frame(self.right, bg=C.BG)
         tabs.pack(fill="x", pady=(10, 0))
@@ -630,6 +632,42 @@ class TeacherScreen(SidebarLayout):
         self.delete_btn.config(state="normal" if self.current_id else "disabled")
         self.photo_del_btn.config(state="normal" if has else "disabled")
         self.photo_btn.config(text="Ganti foto…" if has else "Pilih foto…")
+        self._update_pin_button()
+
+    def _update_pin_button(self):
+        from elearning import web_launcher as W
+        st = lookup_student(self.current_id) if self.current_id else None
+        if st is None or not any(s["key"] == "pinterest" for s in W.sites_for(st)):
+            self.pin_btn.pack_forget()
+            return
+        lim = st.get("pinterest_limit")
+        text = ("Pinterest: bawaan" if lim is None else "Pinterest: diblokir" if lim == 0
+                else "Pinterest: tanpa batas" if lim < 0 else f"Pinterest: {lim} mnt")
+        self.pin_btn.config(text=text)
+        if not self.pin_btn.winfo_ismapped():
+            self.pin_btn.pack(side="left", padx=(8, 0))
+
+    def _pinterest_limit(self):
+        from elearning import web_launcher as W
+        from elearning.students import set_pinterest_limit
+        from elearning.ui.dialogs import PinterestLimitDialog
+        sid = self.current_id
+        st = lookup_student(sid) if sid else None
+        if st is None:
+            return
+        used = int(W._usage_data()["used"].get(f"{sid}:pinterest", 0) // 60)   # hari ini
+
+        def submit(minutes):
+            try:
+                set_pinterest_limit(sid, minutes)
+            except Exception as exc:
+                C.log(f"Batas Pinterest {sid} gagal disimpan: {exc!r}")
+                return "Gagal menyimpan. Pastikan folder data bisa ditulis."
+            W._own.pop(sid, None)              # langsung berlaku (juga kalau sedang dibuka)
+            self._update_pin_button()
+            return None
+        PinterestLimitDialog(self, st["name"], st.get("pinterest_limit"),
+                             getattr(C, "PINTEREST_LIMIT_MIN", 10), used, submit)
 
     def _pick_image(self, title):
         """Dialog pilih file bawaan Windows (lewat Tk, tanpa modul tambahan)."""

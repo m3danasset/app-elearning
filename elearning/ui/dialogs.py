@@ -885,3 +885,79 @@ class CourseAccessDialog(tk.Toplevel):
         self._paint(state, title, cell)
         self.msg.config(text=f"Tersimpan: {course['title']}.", fg=C.MUTED)
         return True
+
+
+class PinterestLimitDialog(tk.Toplevel):
+    """Guru mengatur batas Pinterest per hari untuk SATU murid (gulir roda mouse, tanpa ketik).
+    on_submit(menit | None) -> teks error atau None. None = ikut bawaan, -1 = tanpa batas,
+    0 = diblokir."""
+
+    STEPS = (5, 10, 15, 20, 30, 45, 60, 90, 120)
+
+    def __init__(self, master, name, current, default, used_min, on_submit):
+        super().__init__(master, bg=C.CARD, highlightthickness=1, highlightbackground=C.BORDER)
+        self.title("Batas Pinterest")
+        self.resizable(False, False)
+        self.transient(master.winfo_toplevel())
+        dark_titlebar(self)
+        try:
+            self.iconbitmap(C.ICON_PATH)
+        except Exception:
+            pass
+        self.on_submit = on_submit
+        dflt = f"Bawaan · {default} mnt" if default else "Bawaan · tanpa batas"
+        self.options = [(dflt, None), ("Diblokir", 0)] + \
+            [(f"{m} menit", m) for m in self.STEPS] + [("Tanpa batas", -1)]
+        labels = [lb for lb, _v in self.options]
+        cur = next((lb for lb, v in self.options if v == current), None)
+        if cur is None and current is not None:          # angka lain (mis. dari data lama)
+            self.options.insert(2, (f"{current} menit", current))
+            labels.insert(2, f"{current} menit")
+            cur = f"{current} menit"
+        body = tk.Frame(self, bg=C.CARD, padx=28, pady=22)
+        body.pack(fill="both", expand=True)
+        tk.Label(body, text="Batas Pinterest per hari", bg=C.CARD, fg=C.TEXT,
+                 font=(C.FONT, 14, "bold"), anchor="w").pack(fill="x")
+        tk.Label(body, text=name, bg=C.CARD, fg=C.MUTED, font=(C.FONT, 10),
+                 anchor="w").pack(fill="x", pady=(2, 14))
+        self.var = tk.StringVar(value=cur or labels[0])
+        WheelPicker(body, self.var, labels, width=320, bg=C.CARD, fill=C.BG).pack(anchor="w")
+        tk.Label(body, text=f"Hari ini sudah dipakai {used_min} menit. Gulir roda mouse untuk "
+                            "mengganti. Bawaan diatur di jendela Dev.",
+                 bg=C.CARD, fg=C.MUTED, font=(C.FONT, 9), anchor="w", justify="left",
+                 wraplength=380).pack(fill="x", pady=(12, 0))
+        self.error = tk.Label(body, text="", bg=C.CARD, fg=C.ERROR, font=(C.FONT, 10),
+                              anchor="w")
+        self.error.pack(fill="x", pady=(8, 0))
+        btns = tk.Frame(body, bg=C.CARD)
+        btns.pack(fill="x", pady=(8, 0))
+        ok = RoundButton(btns, text="Simpan", command=self._submit, bg=C.ACCENT, fg="white",
+                         activebackground=C.ACCENT_HOVER, activeforeground="white",
+                         font=(C.FONT, 11, "bold"), padx=22, pady=7)
+        ok.pack(side="right")
+        add_hover(ok, C.ACCENT, C.ACCENT_HOVER)
+        cancel = RoundButton(btns, text="Batal", command=self.destroy, bg=C.CARD, fg=C.MUTED,
+                             activebackground=C.BORDER, activeforeground=C.TEXT,
+                             font=(C.FONT, 11), padx=18, pady=7)
+        cancel.pack(side="right", padx=(0, 8))
+        add_hover(cancel, C.CARD, C.BORDER)
+        self.bind("<Return>", lambda e: self._submit())
+        self.bind("<Escape>", lambda e: self.destroy())
+        self.update_idletasks()
+        top = master.winfo_toplevel()
+        x = top.winfo_rootx() + (top.winfo_width() - self.winfo_reqwidth()) // 2
+        y = top.winfo_rooty() + (top.winfo_height() - self.winfo_reqheight()) // 2
+        self.geometry(f"+{max(0, x)}+{max(0, y)}")
+        try:
+            self.wait_visibility()
+            self.grab_set()
+        except tk.TclError:
+            pass
+
+    def _submit(self):
+        value = dict(self.options).get(self.var.get())
+        err = self.on_submit(value)
+        if err:
+            self.error.config(text=err)
+            return
+        self.destroy()
