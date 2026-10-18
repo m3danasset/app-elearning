@@ -392,3 +392,5 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 - Login Google di jendela web: WEB_LOGIN_HOSTS juga accounts.google.* (cookie domain negara, mis. .co.id) &
   accounts.youtube.com. _close_extra tidak pernah menutup jendela tanpa judul / masih memuat.
   Aturan host hanya berlaku saat Chrome murid diluncurkan pertama (tutup Chrome profil M3DAN\browser dulu).
+  FedCM ("Continue with Google") butuh domain google.com TANPA subdomain (*.google.com tidak mencakupnya)
+  -> WEB_LOGIN_HOSTS berisi "google.com". Diuji headless dengan flag aplikasi: popup Sign in muncul.

@@ -126,7 +126,10 @@ BLOCKED_DRIVES = ("B:", "C:")
 # (accounts.youtube.com); tanpa itu "Continue with Google" macet setelah popup terbuka.
 WEB_LOGIN_HOSTS = ("accounts.google.com", "*.google.com", "*.gstatic.com", "*.googleapis.com",
                    "*.googleusercontent.com", "www.recaptcha.net", "accounts.google.*",
-                   "accounts.youtube.com")
+                   "accounts.youtube.com",
+                   # FedCM ("Continue with Google" di Chrome) membaca
+                   # https://google.com/.well-known/web-identity: domain TANPA subdomain
+                   "google.com")
 WEB_SITES = (
     {"key": "pinterest", "title": "Pinterest", "icon": "web_pin", "ai": False,
      "url": "https://id.pinterest.com/",
