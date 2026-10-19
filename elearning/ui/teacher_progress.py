@@ -15,7 +15,7 @@ from datetime import datetime
 
 from elearning import config as C
 from elearning import progress, quizzes
-from elearning.courses import COURSES, courses_for, has_video
+from elearning.courses import COURSES, by_id, courses_for, has_video
 from elearning.students import list_students, lookup_student
 from elearning.ui import ui_icons as I
 from elearning.ui.admin_board import _Board
@@ -25,7 +25,6 @@ from elearning.ui.lesson_extras import EMOTE_STYLE, fmt_time
 from elearning.ui.widgets import ScrollFrame, add_hover
 
 MONTHS = ("Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des")
-COURSE = {c["id"]: c for c in COURSES}
 VERDICT = {True: ("Benar", C.ON), False: ("Salah", C.ACCENT), None: ("Dijawab", "#7cc8ff")}
 
 
@@ -242,7 +241,7 @@ class QuizBoard(_Board):
         h = 74 + 22 * len(qlines) + 26 * len(studs) + 10
         self._img(I.pill(w, int(h), C.CARD, C.BG, r=14), 0, y0)
         x, y = 22, y0 + 22
-        course = COURSE.get(q["course"], {"title": q["course"], "color": C.MUTED})
+        course = by_id(q["course"]) or {"title": q["course"], "color": C.MUTED}
         self._img(I.dot(course["color"], C.CARD, 8), x, y, anchor="w")
         head = f"{course['title']}  ·  Video: {q['lesson']}"
         self._text(x + 16, y, head, font="kind", fill=C.MUTED, width=inner - 190)
@@ -362,7 +361,7 @@ class QuizDialog(tk.Toplevel):
             tk.Label(grid, text=text, bg=C.CARD, fg=C.MUTED, font=(C.FONT, 10),
                      anchor="w").grid(row=r, column=0, sticky="w", padx=(0, 14), pady=5)
 
-        first = COURSE.get(quiz["course"]) if quiz else self.courses[0]
+        first = (by_id(quiz["course"]) or self.courses[0]) if quiz else self.courses[0]
         label(0, "Kursus")
         self.course_var = tk.StringVar(value=first["title"])
         RoundSelect(grid, self.course_var, *self._titles, bg=C.BORDER,

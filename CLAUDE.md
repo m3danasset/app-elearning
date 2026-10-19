@@ -272,6 +272,28 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   nilai ke bawaan". Nilai baru: tambah baris di VALUES; modulnya harus membaca atribut itu
   saat dipakai (bukan disalin saat import).
 
+## Dev > Kursus: panel kursus + master toggle akses murid
+- courses.py: daftar di kode = BAWAAN (BUILTIN). Dev membuat / mengubah / menghapus / mengurutkan
+  -> SELURUH daftar disimpan di data\courses.json ({"v": 1, "courses": [...]}) dan dipakai
+  menggantikan bawaan; COURSES diubah DI TEMPAT (list yang sama, semua importir ikut baru).
+  JANGAN salin COURSES ke dict modul saat import: pakai courses.by_id / title_of / order_of
+  (students memakai order_of untuk urutan "courses" / "hidden"). add_course (di akhir program,
+  folder assets\lessons\<id> dibuat), update_course (ID & program tetap), delete_course,
+  move_course, removed_builtins / restore_builtin. Hapus kursus TIDAK menghapus data murid
+  (progres, badge, portfolio, video, id di students.json): buat lagi ID yang sama = kembali.
+- ui/dev_courses.py CoursesPage (nav "Kursus" di bawah Akun; Seg Dewasa / SUPERKIDS / Trial):
+  daftar panel kursus (titik warna, id · grup · jumlah video · n buka / n sembunyi; panah urut,
+  pena = CourseEditor, sampah = CourseDelete fokus Batal), "Kursus bawaan yang dihapus" +
+  Pulihkan. Tabel Akses murid di SATU kanvas: baris murid (disaring kolom Search Dev), kolom
+  "Semua kursus" (ALL_W 76) + tiap kursus (judul 2 baris _wrap2); tiap sel MATA (tampil,
+  "hidden") + GEMBOK (terbuka, "courses"). Kepala kolom = master kursus itu untuk semua murid
+  yang tampil; kolom Semua kursus = semua kursus murid itu; kepalanya = semuanya. Semua
+  tercentang -> dimatikan, selain itu -> dinyalakan. students.bulk_access = SATU kali tulis;
+  "Urungkan" bertingkat (maks. 30). Murid yang sedang login ikut diperbarui (_refresh_app,
+  500 ms; layar kursus yang dihapus / dikunci -> Dashboard). CourseEditor: program (baru saja),
+  judul, ID otomatis dari judul (slug), grup, deskripsi ID / EN, warna (courses.COLORS), video,
+  "Buka untuk semua" (baru). Trial: kursus selalu terbuka untuk semua akun trial.
+
 ## Tampilan login (3 mode, diatur di jendela Dev)
 - elearning/app_settings.py: data\app_settings.json (BUKAN data\settings.json, milik
   blender_launcher). login_mode: "carousel" (1 baris + video latar, bawaan), "rows3" (3 baris

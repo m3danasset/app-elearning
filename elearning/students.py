@@ -20,7 +20,7 @@ import re
 
 from elearning import config as C
 from elearning import photos, portfolio, sessions
-from elearning.courses import COURSES
+from elearning.courses import COURSES, order_of
 from elearning.admins import is_admin_id
 from elearning.teachers import is_teacher_id
 from elearning.trial import TRIAL_ID
@@ -52,7 +52,6 @@ STATUS_EXPIRED = "expired"
 STATUSES = (STATUS_ACTIVE, STATUS_EXPIRED)
 STATUS_LABEL = {STATUS_ACTIVE: "Active", STATUS_EXPIRED: "Expired"}
 
-_COURSE_ORDER = {c["id"]: i for i, c in enumerate(COURSES)}
 
 ID_PREFIX = {"adult": "PB", "kids": "SK"}   # awalan ID otomatis murid baru
 NAME_MAX = 40
@@ -242,8 +241,7 @@ def set_course_access(student_id, course_id, allowed):
         courses.add(course_id)
     else:
         courses.discard(course_id)
-    data[sid]["courses"] = sorted(
-        courses, key=lambda c: _COURSE_ORDER.get(c, 999))
+    data[sid]["courses"] = sorted(courses, key=order_of)
     _write(data)
     return list(data[sid]["courses"])
 
@@ -262,11 +260,31 @@ def set_course_hidden(student_id, course_id, hidden):
     else:
         hide.discard(course_id)
     if hide:
-        data[sid]["hidden"] = sorted(hide, key=lambda c: _COURSE_ORDER.get(c, 999))
+        data[sid]["hidden"] = sorted(hide, key=order_of)
     else:
         data[sid].pop("hidden", None)
     _write(data)
     return list(data[sid].get("hidden") or [])
+
+
+def bulk_access(changes):
+    """Ubah kursus terbuka + tersembunyi banyak murid sekaligus (master toggle Dev), SATU
+    kali tulis file. changes = {ID: (courses, hidden)}. Kembalikan jumlah murid yang diubah."""
+    data = _load()
+    n = 0
+    for sid, (courses, hidden) in changes.items():
+        sid = sid.strip().upper()
+        if sid not in data:
+            continue
+        data[sid]["courses"] = sorted(set(courses), key=order_of)
+        if hidden:
+            data[sid]["hidden"] = sorted(set(hidden), key=order_of)
+        else:
+            data[sid].pop("hidden", None)
+        n += 1
+    if n:
+        _write(data)
+    return n
 
 
 def set_status(student_id, status):

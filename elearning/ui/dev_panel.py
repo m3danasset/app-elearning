@@ -585,6 +585,7 @@ class DevPanel(tk.Toplevel):
                      anchor="w").pack(fill="x", padx=20, pady=(10, 3))
         section("Dev")
         self._add_nav(nav, "akun", "Akun", "users")
+        self._add_nav(nav, "kursus", "Kursus", "grid")
         section("Settings")
         for key, label, icon in self._pages():
             self._add_nav(nav, key, label, icon)
@@ -613,10 +614,18 @@ class DevPanel(tk.Toplevel):
         self.default_btn = _btn(self._bar_set, "Apply As Default", lambda: self._apply(True))
         self.default_btn.pack(side="right", padx=(0, 8))
         _btn(self._bar_set, "Reset nilai", self._reset_values).pack(side="right", padx=(0, 8))
+        self._bar_crs = tk.Frame(self.bottom, bg=PANEL)
+        _btn(self._bar_crs, "Kursus baru", lambda: self.crs.new_course(), "primary").pack(
+            side="right")
+        self.undo_btn = _btn(self._bar_crs, "Urungkan", lambda: self.crs.undo())
+        self.undo_btn.pack(side="right", padx=(0, 8))
         self.area = tk.Frame(main, bg=PANEL)
         self.area.pack(fill="both", expand=True)
         self._build_accounts(self.area)
         self._build_settings(self.area)
+        from elearning.ui.dev_courses import CoursesPage
+        self.crs = CoursesPage(self, self.area)
+        self.undo_btn_state(False)
         self._q.trace_add("write", lambda *a: self._on_query())
 
     def _add_nav(self, nav, key, label, icon):
@@ -640,13 +649,22 @@ class DevPanel(tk.Toplevel):
         self.page = key
         if _ui_state().get("tab") != key:
             _ui_save(tab=key)
-        searching = bool(self._q.get().strip()) and key != "akun"
+        searching = bool(self._q.get().strip()) and key not in ("akun", "kursus")
         for k, n in self._nav.items():
             n.set_active(k == key and not searching)
         for w in self.bottom.winfo_children():
             w.pack_forget()
         self.status.pack(side="left", fill="x", expand=True)
-        if key == "akun":
+        self.crs.pack_forget()
+        if key == "kursus":
+            self._set_frame.pack_forget()
+            self._acc_frame.pack_forget()
+            self.crs.pack(fill="both", expand=True)
+            self._bar_crs.pack(side="right")
+            self._scroll_cv = self.crs.cv
+            self.crs.refresh()
+            self._restoring = False
+        elif key == "akun":
             self._set_frame.pack_forget()
             self._acc_frame.pack(fill="both", expand=True)
             self._bar_acc.pack(side="right")
@@ -668,6 +686,8 @@ class DevPanel(tk.Toplevel):
             self._remember(query=self._q.get())
         if self.page == "akun":
             self._refill()
+        elif self.page == "kursus":
+            self.crs.filter()
         else:
             for k, n in self._nav.items():
                 n.set_active(k == self.page and not self._q.get().strip())
@@ -675,6 +695,13 @@ class DevPanel(tk.Toplevel):
 
     def _note(self, text):
         self.status.config(text=text)
+
+    def undo_btn_state(self, on):
+        """Tombol Urungkan (halaman Kursus) aktif kalau ada perubahan akses."""
+        try:
+            self.undo_btn.configure(state="normal" if on else "disabled")
+        except tk.TclError:
+            pass
 
     # --- halaman Akun -------------------------------------------------------------------
     # Tabel 4 kolom di SATU kanvas: Jenis | ID | Nama | PIN. Klik = pilih, klik 2x sel = ubah

@@ -18,14 +18,13 @@ import tkinter as tk
 from elearning import achievements as A
 from elearning import config as C
 from elearning import progress
-from elearning.courses import COURSES
+from elearning.courses import COURSES, title_of
 from elearning.i18n import L, is_en
 from elearning.ui import badge_art as BA
 from elearning.ui import ui_icons as I
 
 MONTHS = ("Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des")
 MONTHS_EN = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-COURSE_TITLE = {c["id"]: c["title"] for c in COURSES}
 
 
 def _date(text):
@@ -134,7 +133,7 @@ class BadgeBoard(tk.Frame):
                 return
             from elearning.ui.controls import RoundSelect
             titles = {c["title"]: c["id"] for c in cs}
-            var = tk.StringVar(value=COURSE_TITLE.get(self.course_id, cs[0]["title"]))
+            var = tk.StringVar(value=title_of(self.course_id, cs[0]["title"]))
             pick = tk.Frame(self, bg=self.bg)
             pick.pack(fill="x", pady=(0, 10))
             tk.Label(pick, text="Kursus", bg=self.bg, fg=C.MUTED, font=(C.FONT, 10)).pack(
@@ -545,7 +544,7 @@ class BadgeTracker:
             if show is not None and self.student is not None:
                 self.app.after(10, lambda: show(self.student, cid))
 
-        self._toast = BadgeToast(self.app, badge, COURSE_TITLE.get(cid, ""), on_click=open_page,
+        self._toast = BadgeToast(self.app, badge, title_of(cid, ""), on_click=open_page,
                                  on_done=done)
         self._toast.key = (cid, bid)
         self._toast.show()

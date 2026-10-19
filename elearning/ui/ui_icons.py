@@ -311,6 +311,28 @@ def _eject(x, y):   # segitiga + garis: keluarkan flashdisk
                _seg(x, y, (4.8, 15.0), (15.2, 15.0)))
 
 
+def _eye(x, y):   # mata (tampil): dua busur lingkaran + pupil
+    return min(A._arc(x, y, 10, 14.0, 8.5, STROKE, -151.9, -28.1),
+               A._arc(x, y, 10, 6.0, 8.5, STROKE, 28.1, 151.9), _ring(x, y, 10, 10, 2.3))
+
+
+def _eye_off(x, y):   # mata dicoret (tersembunyi)
+    return min(_eye(x, y), _seg(x, y, (4.0, 4.0), (16.0, 16.0)))
+
+
+def _unlock(x, y):   # gembok terbuka: tangkai kanan terangkat
+    return min(_box(x, y, 4.6, 9.0, 15.4, 17.0, 2.0),
+               A._arc(x, y, 10, 5.6, 3.4, STROKE, -180, 0),
+               _seg(x, y, (6.6, 5.6), (6.6, 9.2)), _seg(x, y, (13.4, 5.6), (13.4, 6.4)))
+
+
+def _trash(x, y):   # tempat sampah: hapus
+    return min(_seg(x, y, (3.8, 5.6), (16.2, 5.6)),
+               _lines(x, y, (7.8, 5.4), (7.8, 3.4), (12.2, 3.4), (12.2, 5.4)),
+               _lines(x, y, (5.6, 5.8), (6.6, 17.0), (13.4, 17.0), (14.4, 5.8)),
+               _seg(x, y, (8.7, 8.6), (8.9, 14.2)), _seg(x, y, (11.3, 8.6), (11.1, 14.2)))
+
+
 SHAPES = {
     "search": _search, "panel": _panel, "home": _home, "grid": _grid, "play": _play,
     "folder": _folder, "image": _image, "users": _users, "user": _user, "file": _file,
@@ -323,6 +345,7 @@ SHAPES = {
     "clock": _clock, "enter": _enter, "chev_left": _chev_left, "arrow_up": _arrow_up,
     "list": _list, "pen": _pen, "chev_up": _chev_up, "web_pin": _web_pin,
     "web_gemini": _web_gemini, "usb": _usb, "eject": _eject, "web_flow": _web_flow,
+    "eye": _eye, "eye_off": _eye_off, "unlock": _unlock, "trash": _trash,
 }
 
 
