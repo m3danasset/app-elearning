@@ -42,7 +42,8 @@ class TeacherScreen(SidebarLayout):
         self.collapsed = set()   # kategori yang sedang dilipat
         self.current_id = self.students[0]["id"] if self.students else None
         self.tab = "courses"     # tab detail murid: "courses", "history" atau "portfolio"
-        self._row_widgets = {}   # id murid -> baris di sidebar
+        self._row_widgets = {}   # id murid -> baris di daftar murid (halaman Murid & Kursus)
+        self._list_ok = False    # daftar murid di halaman Murid & Kursus sudah dibuat
 
         self.sb = AppSidebar(self, teacher, f"Guru  ·  {teacher['id']}", on_logout,
                              self._populate, placeholder="Cari murid (nama / ID)",
@@ -117,7 +118,6 @@ class TeacherScreen(SidebarLayout):
 
     # --- sidebar kiri ------------------------------------------------------------
     def _populate(self, sb):
-        self._row_widgets = {}
         sb.nav("Dashboard", "home", lambda: self._set_view("dashboard"),
                active=self.view == "dashboard")
         sb.nav("Murid & Kursus", "users", lambda: self._set_view("students"),
@@ -138,64 +138,114 @@ class TeacherScreen(SidebarLayout):
         sb.nav("Kuis", "quiz", lambda: self._set_view("quizzes"),
                active=self.view == "quizzes")
 
-        if not self.students:
-            sb.section("Murid")
-            sb.note("Belum ada murid. Klik “Tambah murid” untuk menambah.")
-            return
-        searching = bool(sb.query.strip())
-        found = 0
-        for program in CATEGORIES:
-            group = [s for s in self.students if s["program"] == program
-                     and sb.matches(s["id"], s["name"])]
-            if not group:
-                continue
-            found += len(group)
-            folded = program in self.collapsed and not searching   # saat mencari: selalu terbuka
-            sb.section(PROGRAM_LABEL[program], right=str(len(group)), folded=folded,
-                       on_click=lambda p=program: self._toggle_group(p))
-            if folded:
-                continue
-            for s in group:
-                self._row_widgets[s["id"]] = self._student_row(sb, s)
-        if not found:
-            sb.section("Murid")
-            sb.note(f"Tidak ada murid yang cocok dengan “{sb.query.strip()}”.")
-
-    def _student_row(self, sb, s):
-        expired = s.get("status") == STATUS_EXPIRED
-        current = s["id"] == self.current_id and self.view == "students"
-        return sb.item(s["name"], lambda sid=s["id"]: self._on_student_click(sid),
-                       active=current, fg=C.ERROR if expired else None,
-                       right=f"{s['id']}  ·  expired" if expired else s["id"])
-
     def search_sources(self):
         from elearning.ui.search_sources import teacher_sources
         return teacher_sources(self)
 
     def open_student(self, student_id):
-        """Dari search palette: tampilkan murid itu (daftar sidebar ikut menunjuknya)."""
+        """Dari search palette: tampilkan murid itu (daftar murid ikut menunjuknya)."""
         self.students = list_students()
-        if self.sb.query.strip():
-            self.sb.set_query("")        # murid yang dipilih pasti terlihat di daftar
-            if self.sb._search_job is not None:   # daftar langsung dibuat ulang di bawah
-                self.sb.after_cancel(self.sb._search_job)
-                self.sb._search_job = None
+        if self._list_ok:
+            self.list_q.set("")          # murid yang dipilih pasti terlihat di daftar
         self.collapsed.clear()
         self._on_student_click(student_id)
-        self.sb.refresh()
-        self.sb.scroll_to(self._row_widgets.get(student_id))
+        self._rebuild_list(keep_scroll=False)
 
     def _on_search(self, _query):
-        if self.view != "students" and self.sb.query.strip():
-            self._set_view("students")   # hasil pencarian murid tampil di menu Murid & Kursus
-            return
         self.sb.refresh(keep_scroll=False)
 
+    # --- daftar murid (kolom kiri halaman Murid & Kursus) ------------------------------
+    def _build_student_list(self, parent):
+        """Kolom daftar murid per kategori: kolom saring + daftar yang bisa digulir."""
+        from elearning.ui.controls import RoundEntry
+        col = tk.Frame(parent, bg=C.BG, width=290)
+        col.pack(side="left", fill="y")
+        col.pack_propagate(False)
+        self.list_q = tk.StringVar()
+        box = RoundEntry(col, self.list_q, placeholder="Cari murid (nama / ID)", icon="search",
+                         width_chars=22, font=(C.FONT, 10), height=36, radius=10)
+        box.pack(fill="x", padx=(20, 8), pady=(18, 8))
+        self.list_q.trace_add("write", lambda *a: self._rebuild_list(keep_scroll=False))
+        self.list_scroll = ScrollFrame(col, bg=C.BG)
+        self.list_scroll.pack(fill="both", expand=True, padx=(12, 0))
+        tk.Frame(parent, bg=C.BORDER, width=1).pack(side="left", fill="y", pady=12)
+        self._list_ok = True
+        self._fill_list()
+
+    def _fill_list(self):
+        inner = self.list_scroll.inner
+        for w in inner.winfo_children():
+            w.destroy()
+        self._row_widgets = {}
+        q = self.list_q.get().strip().lower()
+        searching = bool(q)
+        found = 0
+        for program in CATEGORIES:
+            group = [s for s in self.students if s["program"] == program
+                     and (not q or q in s["name"].lower() or q in s["id"].lower())]
+            if not group:
+                continue
+            found += len(group)
+            folded = program in self.collapsed and not searching
+            head = tk.Frame(inner, bg=C.BG, cursor="hand2")
+            head.pack(fill="x", pady=(10, 2))
+            tk.Label(head, text=("▸ " if folded else "▾ ") + PROGRAM_LABEL[program], bg=C.BG,
+                     fg=C.MUTED, font=(C.FONT, 9, "bold"), anchor="w").pack(side="left", padx=8)
+            tk.Label(head, text=str(len(group)), bg=C.BG, fg=C.MUTED,
+                     font=(C.FONT, 9)).pack(side="right", padx=8)
+            for w in (head, *head.winfo_children()):
+                w.bind("<Button-1>", lambda e, p=program: self._toggle_group(p))
+            if folded:
+                continue
+            for s in group:
+                self._row_widgets[s["id"]] = self._student_row(inner, s)
+        if not found:
+            tk.Label(inner, text="Belum ada murid." if not self.students else
+                     f"Tidak ada murid yang cocok dengan “{self.list_q.get().strip()}”.",
+                     bg=C.BG, fg=C.MUTED, font=(C.FONT, 10), anchor="w", justify="left",
+                     wraplength=230).pack(fill="x", padx=10, pady=10)
+
     def _rebuild_list(self, keep_scroll=True):
-        """Isi ulang daftar murid di sidebar (dikelompokkan per kategori)."""
-        self.sb.refresh(keep_scroll=keep_scroll)
-        if not keep_scroll:   # murid terpilih (mis. yang baru ditambah) dibawa ke area yang terlihat
-            self.sb.scroll_to(self._row_widgets.get(self.current_id))
+        """Isi ulang daftar murid (dikelompokkan per kategori); murid terpilih dibawa ke area
+        yang terlihat kalau keep_scroll False (mis. murid baru ditambah)."""
+        if not self._list_ok:
+            return
+        try:
+            if not self.list_scroll.winfo_exists():
+                return
+            top = self.list_scroll.canvas.yview()[0]
+            self._fill_list()
+            self.list_scroll.update_idletasks()
+            if keep_scroll:
+                self.list_scroll.canvas.yview_moveto(top)
+            else:
+                row = self._row_widgets.get(self.current_id)
+                inner_h = max(1, self.list_scroll.inner.winfo_reqheight())
+                self.list_scroll.canvas.yview_moveto(
+                    max(0.0, (row.winfo_y() - 60) / inner_h) if row is not None else 0.0)
+        except tk.TclError:
+            pass
+
+    def _student_row(self, parent, s):
+        """Satu baris murid: nama (merah kalau expired) + ID; yang terpilih disorot."""
+        expired = s.get("status") == STATUS_EXPIRED
+        current = s["id"] == self.current_id
+        bg = C.SIDEBAR_ACTIVE if current else C.BG
+        row = tk.Frame(parent, bg=bg, cursor="hand2")
+        row.pack(fill="x", pady=1)
+        left = tk.Label(row, text=s["name"], bg=bg, fg=C.ERROR if expired else C.TEXT,
+                        font=(C.FONT, 10), anchor="w")
+        left.pack(side="left", padx=(10, 4), pady=6)
+        right = tk.Label(row, text=f"{s['id']}  ·  expired" if expired else s["id"], bg=bg,
+                         fg=C.MUTED, font=(C.FONT, 8))
+        right.pack(side="right", padx=8)
+        widgets = (row, left, right)
+        for w in widgets:
+            w.bind("<Button-1>", lambda e, sid=s["id"]: self._on_student_click(sid))
+            if not current:
+                w.bind("<Enter>", lambda e, ws=widgets: [x.config(bg=C.CARD_HOVER) for x in ws])
+                w.bind("<Leave>", lambda e, ws=widgets: [x.config(bg=C.BG) for x in ws])
+        return row
 
     def _toggle_group(self, program):   # klik judul kategori = lipat / buka
         if program in self.collapsed:
@@ -217,8 +267,9 @@ class TeacherScreen(SidebarLayout):
 
     # --- kanan (menu Murid & Kursus): detail murid terpilih ----------------------------
     def _build_student_panel(self):
+        self._build_student_list(self.body)       # kolom kiri: daftar murid
         self.right = tk.Frame(self.body, bg=C.BG, padx=32, pady=24)
-        self.right.pack(fill="both", expand=True)
+        self.right.pack(side="left", fill="both", expand=True)
 
         # Kepala: foto murid + nama + tombol foto
         head = tk.Frame(self.right, bg=C.BG)
