@@ -42,7 +42,9 @@ HANDLE_D = 30               # tombol panah laci kartu (kecilkan / tampilkan semu
 CLOSE_D = 24                # tombol x tutup kartu (pojok kanan atas, hanya saat disorot)
 URGENT_GLOW = "#ff8a1a"     # gradasi oranye kartu prioritas (urgent)
 DRAWER_MS = 520             # laci kartu naik / turun (ease-in-out, maks. 30 fps, berbasis waktu)
-HERO_PT, HERO_OPEN_PT = 40, 40   # sapaan: ukuran SAMA di laci kecil & penuh (hanya naik)
+HERO_PT, HERO_MIN_PT = 40, 24    # sapaan: 40 pt; jendela pendek -> mengecil sampai 24 / hilang
+SHADOW_ROOM = 24             # ruang bayangan di atas kartu (pad 28 - turun 6 = 22 px)
+PEN_NEAR = 140              # tombol pena muncul saat kursor sedekat ini (px)
 RESIZE_SETTLE_MS = 100      # ukuran jendela diseret: susun ulang SEKALI setelah berhenti
 SCROLL_MS = 200             # gulir kartu di laci penuh (halus, bukan loncat 80 px)
 PEEK = 64                   # laci kecil: kartu baris ke-2 mengintip sekian px di bawah layar
@@ -189,13 +191,16 @@ class DashboardView(tk.Canvas):
             "big": tkfont.Font(family=C.FONT, size=16, weight="bold"),
             "small": tkfont.Font(family=C.FONT, size=9),
             "hero": tkfont.Font(family=C.FONT, size=HERO_PT, weight="bold"),
-            "hero_s": tkfont.Font(family=C.FONT, size=HERO_OPEN_PT, weight="bold"),
             "clock": tkfont.Font(family=C.FONT, size=28, weight="bold"),
         }
         # sapaan saat laci bergerak: SEMUA ukuran huruf dibuat sekali (mengubah ukuran satu
         # huruf tiap frame ~20 ms = patah-patah; berpindah ke huruf yang sudah ada ~0 ms)
         self._hero_fonts = {pt: tkfont.Font(family=C.FONT, size=pt, weight="bold")
-                            for pt in range(HERO_OPEN_PT, HERO_PT + 1)}
+                            for pt in range(HERO_MIN_PT, HERO_PT + 1)}
+        self._hero_pt = HERO_PT        # ukuran sapaan yang muat (None = tidak muat, disembunyikan)
+        self._peek_on = True           # laci kecil: baris ke-2 mengintip (dilepas kalau sempit)
+        self._cover_top = None
+        self._pen_shown = False
         path = None
         try:
             from elearning.ui import video_background as VB
@@ -205,7 +210,7 @@ class DashboardView(tk.Canvas):
         self.video = _Video(path)
         self.bind("<Configure>", self._on_resize)
         self.bind("<Motion>", self._motion)
-        self.bind("<Leave>", lambda e: self._set_hover(None))
+        self.bind("<Leave>", lambda e: (self._set_hover(None), self._pen_near(-9999, -9999)))
         self.bind("<B1-Motion>", self._drag_motion)
         self.bind("<ButtonRelease-1>", self._drag_end)
         self.bind("<Button-1>", self._click)
@@ -368,13 +373,14 @@ class DashboardView(tk.Canvas):
             first_y = top + 12
         else:
             self.shift = 0                   # widget di atas, sapaan di tengah layar
+            self._fit_greeting()
             hy = self._drawer_y(self.drawer_open)
             self._handle = (W / 2, hy) if rows > 1 or self.drawer_open else None
             top = self.cards_top = hy + 22
             first_y = top + 6
             if not self.drawer_open:
                 self.card_scroll = 0
-                if rows > 1:
+                if rows > 1 and self._peek_on:
                     self._peek_top = first_y + rowh
         # laci penuh / mode atur: bisa digulir sampai baris terakhir keluar dari area pudar
         self.card_scroll = max(0, min(self.card_scroll,
@@ -383,7 +389,8 @@ class DashboardView(tk.Canvas):
         for i in range(n):
             r, c = divmod(i, cols)
             x0 = PAD + c * (cw + GAP)
-            if not self.editing and not self.drawer_open and r > 1:
+            if not self.editing and not self.drawer_open and \
+                    r > (1 if self._peek_top is not None else 0):
                 y0 = -10_000                 # laci kecil: baris 1 + baris 2 yang mengintip
             else:
                 y0 = first_y + r * rowh - self.card_scroll       # koordinat layar
@@ -391,7 +398,9 @@ class DashboardView(tk.Canvas):
         self.hover = None
         self.itemconfigure(self._hover_item, state="hidden")
         if self._strip_ok():                 # laci penuh: kartu = pita yang digeser saat gulir
-            self._prep_strip(first_y - self.card_scroll, top_cover=self.cards_top)
+            # potong di ATAS ruang bayangan kartu baris 1 (bayangan menjorok ~22 px): kalau dipotong
+            # tepat di atas kartu, bayangannya terpotong = tampak garis di latar
+            self._prep_strip(first_y - self.card_scroll, top_cover=first_y - SHADOW_ROOM)
             return
         self._build_layer()
         self._draw_text()
@@ -399,24 +408,53 @@ class DashboardView(tk.Canvas):
     def _drawer_y(self, open_):
         """y tombol panah laci: penuh = tepat di bawah widget, kecil = 1 baris di bawah layar.
         Kartu pertama mulai di y + 28."""
-        if open_:                            # di bawah sapaan yang mengecil ke atas
+        if open_:                            # di bawah sapaan (yang ikut naik)
+            if self._hero_pt is None:
+                return self._wb() + 34
             gy, sub_y = self._greet_pos(True)
             return sub_y + self.f["sub"].metrics("linespace") + 30
         n = len(self.items or [])
-        peek = PEEK if n > self._cols(self._size[0]) else 0     # ada baris ke-2
+        peek = PEEK if (self._peek_on and n > self._cols(self._size[0])) else 0
         return self._size[1] - PAD - CARD_H - 30 - peek
+
+    def _wb(self):
+        rects = self._widget_rects()
+        return max(r[3] for r in rects) if rects else WIDGET_Y + 36
+
+    def _greet_h(self, pt):
+        return (self._hero_fonts[pt].metrics("linespace") + 4
+                + self.f["sub"].metrics("linespace"))
+
+    def _fit_greeting(self):
+        """Jendela pendek (windowed): sapaan tidak boleh menimpa tombol laci / kartu. Urutan:
+        40 pt + intipan baris ke-2 -> 40 pt tanpa intipan -> huruf mengecil sampai 24 pt ->
+        sapaan disembunyikan."""
+        wb = self._wb()
+        self._peek_on = True
+        for peek in (True, False):
+            self._peek_on = peek
+            room = self._drawer_y(False) - HANDLE_D / 2 - 14 - (wb + 22)
+            if self._greet_h(HERO_PT) <= room:
+                self._hero_pt = HERO_PT
+                return
+        for pt in range(HERO_PT - 2, HERO_MIN_PT - 1, -2):
+            if self._greet_h(pt) <= room:
+                self._hero_pt = pt
+                return
+        self._hero_pt = None
 
     def _greet_pos(self, open_):
         """(y sapaan, y baris tanggal). Laci penuh: tepat di bawah widget; laci kecil: di
         tengah antara widget dan laci. Ukuran huruf sama (HERO_PT)."""
-        rects = self._widget_rects()
-        wb = max(r[3] for r in rects) if rects else WIDGET_Y + 36
+        wb = self._wb()
+        pt = self._hero_pt or HERO_MIN_PT
+        hl = self._hero_fonts[pt].metrics("linespace")
         if open_:
-            gy = wb + 26
-            return gy, gy + 70
-        bottom = self._drawer_y(False) - HANDLE_D
-        gy = max(wb + 30, (wb + bottom) / 2 - 46)
-        return gy, gy + 70
+            gy = wb + 22
+            return gy, gy + hl + 4
+        top_drawer = self._drawer_y(False) - HANDLE_D / 2 - 14
+        gy = max(wb + 22, (wb + top_drawer - self._greet_h(pt)) / 2)   # tengah ruang kosong
+        return gy, gy + hl + 4
 
     def _max_scroll(self, top):
         cols = self._cols(self._size[0])
@@ -713,11 +751,18 @@ class DashboardView(tk.Canvas):
         """Tombol pena (selalu) + isi mode atur: x di widget, + di slot kosong, baki."""
         self.delete("wedit")
         px, py = self._pen_pos()
+        try:                                 # kursor sudah dekat (mis. baru klik pena): terlihat
+            mx = self.winfo_pointerx() - self.winfo_rootx()
+            my = self.winfo_pointery() - self.winfo_rooty()
+            self._pen_shown = self.editing or (mx - px) ** 2 + (my - py) ** 2 <= PEN_NEAR ** 2
+        except tk.TclError:
+            pass
         if self.editing:
             img = self._disc(PEN_D, C.ACCENT, 255, "check", "#ffffff")
         else:
             img = self._disc(PEN_D, "#2c2b28", 235, "pen", "#d8d5cc")
-        self.create_image(px, py, image=img, tags=("txt", "wedit", "pen"))
+        self.create_image(px, py, image=img, tags=("txt", "wedit", "pen"),
+                          state="normal" if (self.editing or self._pen_shown) else "hidden")
         self.tag_bind("pen", "<Button-1>", self._toggle_edit)
         self.tag_bind("pen", "<Enter>", lambda e: self.config(cursor="hand2"))
         if not self.editing:
@@ -1051,8 +1096,11 @@ class DashboardView(tk.Canvas):
             todo = sum(1 for it in self.items if it["level"] in ("urgent", "todo"))
             sub = (f"{D.today_text()}  ·  " +
                    (f"{todo} hal perlu dikerjakan" if todo else "semua beres, kerja bagus!"))
+        if self._hero_pt is None:            # jendela terlalu pendek: tanpa sapaan
+            self._greet_items = ()
+            return
         hero = self.create_text(W / 2, gy, anchor="n", tags=("txt", "greet"),
-                                font=self.f["hero_s" if open_ else "hero"], fill=C.TEXT,
+                                font=self._hero_fonts[self._hero_pt], fill=C.TEXT,
                                 text=f"{D.greeting()}, {name}")
         line = self.create_text(W / 2, sub_y, anchor="n", tags=("txt", "greet"),
                                 font=self.f["sub"], fill=C.MUTED, text=sub)
@@ -1181,6 +1229,7 @@ class DashboardView(tk.Canvas):
             Image = photos.Image
             W, H = self._size
             parts = []
+            self._cover_top = top_y
             if top_y:
                 top_y = int(top_y)
                 parts.append((photos.to_photoimage(base.crop((0, 0, W, top_y))), 0))
@@ -1246,8 +1295,8 @@ class DashboardView(tk.Canvas):
                       "y0": from_first, "y1": to_first, "h0": from_hy,
                       "h1": self._drawer_y(to_open), "hcur": int(round(from_hy)),
                       "g0": self._greet_pos(closing), "g1": self._greet_pos(to_open),
-                      "pt0": HERO_OPEN_PT if closing else HERO_PT,
-                      "pt1": HERO_PT if closing else HERO_OPEN_PT, "pt": None,
+                      "pt0": self._hero_pt or HERO_MIN_PT,
+                      "pt1": self._hero_pt or HERO_MIN_PT, "pt": None,
                       "ms": DRAWER_MS, "t0": time.perf_counter(), "k": 0}
         self._set_timer(True)
         self._anim_step()
@@ -1503,7 +1552,16 @@ class DashboardView(tk.Canvas):
         self.tag_bind("restore", "<Leave>", lambda e: (self.config(cursor=""),
                                                        self.itemconfigure(t, fill=C.MUTED)))
 
+    def _pen_near(self, x, y):
+        """Tombol pena hanya terlihat saat kursor mendekat (mode atur: selalu terlihat)."""
+        px, py = self._pen_pos()
+        near = self.editing or (x - px) ** 2 + (y - py) ** 2 <= PEN_NEAR ** 2
+        if near != self._pen_shown:
+            self._pen_shown = near
+            self.itemconfigure("pen", state="normal" if near else "hidden")
+
     def _motion(self, e):
+        self._pen_near(e.x, e.y)
         if self._drag is not None or self._anim is not None:
             return
         self._set_hover(self._index_at(e.x, e.y))
@@ -1589,6 +1647,9 @@ class DashboardView(tk.Canvas):
         if img is not None and img.size == self._size                 and img.info.get("layer") == id(self._layer):
             self._photo = photos.to_photoimage(img)
             self.itemconfigure(self._img_item, image=self._photo)
+            if self._strip is not None:      # penutup tepi = potongan frame yang SAMA (tanpa
+                self._base_rgb = img         # garis sambungan setelah ukuran berubah)
+                self._edge_covers(self._cover_top)
         self.after(1000 // VIDEO_FPS, self._video_tick)
 
     def destroy(self):

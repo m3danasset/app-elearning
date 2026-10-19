@@ -345,6 +345,14 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   tiap frame ~20 ms = patah-patah. Selama animasi timer Windows 1 ms (_set_timer, timeBeginPeriod)
   supaya after() tidak dibulatkan ke 15,6 ms (31/47 ms). Ukur 2000x1210 & 2560x1400: laci & gulir
   33-35 ms / frame (maks. 35). Error callback Tk dicatat ke app.log (App._tk_error).
+- JENDELA PENDEK (windowed): _fit_greeting memastikan sapaan tidak menimpa tombol laci / kartu:
+  40 pt + intipan baris 2 -> 40 pt tanpa intipan (_peek_on) -> huruf turun sampai HERO_MIN_PT
+  24 (_hero_fonts) -> sapaan disembunyikan (_hero_pt None). Ukuran yang sama di laci penuh.
+- Penutup atas laci penuh dipotong SHADOW_ROOM 24 px di atas kartu baris 1 (bayangan kartu
+  menjorok 22 px); dipotong tepat di atas kartu = bayangan terpotong = garis di latar. Frame
+  latar baru di mode pita -> penutup dibuat ulang dari frame yang sama (_video_tick).
+- Tombol PENA widget tersembunyi; muncul saat kursor dalam PEN_NEAR 140 px (_pen_near; mode
+  atur: selalu terlihat).
 - RESIZE WINDOWED (jendela diseret): DashboardView & CourseDock TIDAK menyusun ulang tiap event
   (~60 ms per event = sangat lambat); ukuran baru disimpan (_pending) dan diterapkan SEKALI
   RESIZE_SETTLE_MS 100 setelah berhenti (_resized). Selama itu tirai gelap App (ResizeCurtain,
