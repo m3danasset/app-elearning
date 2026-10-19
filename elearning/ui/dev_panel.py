@@ -571,8 +571,9 @@ class DevPanel(tk.Toplevel):
         main.pack(side="left", fill="both", expand=True)
         # navigasi kiri
         self._q = tk.StringVar(value=_ui_state().get("query", ""))
-        box = RoundEntry(nav, self._q, placeholder="Search", icon="search", width_chars=14,
-                         font=(C.FONT, 10), height=34, fill=SEG_BG, radius=9)
+        box = self._search_box = RoundEntry(nav, self._q, placeholder="Cari", icon="search",
+                                            width_chars=14, font=(C.FONT, 10), height=34,
+                                            fill=SEG_BG, radius=9)
         box.pack(fill="x", padx=12, pady=(14, 8))
         self._search = box.entry
         self._search.bind("<Return>", lambda e: self._login() if self.page == "akun" else None)
@@ -657,6 +658,12 @@ class DevPanel(tk.Toplevel):
         if _ui_state().get("tab") != key:
             _ui_save(tab=key)
         searching = bool(self._q.get().strip()) and key not in ("akun", "kursus")
+        try:                                   # petunjuk kolom cari sesuai halaman
+            self._search_box.ph.config(text={"akun": "Cari akun (nama, ID, jenis)",
+                                             "kursus": "Cari murid / kursus"}.get(
+                key, "Cari setting"))
+        except (AttributeError, tk.TclError):
+            pass
         for k, n in self._nav.items():
             n.set_active(k == key and not searching)
         for w in self.bottom.winfo_children():
@@ -841,12 +848,16 @@ class DevPanel(tk.Toplevel):
         return pin if show else "\u2022" * 4
 
     def _refill(self):
-        q = self._q.get().strip().lower()
+        words = self._q.get().lower().split()
         want = FILTER_KIND.get(self.f_kind.get())
+
+        def text(it):                  # semua kata harus ada: jenis, ID, nama, status
+            st = (it[3] or {}).get("status") if it[0] in ("adult", "kids") else None
+            return " ".join((self._kind[it[0]][0], it[1], it[2],
+                             "nonaktif expired" if st == "expired" else
+                             "aktif active" if st else "")).lower()
         shown = [it for it in self.items
-                 if (want is None or it[0] in want)
-                 and (not q or q in it[2].lower() or q in it[1].lower()
-                      or q in self._kind[it[0]][0].lower())]
+                 if (want is None or it[0] in want) and all(w in text(it) for w in words)]
         # jenis selalu jadi urutan utama (admin, guru, trial, dewasa, SUPERKIDS), lalu Nama / ID
         by_id = self.f_sort.get() == "ID"
         key = lambda it: (KIND_ORDER.index(it[0]) if it[0] in KIND_ORDER else len(KIND_ORDER),

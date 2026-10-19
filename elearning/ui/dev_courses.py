@@ -164,20 +164,48 @@ class CoursesPage(tk.Frame):
     def refresh(self):
         """Muat ulang murid + kursus program ini, gambar ulang daftar & tabel."""
         from elearning.students import list_students
-        self.courses = [c for c in K.COURSES if c["program"] == self.prog]
+        self.all_courses = [c for c in K.COURSES if c["program"] == self.prog]
+        self.courses = list(self.all_courses)
         self.students = [s for s in list_students() if s["program"] == self.prog]
         self._fill_list()
         self.filter()
 
-    def filter(self):
+    def filter(self, switched=False):
+        """Kolom Search: kata yang cocok dengan murid (ID / nama) menyaring baris; kata yang
+        hanya cocok dengan kursus (judul / ID / grup) menyaring kolom. Tidak ada murid cocok di
+        program ini tapi ada di program lain -> pindah ke program itu."""
         words = self.panel._q.get().lower().split()
-        self.shown = [s for s in self.students
-                      if all(w in f"{s['id']} {s['name']}".lower() for w in words)]
+
+        def stext(s):
+            return f"{s['id']} {s['name']}".lower()
+
+        def ctext(c):
+            return f"{c['id']} {c['title']} {c['group']}".lower()
+        cwords = [w for w in words if not any(w in stext(s) for s in self.students)
+                  and any(w in ctext(c) for c in self.all_courses)]
+        swords = [w for w in words if w not in cwords]
+        self.courses = [c for c in self.all_courses if all(w in ctext(c) for w in cwords)]
+        self.shown = [s for s in self.students if all(w in stext(s) for w in swords)]
+        if words and not self.shown and not switched and self.prog != "trial":
+            from elearning.students import list_students
+            for prog, label in K.PROGRAMS:
+                if prog in (self.prog, "trial"):
+                    continue
+                if any(s["program"] == prog and all(w in stext(s) for w in words)
+                       for s in list_students()):
+                    self._set_prog(prog)
+                    self.filter(switched=True)
+                    self.panel._note(f"Ditemukan di program {label}.")
+                    return
         if self.prog == "trial":
             self.count_lbl.config(text="")
-        else:
+        elif words:
+            extra = (f"  ·  {len(self.courses)} dari {len(self.all_courses)} kursus"
+                     if cwords else "")
             self.count_lbl.config(text=f"{len(self.shown)} dari {len(self.students)} murid"
-                                  if words else f"{len(self.students)} murid")
+                                  + extra)
+        else:
+            self.count_lbl.config(text=f"{len(self.students)} murid")
         self._draw_grid()
 
     def _fill_list(self):
@@ -187,7 +215,7 @@ class CoursesPage(tk.Frame):
         for fr in (self.list, self.removed):     # frame kosong tidak menyusut sendiri di Tk
             fr.configure(height=1)
         self._limgs = []
-        opened = {c["id"]: 0 for c in self.courses}
+        opened = {c["id"]: 0 for c in self.all_courses}
         hidden = dict(opened)
         for s in self.students:
             for cid in s["courses"]:
@@ -196,8 +224,8 @@ class CoursesPage(tk.Frame):
             for cid in s.get("hidden") or ():
                 if cid in hidden:
                     hidden[cid] += 1
-        n = len(self.courses)
-        for i, c in enumerate(self.courses):
+        n = len(self.all_courses)
+        for i, c in enumerate(self.all_courses):
             row = tk.Frame(self.list, bg=PANEL)
             row.pack(fill="x")
             dot = tk.Label(row, bg=PANEL,
@@ -228,7 +256,7 @@ class CoursesPage(tk.Frame):
                       IconBtn(btns, "trash", lambda c=c: CourseDelete(self, c), danger=True)):
                 b.pack(side="left", padx=1)
             tk.Frame(self.list, bg=LINE, height=1).pack(fill="x")
-        if not self.courses:
+        if not self.all_courses:
             tk.Label(self.list, text="Belum ada kursus untuk program ini. Klik \"Kursus baru\".",
                      bg=PANEL, fg=MUTED, font=(C.FONT, 10), anchor="w").pack(fill="x", pady=10)
         gone = [c for c in K.removed_builtins() if c["program"] == self.prog]
@@ -284,7 +312,7 @@ class CoursesPage(tk.Frame):
             elif not self.students:
                 text = "Belum ada murid di program ini."
             else:
-                text = "Tidak ada murid yang cocok dengan kolom Search."
+                text = "Tidak ada murid yang cocok dengan kolom Cari."
             self.empty.config(text=text)
             if text:
                 self.empty.pack(fill="x", after=self.grid_cv, pady=(0, 20))
