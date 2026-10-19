@@ -272,6 +272,21 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   nilai ke bawaan". Nilai baru: tambah baris di VALUES; modulnya harus membaca atribut itu
   saat dipakai (bukan disalin saat import).
 
+## Dev > Akun (lengkap)
+- Tabel 6 kolom: Jenis | ID | Nama | Status (murid Active / Expired merah) | Login terakhir
+  (sessions.overview, dimuat sekali per reload_accounts, _load_last) | PIN. Kepala: jumlah per
+  jenis. Bilah bawah: Akun baru (Ctrl+N), Hapus, Nonaktifkan / Aktifkan (murid, set_status;
+  klik 2x sel Status juga), Edit, Masuk. Kolom = _xs() dict + _col_end; sel = _cell(it, col).
+- ui/dev_accounts.py: Card (kartu bersudut bulat, TINGGI MENGIKUTI ISI lewat fit(), posisi tetap
+  setelah tampil), NewAccount (Seg murid dewasa / SUPERKIDS / guru / admin; nama, ID otomatis
+  (murid bisa diubah), PIN + "Acak" (random_pin = os.urandom, tanpa modul random), tanggal lahir
+  dicek SEBELUM akun dibuat, Chips kursus dibuka, "Langsung masuk" -> panel.account_created),
+  StudentEditor (Seg kategori & status, Switch Tampil / Buka per kursus -> bulk_access),
+  AccountEditor (nama + PIN + Acak), DeleteConfirm (fokus Batal). Dialog lama di dev_panel dihapus.
+- admins.py: admin BARU dari Dev di data\admins_extra.json {ID: {name, pin}} (add_admin,
+  next_admin_id: ID yang pernah dihapus tidak dipakai ulang). _all() = ADMINS + extra dipakai
+  get_name / set_name / get_pin / set_pin / list_admins / delete_admin / check_admin.
+
 ## Dev > Kursus: panel kursus + master toggle akses murid
 - courses.py: daftar di kode = BAWAAN (BUILTIN). Dev membuat / mengubah / menghapus / mengurutkan
   -> SELURUH daftar disimpan di data\courses.json ({"v": 1, "courses": [...]}) dan dipakai

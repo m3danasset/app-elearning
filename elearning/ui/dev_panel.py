@@ -602,11 +602,14 @@ class DevPanel(tk.Toplevel):
         self.status = tk.Label(self.bottom, text="", bg=PANEL, fg=MUTED, font=(C.FONT, 9),
                                anchor="w")
         self._bar_acc = tk.Frame(self.bottom, bg=PANEL)
-        self.del_btn = _btn(self._bar_acc, "Hapus", self._delete, "danger")
-        self.del_btn.pack(side="right")
+        _btn(self._bar_acc, "Masuk", self._login, "primary").pack(side="right")
         self.edit_btn = _btn(self._bar_acc, "Edit", self._edit)
         self.edit_btn.pack(side="right", padx=(0, 8))
-        _btn(self._bar_acc, "Masuk", self._login, "primary").pack(side="right", padx=(0, 8))
+        self.stat_btn = _btn(self._bar_acc, "Nonaktifkan", self._toggle_status)
+        self.stat_btn.pack(side="right", padx=(0, 8))
+        self.del_btn = _btn(self._bar_acc, "Hapus", self._delete, "danger")
+        self.del_btn.pack(side="right", padx=(0, 8))
+        _btn(self._bar_acc, "Akun baru", self._new_account).pack(side="right", padx=(0, 8))
         self._bar_set = tk.Frame(self.bottom, bg=PANEL)
         # Apply Now = sementara (sampai app ditutup); Apply As Default = disimpan ke file
         self.apply_btn = _btn(self._bar_set, "Apply Now", lambda: self._apply(False), "primary")
@@ -627,6 +630,8 @@ class DevPanel(tk.Toplevel):
         self.crs = CoursesPage(self, self.area)
         self.undo_btn_state(False)
         self._q.trace_add("write", lambda *a: self._on_query())
+        self.bind("<Control-n>", lambda e: self._new_account() if self.page == "akun" else None)
+        self.bind("<Control-N>", lambda e: self._new_account() if self.page == "akun" else None)
 
     def _add_nav(self, nav, key, label, icon):
         item = NavItem(nav, label, icon, lambda k=key: self.show(k))
@@ -704,10 +709,11 @@ class DevPanel(tk.Toplevel):
             pass
 
     # --- halaman Akun -------------------------------------------------------------------
-    # Tabel 4 kolom di SATU kanvas: Jenis | ID | Nama | PIN. Klik = pilih, klik 2x sel = ubah
-    # di tempat, kursor di atas baris = PIN terlihat (selain itu ****). Masuk: tombol / Enter.
+    # Tabel 6 kolom di SATU kanvas: Jenis | ID | Nama | Status | Login terakhir | PIN.
+    # Klik = pilih, klik 2x sel = ubah di tempat (Status murid = Active <-> Expired), kursor di
+    # atas baris = PIN terlihat (selain itu ****). Masuk: tombol / Enter. Akun baru: Ctrl+N.
     ROW_H = 34
-    COLS = ("kind", "id", "name", "pin")
+    COLS = ("kind", "id", "name", "status", "last", "pin")
 
     def _build_accounts(self, parent):
         import tkinter.font as tkfont
@@ -720,14 +726,20 @@ class DevPanel(tk.Toplevel):
         self._editing = None
         self._mono = tkfont.Font(family=C.FONT, size=10)
         self._head_f = tkfont.Font(family=C.FONT, size=9, weight="bold")
+        self._load_last()
         f = self._acc_frame = tk.Frame(parent, bg=PANEL)
         wrap = tk.Frame(f, bg=PANEL)
         wrap.pack(fill="both", expand=True, padx=(28, 18))
-        tk.Label(wrap, text="Akun", bg=PANEL, fg=FG, font=(C.FONT, 14, "bold"),
-                 anchor="w").pack(fill="x")
-        tk.Label(wrap, text="Masuk ke akun mana pun tanpa PIN. Klik 2x sel = ubah, kursor di "
+        top = tk.Frame(wrap, bg=PANEL)
+        top.pack(fill="x")
+        tk.Label(top, text="Akun", bg=PANEL, fg=FG, font=(C.FONT, 14, "bold"),
+                 anchor="w").pack(side="left")
+        self.acc_count = tk.Label(top, text="", bg=PANEL, fg=MUTED, font=(C.FONT, 10))
+        self.acc_count.pack(side="right", padx=(0, 10))
+        tk.Label(wrap, text="Masuk ke akun mana pun tanpa PIN, buat akun baru (Ctrl+N), ubah, "
+                            "nonaktifkan, atau hapus. Klik 2x sel = ubah di tempat, kursor di "
                             "baris = PIN terlihat.", bg=PANEL, fg=MUTED, font=(C.FONT, 10),
-                 anchor="w").pack(fill="x", pady=(2, 14))
+                 anchor="w", justify="left", wraplength=700).pack(fill="x", pady=(2, 14))
         bar = tk.Frame(wrap, bg=PANEL)
         bar.pack(fill="x", padx=(0, 10))
         self.f_kind = tk.StringVar(value="Semua")
@@ -754,22 +766,58 @@ class DevPanel(tk.Toplevel):
 
     # posisi kolom (px) dihitung dari lebar angka "0": tetap rata di semua skala DPI
     def _xs(self):
+        """{kolom: x kiri} + lebar huruf "0"."""
         cw = self._mono.measure("0")
         w = max(200, self.tb.winfo_width())
-        x_kind, x_id = 12, 12 + cw * 13
-        x_name = x_id + cw * 12
-        x_pin = w - 12 - cw * 11
-        return x_kind, x_id, x_name, x_pin, cw
+        x = {"kind": 12, "id": 12 + cw * 12}
+        x["name"] = x["id"] + cw * 11
+        x["pin"] = w - 12 - cw * 8
+        x["last"] = x["pin"] - cw * 16
+        x["status"] = x["last"] - cw * 10
+        return x, cw
 
     def _col_at(self, x):
-        _k, x_id, x_name, x_pin, _cw = self._xs()
-        if x < x_id - 3:
-            return "kind"
-        if x < x_name - 3:
-            return "id"
-        if x < x_pin - 3:
-            return "name"
-        return "pin"
+        xs, _cw = self._xs()
+        for col in reversed(self.COLS):
+            if x >= xs[col] - 3:
+                return col
+        return "kind"
+
+    def _col_end(self, col):
+        xs, cw = self._xs()
+        i = self.COLS.index(col)
+        return xs[self.COLS[i + 1]] if i + 1 < len(self.COLS) else max(200, self.tb.winfo_width())
+
+    def _load_last(self):
+        """Login terakhir semua akun {ID: datetime} (sessions.overview, sekali per muat)."""
+        try:
+            from elearning import sessions
+            self._last = {k: v.get("last_seen") or v.get("last_in")
+                          for k, v in sessions.overview().items()}
+        except Exception as exc:
+            C.log(f"Dev: riwayat login tidak terbaca: {exc!r}")
+            self._last = {}
+
+    def _cell(self, it, col, show_pin=False):
+        """(teks, warna) sel tabel."""
+        kind, uid = it[0], it[1]
+        if col == "kind":
+            return self._kind[kind][0], FG
+        if col == "id":
+            return uid, FG
+        if col == "name":
+            return it[2], FG
+        if col == "status":
+            if kind in ("adult", "kids"):
+                exp = (it[3] or {}).get("status") == "expired"
+                return ("Expired", "#ff8a80") if exp else ("Active", MUTED)
+            return "-", MUTED
+        if col == "last":
+            if kind == "trial":
+                return "-", MUTED
+            t = self._last.get(uid)
+            return (t.strftime("%d/%m/%y %H:%M") if t else "Belum pernah"), MUTED
+        return self._pin_text(it, show_pin), MUTED
 
     def _load_pins(self):
         """PIN guru & admin {ID: PIN} (murid dan trial tidak memakai PIN)."""
@@ -803,6 +851,12 @@ class DevPanel(tk.Toplevel):
                           it[1] if by_id else it[2].lower(), it[1])
         self.shown = sorted(shown, key=key)
         self._load_pins()
+        n = {}
+        for it in self.items:
+            n[it[0]] = n.get(it[0], 0) + 1
+        self.acc_count.config(text="  ·  ".join(
+            f"{n[k]} {self._kind[k][0].lower() if k != 'kids' else 'SUPERKIDS'}"
+            for k in KIND_ORDER if k in n and k != "trial"))
         self.sel = 0 if self.shown else None
         self._cancel_edit()
         self._draw()
@@ -816,28 +870,31 @@ class DevPanel(tk.Toplevel):
 
     def _draw(self):
         tb, R = self.tb, self.ROW_H
-        x_kind, x_id, x_name, x_pin, cw = self._xs()
+        xs, cw = self._xs()
         w = max(200, tb.winfo_width())
         tb.delete("all")
         self.head.delete("all")
-        for x, t in ((x_kind, "Jenis"), (x_id, "ID"), (x_name, "Nama"), (x_pin, "PIN")):
-            self.head.create_text(x, 15, text=t, anchor="w", font=self._head_f, fill=MUTED)
+        for col, t in zip(self.COLS, ("Jenis", "ID", "Nama", "Status", "Login terakhir",
+                                      "PIN")):
+            self.head.create_text(xs[col], 15, text=t, anchor="w", font=self._head_f,
+                                  fill=MUTED)
         self._hov_rect = tb.create_rectangle(0, -R, w, 0, fill=NAV_HOV, width=0)
         self._sel_rect = tb.create_rectangle(0, -R, w, 0, fill=NAV_SEL, width=0)
         self._pin_ids = []
         self._row_ids = []
+        self._row_cols = []
         for i, it in enumerate(self.shown):
             y = i * R + R / 2
-            ids = (tb.create_text(x_kind, y, anchor="w", font=self._mono, fill=FG,
-                                  text=self._fit(self._kind[it[0]][0], x_id - x_kind - cw)),
-                   tb.create_text(x_id, y, anchor="w", font=self._mono, fill=FG,
-                                  text=self._fit(it[1], x_name - x_id - cw)),
-                   tb.create_text(x_name, y, anchor="w", font=self._mono, fill=FG,
-                                  text=self._fit(it[2], x_pin - x_name - cw)),
-                   tb.create_text(x_pin, y, anchor="w", font=self._mono, fill=MUTED,
-                                  text=self._pin_text(it, False)))
+            ids, cols = [], []
+            for col in self.COLS:
+                text, color = self._cell(it, col)
+                ids.append(tb.create_text(xs[col], y, anchor="w", font=self._mono, fill=color,
+                                          text=self._fit(text, self._col_end(col) - xs[col]
+                                                         - cw)))
+                cols.append(color)
             self._row_ids.append(ids)
-            self._pin_ids.append(ids[3])
+            self._row_cols.append(cols)
+            self._pin_ids.append(ids[-1])
         tb.configure(scrollregion=(0, 0, w, max(1, len(self.shown) * R)))
         self._place_rect(self._sel_rect, self.sel)
         self._place_rect(self._hov_rect, self._hov if self._hov != self.sel else None)
@@ -857,7 +914,9 @@ class DevPanel(tk.Toplevel):
         for i, ids in enumerate(self._row_ids):
             on = i == self.sel
             for k, item in enumerate(ids):
-                self.tb.itemconfigure(item, fill="white" if on else (MUTED if k == 3 else FG))
+                base = self._row_cols[i][k]
+                self.tb.itemconfigure(item, fill=base if base == "#ff8a80" else
+                                      "white" if on else base)
 
     def _row_at(self, y):
         i = int(self.tb.canvasy(y) // self.ROW_H)
@@ -912,6 +971,10 @@ class DevPanel(tk.Toplevel):
         self.edit_btn.config(state="disabled" if kind in (None, "trial") else "normal",
                              text="Edit akun" if kind in ("admin", "teacher")
                              else "Edit murid" if kind in ("adult", "kids") else "Edit")
+        student = kind in ("adult", "kids")
+        exp = student and (it[3] or {}).get("status") == "expired"
+        self.stat_btn.config(state="normal" if student else "disabled",
+                             text="Aktifkan" if exp else "Nonaktifkan")
 
     def _move(self, d):
         if not self.shown:
@@ -932,6 +995,14 @@ class DevPanel(tk.Toplevel):
             self._note("Akun trial tidak bisa diubah.")
             return
         student = kind in ("adult", "kids")
+        if col == "status":
+            if student:
+                self._toggle_status()
+            else:
+                self._note("Status hanya untuk murid.")
+            return
+        if col == "last":
+            return
         if col == "kind":
             if not student:
                 self._note("Jenis guru / admin tidak bisa diubah.")
@@ -952,9 +1023,8 @@ class DevPanel(tk.Toplevel):
 
     def _begin_edit(self, i, col, value):
         self._cancel_edit()
-        x_kind, x_id, x_name, x_pin, cw = self._xs()
-        w = max(200, self.tb.winfo_width())
-        x0, x1 = {"id": (x_id, x_name), "name": (x_name, x_pin), "pin": (x_pin, w)}[col]
+        xs, _cw = self._xs()
+        x0, x1 = xs[col], self._col_end(col)
         var = tk.StringVar(value=value)
         ent = tk.Entry(self.tb, textvariable=var, font=self._mono, bg=SEG_BG, fg="white",
                        insertbackground="white", relief="flat", highlightthickness=1,
@@ -1088,6 +1158,7 @@ class DevPanel(tk.Toplevel):
         self._note(f"Masuk: {name}")
 
     def _edit(self):
+        from elearning.ui.dev_accounts import AccountEditor, StudentEditor
         it = self._selected()
         if it is None:
             return
@@ -1097,10 +1168,49 @@ class DevPanel(tk.Toplevel):
             AccountEditor(self, it[0], it[1], it[2])
 
     def _delete(self):
+        from elearning.ui.dev_accounts import DeleteConfirm
         it = self._selected()
         if it is None or it[0] == "trial":
             return
         DeleteConfirm(self, it[0], it[1], it[2])
+
+    def _new_account(self):
+        from elearning.ui.dev_accounts import NewAccount
+        kind = {"Dewasa": "adult", "SUPERKIDS": "kids", "Guru": "teacher",
+                "Admin": "admin"}.get(self.f_kind.get(), "adult")
+        NewAccount(self, kind)
+
+    def account_created(self, uid, login=False):
+        """Akun baru dari dialog: tampilkan & pilih di tabel (filter / cari dikosongkan kalau
+        akun itu tidak kelihatan), lalu masuk kalau diminta."""
+        self.reload_accounts(uid)
+        if not any(it[1] == uid for it in self.shown):
+            self._q.set("")
+            self.reload_accounts(uid)
+        self._note(f"Akun {uid} dibuat.")
+        if login and self._selected() is not None and self._selected()[1] == uid:
+            self._login()
+
+    def _toggle_status(self):
+        """Murid: Active <-> Expired (expired tidak bisa login; data tetap)."""
+        from elearning import students as ST
+        it = self._selected()
+        if it is None or it[0] not in ("adult", "kids"):
+            return
+        new = "active" if (it[3] or {}).get("status") == "expired" else "expired"
+        try:
+            ST.set_status(it[1], new)
+        except (ValueError, OSError) as exc:
+            self._note(str(exc) if isinstance(exc, ValueError) else
+                       "Gagal menyimpan (folder data?).")
+            return
+        C.log(f"Dev: status {it[1]} -> {new}")
+        self.reload_accounts(it[1])
+        self._note(f"{it[1]} {'diaktifkan' if new == 'active' else 'dinonaktifkan (tidak bisa login)'}.")
+        try:
+            self._student_changed(it[1], it[1])
+        except Exception as exc:
+            C.log(f"Dev: layar tidak dibangun ulang: {exc!r}")
 
     def reload_accounts(self, select_id=None):
         """Setelah akun diubah: muat ulang daftar, pilih akun itu lagi (posisi gulir tetap)."""
@@ -1113,6 +1223,7 @@ class DevPanel(tk.Toplevel):
             return
         top = self.tb.yview()[0]
         self.items = accounts()
+        self._load_last()
         self._refill()
         self.tb.yview_moveto(top)
         for n, it in enumerate(self.shown):
@@ -1370,273 +1481,3 @@ class DevPanel(tk.Toplevel):
             self.after_cancel(self._save_job)
             self._flush_ui()
         super().destroy()
-
-
-class DeleteConfirm(tk.Toplevel):
-    """Konfirmasi hapus akun (jendela Dev). Tidak bisa dibatalkan setelah Hapus."""
-
-    WHAT = {
-        "adult": "Akun, foto, progres video, badge, portfolio & assignment, riwayat login, "
-                 "jadwal, kuis, dan sertifikat murid ini ikut terhapus.",
-        "kids": "Akun, foto, progres video, badge, portfolio & assignment, riwayat login, "
-                "jadwal, kuis, dan sertifikat murid ini ikut terhapus.",
-        "teacher": "Akun, foto, dan riwayat masuk/keluar guru ini ikut terhapus. Laporan "
-                   "kerjanya tetap tersimpan.",
-        "admin": "Akun admin ini tidak bisa dipakai login lagi.",
-    }
-
-    def __init__(self, panel, kind, uid, name):
-        super().__init__(panel, bg=BG)
-        self.panel, self.kind, self.uid = panel, kind, uid
-        self.title("Hapus akun")
-        self.attributes("-topmost", True)
-        self.resizable(False, False)
-        self.geometry(f"300x190+{panel.winfo_rootx() + 30}+{panel.winfo_rooty() + 90}")
-        tk.Label(self, text=f"Hapus {uid}  {name}?", bg=BG, fg=FG, font=BOLD, anchor="w",
-                 wraplength=272, justify="left").pack(fill="x", padx=14, pady=(12, 4))
-        tk.Label(self, text=self.WHAT.get(kind, "") + " Tidak bisa dikembalikan.", bg=BG,
-                 fg=MUTED, font=FONT, anchor="w", wraplength=272, justify="left").pack(
-            fill="x", padx=14)
-        self.msg = tk.Label(self, text="", bg=BG, fg=C.ERROR, font=FONT, anchor="w",
-                            wraplength=272, justify="left")
-        self.msg.pack(fill="x", padx=14, pady=(6, 0))
-        btns = tk.Frame(self, bg=BG)
-        btns.pack(fill="x", side="bottom", padx=14, pady=(4, 12))
-        tk.Button(btns, text="Hapus", font=BOLD, relief="flat", bg="#c0392b", fg="white",
-                  activebackground="#e04a3a", activeforeground="white",
-                  command=self._do).pack(side="left", fill="x", expand=True, ipady=2)
-        cancel = tk.Button(btns, text="Batal", font=BOLD, relief="flat", bg=FIELD, fg=FG,
-                           activebackground="#3a3a3a", activeforeground=FG,
-                           command=self.destroy)
-        cancel.pack(side="left", fill="x", expand=True, ipady=2, padx=(6, 0))
-        self.bind("<Escape>", lambda ev: self.destroy())
-        cancel.focus_set()                  # Enter tidak langsung menghapus
-
-    def _do(self):
-        try:
-            if self.kind == "admin":
-                from elearning import admins
-                admins.delete_admin(self.uid)
-            elif self.kind == "teacher":
-                from elearning import teachers
-                teachers.delete_teacher(self.uid)
-            else:
-                from elearning import students
-                students.delete_student(self.uid)
-        except ValueError as exc:
-            self.msg.config(text=str(exc))
-            return
-        except OSError as exc:
-            C.log(f"Dev: hapus {self.uid} gagal: {exc!r}")
-            self.msg.config(text="Gagal menghapus (folder data?).")
-            return
-        C.log(f"Dev: akun {self.uid} dihapus")
-        panel, uid = self.panel, self.uid
-        self.destroy()
-        try:
-            panel.reload_accounts()
-            panel._note(f"{uid} dihapus.")
-            panel.app.dev_account_deleted(uid)
-        except Exception as exc:
-            C.log(f"Dev: setelah hapus {uid}: {exc!r}")
-
-
-class AccountEditor(tk.Toplevel):
-    """Ubah nama & PIN guru / admin (jendela Dev). PIN lama terlihat supaya dev tahu yang
-    dipakai. Dua-duanya diperiksa dulu; salah satu salah = tidak ada yang disimpan."""
-
-    def __init__(self, panel, kind, uid, name):
-        super().__init__(panel, bg=BG)
-        self.panel, self.kind, self.uid = panel, kind, uid
-        self.title("Edit akun")
-        self.attributes("-topmost", True)
-        self.resizable(False, False)
-        self.geometry(f"300x186+{panel.winfo_rootx() + 30}+{panel.winfo_rooty() + 90}")
-        if kind == "admin":
-            from elearning import admins
-            pin = admins.get_pin(uid)
-            name = admins.get_name(uid) or name
-        else:
-            from elearning import teachers
-            pin = teachers.get_pin(uid)
-            name = (teachers.get_teacher(uid) or {}).get("name", name)
-        self._old = (name, pin or "")
-        tk.Label(self, text=f"{'Admin' if kind == 'admin' else 'Guru'}  {uid}", bg=BG, fg=FG,
-                 font=BOLD, anchor="w").pack(fill="x", padx=14, pady=(12, 6))
-        grid = tk.Frame(self, bg=BG)
-        grid.pack(fill="x", padx=14)
-        grid.columnconfigure(1, weight=1)
-        self.name_var = tk.StringVar(value=name)
-        self.var = tk.StringVar(value=pin or "")
-        entries = []
-        for r, (label, var) in enumerate((("Nama", self.name_var), ("PIN", self.var))):
-            tk.Label(grid, text=label, bg=BG, fg=MUTED, font=FONT, anchor="w").grid(
-                row=r, column=0, sticky="w", padx=(0, 8), pady=2)
-            e = tk.Entry(grid, textvariable=var, font=FONT, bg=FIELD, fg=FG,
-                         insertbackground=FG, relief="flat")
-            e.grid(row=r, column=1, sticky="ew", pady=2, ipady=3)
-            e.bind("<Return>", lambda ev: self._save())
-            entries.append(e)
-        self.msg = tk.Label(self, text="PIN 4-10 karakter, tanpa spasi.", bg=BG, fg=MUTED,
-                            font=FONT, anchor="w")
-        self.msg.pack(fill="x", padx=14, pady=(6, 0))
-        btns = tk.Frame(self, bg=BG)
-        btns.pack(fill="x", padx=14, pady=(6, 10))
-        tk.Button(btns, text="Simpan", font=BOLD, relief="flat", bg=C.ACCENT, fg="white",
-                  activebackground=C.ACCENT_HOVER, activeforeground="white",
-                  command=self._save).pack(side="left", fill="x", expand=True, ipady=2)
-        tk.Button(btns, text="Batal", font=BOLD, relief="flat", bg=FIELD, fg=FG,
-                  activebackground="#3a3a3a", activeforeground=FG,
-                  command=self.destroy).pack(side="left", fill="x", expand=True, ipady=2,
-                                             padx=(6, 0))
-        self.bind("<Escape>", lambda ev: self.destroy())
-        entries[0].focus_set()
-        entries[0].select_range(0, "end")
-
-    def _save(self):
-        name, pin = " ".join(self.name_var.get().split()), self.var.get()
-        if (name, pin) == self._old:
-            self.destroy()
-            return
-        try:
-            if self.kind == "admin":
-                from elearning import admins
-                admins.check_pin_text(pin)                  # periksa dulu, baru simpan
-                if not name:
-                    raise ValueError("Nama admin belum diisi.")
-                if len(name) > admins.NAME_MAX:
-                    raise ValueError(f"Nama terlalu panjang (maksimal {admins.NAME_MAX} huruf).")
-                if name != self._old[0]:
-                    admins.set_name(self.uid, name)
-                if pin != self._old[1]:
-                    admins.set_pin(self.uid, pin)
-            else:
-                from elearning import teachers
-                teachers._clean_pin(pin)        # kosong = salah, bukan "tetap"
-                if teachers.get_teacher(self.uid) is None:
-                    raise ValueError(f"Guru {self.uid} tidak ditemukan.")
-                teachers.update_teacher(self.uid, name, pin)
-        except ValueError as exc:
-            self.msg.config(text=str(exc), fg=C.ERROR)
-            return
-        except OSError as exc:
-            C.log(f"Dev: akun {self.uid} gagal disimpan: {exc!r}")
-            self.msg.config(text="Gagal menyimpan (folder data?).", fg=C.ERROR)
-            return
-        C.log(f"Dev: akun {self.uid} diubah (nama / PIN)")
-        panel, kind, uid = self.panel, self.kind, self.uid
-        self.destroy()
-        try:
-            panel.reload_accounts(uid)
-            panel._note(f"{uid} disimpan.")
-            panel.app.dev_account_changed(kind, uid)
-        except Exception as exc:
-            C.log(f"Dev: setelah ubah {uid}: {exc!r}")
-
-
-class StudentEditor(tk.Toplevel):
-    """Edit murid (jendela Dev): nama, ID, kategori, status, tanggal lahir, kursus
-    (terbuka / tampil). ID diganti PALING AKHIR beserta semua datanya (students.change_id)."""
-
-    def __init__(self, panel, sid):
-        from elearning import students as ST
-        super().__init__(panel, bg=BG)
-        self.panel, self.ST = panel, ST
-        self.st = ST.lookup_student(sid)
-        self.title(f"Edit {sid}")
-        self.attributes("-topmost", True)
-        self.resizable(False, False)
-        self.geometry(f"+{panel.winfo_rootx() + 30}+{panel.winfo_rooty() + 40}")
-        f = tk.Frame(self, bg=BG, padx=10, pady=10)
-        f.pack(fill="both", expand=True)
-        self.v = {"name": tk.StringVar(value=self.st["name"]),
-                  "id": tk.StringVar(value=self.st["id"]),
-                  "program": tk.StringVar(value=self.st["program"]),
-                  "status": tk.StringVar(value=self.st["status"]),
-                  "birth": tk.StringVar(value=self.st.get("birth") or "")}
-        for r, (label, key) in enumerate((("Nama", "name"), ("ID", "id"),
-                                          ("Tgl lahir (YYYY-MM-DD)", "birth"))):
-            tk.Label(f, text=label, bg=BG, fg=MUTED, font=FONT, anchor="w").grid(
-                row=r, column=0, sticky="w", pady=2)
-            tk.Entry(f, textvariable=self.v[key], font=FONT, bg=FIELD, fg=FG,
-                     insertbackground=FG, relief="flat", width=26).grid(
-                row=r, column=1, columnspan=2, sticky="we", pady=2, ipady=2)
-        for r, (label, key, opts) in enumerate(
-                (("Kategori", "program", (("adult", "Dewasa"), ("kids", "SUPERKIDS"))),
-                 ("Status", "status", (("active", "Active"), ("expired", "Expired")))), start=3):
-            tk.Label(f, text=label, bg=BG, fg=MUTED, font=FONT, anchor="w").grid(
-                row=r, column=0, sticky="w", pady=2)
-            for c, (val, text) in enumerate(opts, start=1):
-                tk.Radiobutton(f, text=text, value=val, variable=self.v[key], font=FONT, bg=BG,
-                               fg=FG, selectcolor=FIELD, activebackground=BG,
-                               activeforeground=FG,
-                               command=self._courses if key == "program" else None).grid(
-                    row=r, column=c, sticky="w")
-        tk.Label(f, text="Kursus            Buka   Tampil", bg=BG, fg=MUTED, font=MONO_B,
-                 anchor="w").grid(row=5, column=0, columnspan=3, sticky="w", pady=(8, 2))
-        self.cbox = tk.Frame(f, bg=BG)
-        self.cbox.grid(row=6, column=0, columnspan=3, sticky="we")
-        self.msg = tk.Label(f, text="", bg=BG, fg=C.ERROR, font=FONT, anchor="w",
-                            wraplength=300, justify="left")
-        self.msg.grid(row=7, column=0, columnspan=3, sticky="we", pady=(6, 0))
-        tk.Button(f, text="Simpan", font=BOLD, relief="flat", bg=C.ACCENT, fg="white",
-                  activebackground=C.ACCENT_HOVER, activeforeground="white",
-                  command=self._save).grid(row=8, column=0, columnspan=3, sticky="we",
-                                           pady=(8, 0), ipady=3)
-        self.bind("<Escape>", lambda e: self.destroy())
-        self._courses()
-
-    def _courses(self):
-        """Daftar kursus untuk kategori yang dipilih (ganti kategori = ganti daftar)."""
-        from elearning.courses import courses_for
-        for w in self.cbox.winfo_children():
-            w.destroy()
-        prog = self.v["program"].get()
-        same = prog == self.st["program"]
-        opened = set(self.st["courses"]) if same else set()
-        hidden = set(self.st.get("hidden") or ()) if same else set()
-        self.cv = []
-        for n, c in enumerate(courses_for(prog)):
-            o = tk.BooleanVar(value=c["id"] in opened or (not same and n == 0))
-            t = tk.BooleanVar(value=c["id"] not in hidden)
-            tk.Label(self.cbox, text=c["title"][:16], bg=BG, fg=FG, font=MONO, width=17,
-                     anchor="w").grid(row=n, column=0, sticky="w")
-            for col, var in ((1, o), (2, t)):
-                tk.Checkbutton(self.cbox, variable=var, bg=BG, selectcolor=FIELD,
-                               activebackground=BG).grid(row=n, column=col, padx=4)
-            self.cv.append((c["id"], o, t))
-
-    def _save(self):
-        ST, sid = self.ST, self.st["id"]
-        try:
-            if self.v["program"].get() != self.st["program"]:
-                ST.set_program(sid, self.v["program"].get())
-            for cid, o, t in self.cv:
-                ST.set_course_access(sid, cid, o.get())
-                ST.set_course_hidden(sid, cid, not t.get())
-            if self.v["name"].get().strip() != self.st["name"]:
-                ST.rename_student(sid, self.v["name"].get())
-            if self.v["status"].get() != self.st["status"]:
-                ST.set_status(sid, self.v["status"].get())
-            birth = self.v["birth"].get().strip()
-            if birth != (self.st.get("birth") or ""):
-                ST.set_birth(sid, birth or None)
-            new_id = self.v["id"].get().strip().upper()
-            if new_id and new_id != sid:
-                ST.change_id(sid, new_id)       # paling akhir: pindahkan semua data
-                sid = new_id
-        except (ValueError, KeyError) as exc:
-            self.msg.config(text=str(exc).strip("'"))
-            return
-        except OSError as exc:
-            C.log(f"Dev edit murid {sid}: {exc!r}")
-            self.msg.config(text="Gagal menyimpan (folder data?).")
-            return
-        C.log(f"Dev: murid {self.st['id']} diedit -> {sid}")
-        self.panel.reload_accounts(sid)
-        self.panel._note(f"Tersimpan: {sid}")
-        try:
-            self.panel._student_changed(self.st["id"], sid)   # perubahan langsung terlihat
-        except Exception as exc:
-            C.log(f"Dev: layar tidak dibangun ulang: {exc!r}")
-        self.destroy()
