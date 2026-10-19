@@ -177,8 +177,8 @@ TEACHERS_FILE = os.path.join(DATA_DIR, "teachers.json")  # akun guru (diatur adm
 PERF_PRESETS = (
     # kunci, label, keterangan, (thread kerja, mode ringan, PC kuat 60 fps)
     ("auto", "Otomatis", "Dideteksi dari PC ini (jumlah thread CPU + driver NVIDIA).", None),
-    ("ryzen3", "Ryzen 3", "PC 4 thread, mis. Ryzen 3 2200G + Vega 8: MODE RINGAN (tanpa video "
-     "latar & animasi, carousel diam, video tanpa decode GPU), 1 thread kerja, maks. 30 fps.",
+    ("ryzen3", "Ryzen 3", "PC 4 thread, mis. Ryzen 3 2200G + Vega 8: MODE RINGAN (latar gambar "
+     "statis, tanpa animasi, carousel diam, video tanpa decode GPU), 1 thread kerja, maks. 30 fps.",
      (1, True, False)),
     ("ryzen5", "Ryzen 5", "PC 8+ thread tanpa GPU terpisah, mis. Ryzen 5 2400G + Vega 11: "
      "animasi & video latar menyala, 2 thread kerja, maks. 30 fps.", (2, False, False)),

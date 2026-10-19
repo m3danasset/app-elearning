@@ -344,6 +344,29 @@ class Carousel3D:
         self._display(time.perf_counter(), geo, render(geo, [list(t) for t in self.tex],
                                                         self._phase(),
                                                         self._band_bg(geo, vframe), ov), vframe)
+        if self.static and (vframe is None or vframe.size != (geo.W, geo.H)):
+            self._wait_static_bg(30)
+
+    def _wait_static_bg(self, tries):
+        """Mode ringan (tanpa _tick): latar gambar statis disiapkan di thread pemutar dan
+        datang sesaat setelah ukuran berubah -> cek tiap 100 ms (maks. 3 dtk), tempel SEKALI."""
+        if self._after is not None:
+            try:
+                self.bg.after_cancel(self._after)
+            except Exception:
+                pass
+            self._after = None
+        geo = self.geo
+        if geo is None or self._stop.is_set():
+            return
+        vframe = self.bg.video_frame()
+        if vframe is not None and vframe.size == (geo.W, geo.H):
+            self._display(time.perf_counter(), geo,
+                          render(geo, [list(t) for t in self.tex], self._phase(),
+                                 self._band_bg(geo, vframe), self._ov_band), vframe)
+            return
+        if tries > 0:
+            self._after = self.bg.after(100, self._wait_static_bg, tries - 1)
 
     def _phase(self, t=None):
         return ((t or time.perf_counter()) - self._t0) * SPEED

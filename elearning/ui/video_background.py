@@ -43,10 +43,9 @@ def log(msg):
 
 
 def find_video(folder):
-    """Video pertama (urut abjad) di folder, atau None kalau tidak ada / mode ringan
-    (config.lite: semua video latar mati, latar polos)."""
-    if C.lite():
-        return None
+    """Video pertama (urut abjad) di folder, atau None kalau tidak ada. Mode ringan
+    (config.lite, preset Ryzen 3) tetap memakai latar, tapi VideoPlayer membuatnya GAMBAR
+    STATIS (satu frame, tanpa video berjalan)."""
     try:
         names = sorted(os.listdir(folder))
     except OSError:
@@ -62,7 +61,8 @@ class VideoPlayer(threading.Thread):
 
     def __init__(self, path, dim=0.5, max_fps=30, static=None):
         super().__init__(daemon=True)
-        self.static = getattr(C, "STATIC_BG", False) if static is None else static
+        # mode ringan: latar SELALU statis (satu frame), walau STATIC_BG dimatikan
+        self.static = (getattr(C, "STATIC_BG", False) or C.lite()) if static is None else static
         self.path = path
         self.dim = dim
         self.max_fps = max_fps

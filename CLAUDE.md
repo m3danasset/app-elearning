@@ -14,8 +14,9 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 3. Animasi harus mulus, tidak patah-patah: jadwal frame tetap, gerakan berbasis waktu.
    SEMUA animasi UI maks. 30 fps (pakai config.UI_FPS / UI_FRAME_MS, jangan angka sendiri).
    MODE RINGAN (config.lite()): otomatis di PC <= 4 thread (config.LOW_END_PC, mis. Ryzen 3
-   2200G + Vega 8, kena AMD "driver timeout"), atau fitur Dev "animations" dimatikan: TANPA
-   video latar (video_background.find_video -> None: login, Dashboard murid/admin/guru),
+   2200G + Vega 8, kena AMD "driver timeout"; Dev > Performa preset Ryzen 3), atau fitur Dev
+   "animations" dimatikan: latar = GAMBAR STATIS (VideoPlayer static dipaksa: satu frame,
+   tanpa video berjalan; login: carousel diam menunggu frame itu lewat _wait_static_bg),
    carousel login diam tanpa kartu & tanpa thread (Carousel3D.static: pita digambar ulang
    hanya di configure), geser kartu Dashboard murid langsung, palette / file browser tanpa
    fade, notifikasi badge tanpa geser, layar penuh pelajaran tanpa fade, mpv hwdec=no +
