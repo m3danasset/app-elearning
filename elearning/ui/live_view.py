@@ -25,6 +25,7 @@ KIND_COLOR = {"video": "#7cc8ff", "blender": "#ea7600", "browse": "#b39af0", "pa
 KIND_LABEL = (("blender", "di Blender"), ("video", "menonton"), ("browse", "browsing"),
               ("page", "di aplikasi"), ("idle", "diam"))
 CARD_W, CARD_H, GAP = 300, 118, 10
+AVATAR = 44                # foto murid di kartu
 
 
 def _fmt(sec):
@@ -41,7 +42,9 @@ class LiveBoard(tk.Frame):
                   "name": tkfont.Font(family=C.FONT, size=11, weight="bold"),
                   "t": tkfont.Font(family=C.FONT, size=10),
                   "s": tkfont.Font(family=C.FONT, size=9),
-                  "big": tkfont.Font(family=C.FONT, size=18, weight="bold")}
+                  "big": tkfont.Font(family=C.FONT, size=18, weight="bold"),
+                  "av": tkfont.Font(family=C.FONT, size=14, weight="bold")}
+        self._photos = {}          # PhotoImage foto murid (dibuat sekali per foto & warna)
         self.note = tk.Label(self, text="Memuat…", bg=bg, fg=C.MUTED, font=(C.FONT, 10),
                              anchor="w")
         self.note.pack(fill="x", pady=(0, 10))
@@ -187,17 +190,15 @@ class LiveBoard(tk.Frame):
         text, kind = P.activity(r)
         color = KIND_COLOR.get(kind, C.MUTED)
         self._card(x, y, w, CARD_H, border=color if kind in ("blender", "video") else None)
-        d = I.dot(color, C.CARD, 12, 5.5)
-        if d is not None:
-            self._imgs.append(d)
-            cv.create_image(x + 22, y + 22, image=d)
         name = r.get("name") or r.get("id")
-        cv.create_text(x + 36, y + 13, text=self._fit(name, w - 120, self.f["name"]),
+        self._avatar(r.get("id", ""), name, x + 14, y + 12, color)
+        tx = x + 14 + AVATAR + 12
+        cv.create_text(tx, y + 13, text=self._fit(name, x + w - 70 - tx, self.f["name"]),
                        anchor="nw", fill=C.TEXT, font=self.f["name"])
         cv.create_text(x + w - 16, y + 15, text=r.get("id", ""), anchor="ne", fill=C.MUTED,
                        font=self.f["s"])
-        cv.create_text(x + 16, y + 40, text=self._fit(text, w - 32, self.f["t"]), anchor="nw",
-                       fill=color if kind != "idle" else C.MUTED, font=self.f["t"])
+        cv.create_text(tx, y + 35, text=self._fit(text, x + w - 16 - tx, self.f["t"]),
+                       anchor="nw", fill=color if kind != "idle" else C.MUTED, font=self.f["t"])
         sub = r.get("course_title") or ""
         if r.get("blender") and kind != "blender":
             sub = (sub + "  ·  " if sub else "") + "Blender terbuka"
@@ -222,6 +223,34 @@ class LiveBoard(tk.Frame):
         cv.create_text(x + 16, y + CARD_H - 12, text=self._fit(foot, w - 32, self.f["s"]),
                        anchor="sw", fill=C.LOCKED, font=self.f["s"])
         self._hits.append((x, y, x + w, y + CARD_H, r.get("id")))
+
+    def _avatar(self, sid, name, x, y, color):
+        """Foto murid bulat (cincin warna aktivitas); tanpa foto = inisial di lingkaran warna."""
+        from elearning import photos
+        from elearning.ui.avatar import PALETTE, initials
+        fill = PALETTE[sum(ord(c) for c in str(sid)) % len(PALETTE)]
+        try:
+            rendered = photos.render_avatar(sid, AVATAR, C.CARD, fill=fill, ring=color,
+                                            ring_width=2)
+        except Exception as exc:
+            C.log(f"Live kelas: foto {sid}: {exc!r}")
+            rendered = None
+        if rendered is None:
+            d = I.dot(color, C.CARD, 12, 5.5)
+            if d is not None:
+                self._imgs.append(d)
+                self.cv.create_image(x + AVATAR / 2, y + AVATAR / 2, image=d)
+            return
+        img, has_photo = rendered
+        key = (sid, color, id(img))
+        ph = self._photos.get(key)
+        if ph is None:
+            ph = self._photos[key] = photos.to_photoimage(img)
+        self._imgs.append(ph)
+        self.cv.create_image(x, y, image=ph, anchor="nw")
+        if not has_photo:
+            self.cv.create_text(x + AVATAR / 2, y + AVATAR / 2, text=initials(name),
+                                fill="white", font=self.f["av"])
 
     @staticmethod
     def _fit(text, px, f):
