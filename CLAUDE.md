@@ -329,6 +329,13 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   / "Kecilkan". PENUH = laci naik tepat di bawah widget, menutupi sapaan, bisa digulir +
   pudar bawah. Roda mouse: ke bawah di laci kecil = buka; ke atas di laci penuh (posisi
   paling atas) = kecilkan. Mode atur widget memakai susunan lama (baki, kartu di bawahnya).
+- Laci BERANIMASI (DRAWER_MS 420, ease-out; gulir laci penuh halus SCROLL_MS 200, roda berturut
+  = tujuan diganti): kartu digambar SEKALI ke pita RGBA (_card_strip, item canvas "strip") + teks
+  "ct", tiap frame hanya canvas.move (jadwal frame tetap dari jam mulai, UI_FRAME_MS); latar =
+  lapisan TANPA kartu (_no_cards). Gulir: penutup tepi (_edge_covers = potongan latar, pudar
+  atas/bawah sama dengan _fade). Sapaan memudar saat laci naik / muncul saat turun. Selesai /
+  ukuran berubah / data dimuat -> _stop_anim (keadaan tujuan) + _layout biasa. Mode ringan:
+  langsung. Ukur: rata-rata 34-35 ms / frame di 1080p & 1440p, persiapan 70-170 ms sekali.
 
 - Halaman utama murid (course_dock): kartu kursus 1:1 dengan cahaya gradasi warna kursus dari kiri-atas
   (_tint, sama gaya kartu Dashboard); terkunci = gradasi samar; hover sedikit lebih terang.

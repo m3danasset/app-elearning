@@ -13,6 +13,7 @@ Data dihitung di thread (dashboard.items), diperbarui tiap 60 detik.
 
 import os
 import threading
+import time
 import tkinter as tk
 import tkinter.font as tkfont
 
@@ -37,6 +38,8 @@ PEN_D = 36                  # tombol pena (mode atur widget)
 DEL_D = 22                  # tombol x (sembunyikan widget, mode atur)
 CHIP_H = 34                 # widget tersembunyi di baki (mode atur)
 HANDLE_D = 30               # tombol panah laci kartu (kecilkan / tampilkan semua)
+DRAWER_MS = 420             # laci kartu naik / turun (ease-out, maks. 30 fps, berbasis waktu)
+SCROLL_MS = 200             # gulir kartu di laci penuh (halus, bukan loncat 80 px)
 WIDGET_ACCENT = {"clock": BLUE, "done": "#3fb68b", "online": "#ea7600", "date": "#b39af0",
                  "signups": "#ea7600", "certs": "#3fb68b", "classes": BLUE,
                  "students": BLUE, "idle": "#e3c26f", "unscheduled": "#e3c26f",
@@ -144,6 +147,12 @@ class DashboardView(tk.Canvas):
         self.card_scroll = 0           # gulir area kartu (px); widget & sapaan tidak ikut
         self.drawer_open = False       # laci kartu: kecil (1 baris di bawah) / penuh
         self._handle = None            # (cx, cy) tombol panah laci
+        self._anim = None              # animasi laci / gulir yang sedang berjalan
+        self._anim_job = None
+        self._no_cards = False         # _build_layer tanpa kartu (kartu di pita animasi)
+        self._all_rows = False         # _draw_cards_text: semua baris (juga di bawah layar)
+        self._base_rgb = None          # latar + widget tanpa kartu (penutup tepi saat gulir)
+        self._greet_fill = {}
         self.cards_top = TOP_H
         self._size = (0, 0)
         self._layer = None
@@ -295,6 +304,7 @@ class DashboardView(tk.Canvas):
         return WIDGET_Y + area + 40 + 56 + 54
 
     def _layout(self):
+        self._stop_anim()
         W, H = self._size
         if W < 100 or H < 100:
             return
@@ -317,12 +327,7 @@ class DashboardView(tk.Canvas):
             first_y = top + 12
         else:
             self.shift = 0                   # widget di atas, sapaan di tengah layar
-            wb = (max(r[3] for r in self._widget_rects()) if self.widgets
-                  else WIDGET_Y + 36)
-            if self.drawer_open:             # laci penuh: naik sampai di bawah widget
-                hy = wb + 34
-            else:                            # laci kecil: 1 baris kartu di paling bawah
-                hy = H - PAD - CARD_H - 30
+            hy = self._drawer_y(self.drawer_open)
             self._handle = (W / 2, hy) if rows > 1 or self.drawer_open else None
             top = self.cards_top = hy + 22
             first_y = top + 6
@@ -344,6 +349,21 @@ class DashboardView(tk.Canvas):
         self.itemconfigure(self._hover_item, state="hidden")
         self._build_layer()
         self._draw_text()
+
+    def _drawer_y(self, open_):
+        """y tombol panah laci: penuh = tepat di bawah widget, kecil = 1 baris di bawah layar.
+        Kartu pertama mulai di y + 28."""
+        if open_:
+            wb = (max(r[3] for r in self._widget_rects()) if self.widgets
+                  else WIDGET_Y + 36)
+            return wb + 34
+        return self._size[1] - PAD - CARD_H - 30
+
+    def _max_scroll(self, top):
+        cols = self._cols(self._size[0])
+        n = len(self.items or [])
+        rows = -(-n // cols) if n else 0
+        return max(0, rows * (CARD_H + GAP) + FADE_BOTTOM - (self._size[1] - top))
 
     def _widget_rects(self):
         """Kotak widget terpasang (urut slot). Biasa: rapat & di tengah; atur: posisi slot."""
@@ -427,48 +447,61 @@ class DashboardView(tk.Canvas):
         cards = Image.new("RGBA", (W, H), (0, 0, 0, 0))
         tgt[0] = cards                   # kartu: lapisan sendiri, lalu dipudarkan di tepi
         for i, (x0, y0, x1, y1) in enumerate(self.rects):
+            if self._no_cards:           # animasi laci: kartu ada di pita sendiri (_card_strip)
+                break
             if y1 + 40 < self.cards_top or y0 > H + 40:
                 continue
-            it = self.items[i]
-            lv = _level_color(it["level"])
-            hov = False                  # sorotan kursor: gambar bingkai terpisah (_set_hover)
-            w, h = int(x1 - x0), int(y1 - y0)
-            sh, pad = _shadow(w, h, 16, 14, 95)
-            place(sh, x0 - pad, y0 + dy - pad + 6)
-            border = _mix(C.BORDER, lv, 0.35) if it["level"] == "urgent" else C.BORDER
-            place(body(w, h, border), x0, y0 + dy)
-            place(self._tint(w, h, lv, it["level"]), x0, y0 + dy)
-            # ikon bulat (redup untuk info / selesai)
-            disc = lv if it["level"] in ("urgent", "todo") else _mix(C.CARD, lv, 0.55)
-            try:
-                def make_icon(name=it["icon"], disc=disc):
-                    icon = I._render_icon(name, "#ffffff", C.CARD, ICON, disc=disc)
-                    icon = icon.convert("RGBA")
-                    icon.putalpha(I.round_mask(ICON, ICON, ICON / 2))
-                    return icon
-                place(_cached(("icon", it["icon"], disc), make_icon), x0 + 20, y0 + dy + 20)
-            except Exception:
-                pass
-            # tombol aksi (kanan bawah)
-            bw, bh = self._btn_size(it)
-            bx, by = x1 - 18 - bw, y1 - 16 - bh
-            if it["level"] in ("urgent", "todo"):
-                fill = _mix(lv, "#ffffff", 0.12) if hov else lv
-            else:
-                fill = _mix(C.CARD, "#ffffff", 0.14 if hov else 0.08)
-            btn = Image.new("RGBA", (bw, bh), I._rgb(fill) + (0,))
-            btn.putalpha(I.round_mask(bw, bh, bh / 2))
-            place(btn, bx, by + dy)
-            if it["level"] == "urgent":          # titik "belum dibaca"
-                dot = Image.new("RGBA", (10, 10), I._rgb(lv) + (0,))
-                dot.putalpha(I.round_mask(10, 10, 5))
-                place(dot, x1 - 22, y0 + dy + 16)
+            self._paint_card(place, i, x0, y0, x1, y1)
         a = cards.getchannel("A")
         cards.putalpha(Image.composite(a, Image.new("L", (W, H), 0), self._fade_mask(W, H)))
         layer.alpha_composite(cards)
         self._layer = layer
         self.video.layer = layer if self.video.ok() else None
         self._show_static()
+
+    def _paint_card(self, place, i, x0, y0, x1, y1):
+        """Satu kartu (bayangan + badan + cahaya + ikon + tombol) lewat place(img, x, y)."""
+        Image = photos.Image
+        card = I._rgb(C.CARD)
+
+        def make_body(w, h, border, alpha=CARD_ALPHA):
+            img = Image.new("RGBA", (w, h), I._rgb(border) + (0,))
+            img.putalpha(I.round_mask(w, h, 16).point(lambda v: int(v * alpha)))
+            inner = Image.new("RGBA", (w - 2, h - 2), card + (0,))
+            inner.putalpha(I.round_mask(w - 2, h - 2, 15).point(lambda v: int(v * alpha)))
+            img.alpha_composite(inner, (1, 1))
+            return img
+
+        it = self.items[i]
+        lv = _level_color(it["level"])
+        w, h = int(x1 - x0), int(y1 - y0)
+        sh, pad = _shadow(w, h, 16, 14, 95)
+        place(sh, x0 - pad, y0 - pad + 6)
+        border = _mix(C.BORDER, lv, 0.35) if it["level"] == "urgent" else C.BORDER
+        place(_cached(("body", w, h, border, C.CARD), lambda: make_body(w, h, border)), x0, y0)
+        place(self._tint(w, h, lv, it["level"]), x0, y0)
+        # ikon bulat (redup untuk info / selesai)
+        disc = lv if it["level"] in ("urgent", "todo") else _mix(C.CARD, lv, 0.55)
+        try:
+            def make_icon(name=it["icon"], disc=disc):
+                icon = I._render_icon(name, "#ffffff", C.CARD, ICON, disc=disc)
+                icon = icon.convert("RGBA")
+                icon.putalpha(I.round_mask(ICON, ICON, ICON / 2))
+                return icon
+            place(_cached(("icon", it["icon"], disc), make_icon), x0 + 20, y0 + 20)
+        except Exception:
+            pass
+        # tombol aksi (kanan bawah); sorotan kursor = bingkai terpisah (_set_hover)
+        bw, bh = self._btn_size(it)
+        bx, by = x1 - 18 - bw, y1 - 16 - bh
+        fill = lv if it["level"] in ("urgent", "todo") else _mix(C.CARD, "#ffffff", 0.08)
+        btn = Image.new("RGBA", (bw, bh), I._rgb(fill) + (0,))
+        btn.putalpha(I.round_mask(bw, bh, bh / 2))
+        place(btn, bx, by)
+        if it["level"] == "urgent":          # titik "belum dibaca"
+            dot = Image.new("RGBA", (10, 10), I._rgb(lv) + (0,))
+            dot.putalpha(I.round_mask(10, 10, 5))
+            place(dot, x1 - 22, y0 + 16)
 
     def _draw_widgets(self, rects, dy):
         """Isi tiap widget (teks) sesuai jenisnya + tombol tambah / hapus (tersembunyi)."""
@@ -905,7 +938,10 @@ class DashboardView(tk.Canvas):
             base = Image.new("RGBA", (W, H), I._rgb(C.BG) + (255,))
         if self._layer is not None:
             base.alpha_composite(self._layer)
-        self._photo = photos.to_photoimage(base.convert("RGB"))
+        rgb = base.convert("RGB")
+        if self._no_cards:
+            self._base_rgb = rgb
+        self._photo = photos.to_photoimage(rgb)
         self.itemconfigure(self._img_item, image=self._photo)
 
     def _draw_text(self):
@@ -928,25 +964,34 @@ class DashboardView(tk.Canvas):
                 self._draw_cards_text(W, H)
                 self._fade_text()
             return
-        wb = max(r[3] for r in rects) if rects else WIDGET_Y + 36
         bottom = self._handle[1] - HANDLE_D if self._handle else \
             (min(r[1] for r in self.rects if r[1] > -1000) if self.rects else H)
+        self._draw_greeting(rects, bottom)
+        self._draw_widgets(rects, dy)
+        if self.items is None:
+            return
+        self._draw_cards_text(W, H)
+        self._fade_text()
+
+    def _draw_greeting(self, rects, bottom, fade=1.0):
+        """Sapaan besar + baris tanggal di tengah antara widget dan laci (bottom = atas laci)."""
+        W = self._size[0]
+        name = (self.user or {}).get("name", "")
+        wb = max(r[3] for r in rects) if rects else WIDGET_Y + 36
         gy = max(wb + 30, (wb + bottom) / 2 - 46)       # tengah antara widget & laci
-        self.create_text(W / 2, gy + dy, anchor="n", tags="txt", font=self.f["hero"],
-                         fill=C.TEXT, text=f"{D.greeting()}, {name}")
         if self.items is None:
             sub = f"{D.today_text()}  ·  memuat…"
         else:
             todo = sum(1 for it in self.items if it["level"] in ("urgent", "todo"))
             sub = (f"{D.today_text()}  ·  " +
                    (f"{todo} hal perlu dikerjakan" if todo else "semua beres, kerja bagus!"))
-        self.create_text(W / 2, gy + 70 + dy, anchor="n", tags="txt", font=self.f["sub"],
-                         fill=C.MUTED, text=sub)
-        self._draw_widgets(rects, dy)
-        if self.items is None:
-            return
-        self._draw_cards_text(W, H)
-        self._fade_text()
+        self._greet_fill = {}
+        for y, font, fill, text in ((gy, "hero", C.TEXT, f"{D.greeting()}, {name}"),
+                                    (gy + 70, "sub", C.MUTED, sub)):
+            item = self.create_text(W / 2, y, anchor="n", tags=("txt", "greet"),
+                                    font=self.f[font], text=text,
+                                    fill=fill if fade >= 1 else _mix(C.BG, fill, fade))
+            self._greet_fill[item] = fill
 
     def _draw_handle(self):
         """Tombol panah minimalis di atas laci kartu + keterangan kecil."""
@@ -971,9 +1016,189 @@ class DashboardView(tk.Canvas):
 
     def _toggle_drawer(self, _e=None):
         self._ate_click = True
-        self.drawer_open = not self.drawer_open
-        self.card_scroll = 0
-        self._layout()
+        if self._anim is not None and self._anim["kind"] == "drawer":
+            return                           # sedang bergerak: tunggu sampai berhenti
+        self._start_anim("drawer", not self.drawer_open, 0)
+
+    # --- animasi laci & gulir ---------------------------------------------------------------
+    # Kartu digambar SEKALI ke satu pita RGBA (item canvas sendiri) + teksnya; tiap frame hanya
+    # digeser (canvas.move), tidak digambar ulang. Latar di belakangnya = lapisan TANPA kartu.
+    # Selesai -> susunan biasa digambar ulang (_layout). Mode ringan: langsung, tanpa animasi.
+    def _start_anim(self, kind, to_open, to_scroll):
+        """kind "drawer": laci naik (to_open) / turun; "scroll": gulir laci penuh ke to_scroll."""
+        W, H = self._size
+        if C.lite() or self.editing or not self.items or W < 100 or H < 100:
+            self._stop_anim()
+            self.drawer_open, self.card_scroll = to_open, to_scroll
+            self._layout()
+            return
+        to_first = self._drawer_y(to_open) + 28 - to_scroll
+        a = self._anim
+        if a is not None and a["kind"] == kind == "scroll":     # gulir lagi: ganti tujuan
+            a.update(y0=a["cur"], y1=to_first, to_scroll=to_scroll, t0=time.perf_counter(), k=0)
+            return
+        self._stop_anim()
+        self._set_hover(None)
+        from_hy = self._drawer_y(self.drawer_open)
+        from_first = from_hy + 28 - self.card_scroll
+        cols = self._cols(W)
+        cw = (W - 2 * PAD - (cols - 1) * GAP) / cols
+        n = len(self.items)
+        # 1) latar + widget TANPA kartu
+        self._no_cards = True
+        try:
+            self._build_layer()
+        finally:
+            self._no_cards = False
+        # 2) pita kartu (semua baris)
+        strip, pad = self._card_strip(cols, cw, n)
+        self._strip_photo = photos.to_photoimage(strip)
+        self.create_image(0, int(round(from_first)) - pad, anchor="nw", image=self._strip_photo,
+                          tags=("anim", "strip"))
+        # 3) teks: semua kartu di posisi awal, warna utuh (tanpa pudar tepi)
+        rowh = CARD_H + GAP
+        self.rects = []
+        for i in range(n):
+            r, c = divmod(i, cols)
+            x0 = PAD + c * (cw + GAP)
+            y0 = int(round(from_first)) + r * rowh
+            self.rects.append((x0, y0, x0 + cw, y0 + CARD_H))
+        self._all_rows = True
+        try:
+            self._draw_text()
+        finally:
+            self._all_rows = False
+        for item in self.find_withtag("ct"):        # juga yang tadi disembunyikan _fade_text
+            base = self._ct_color.get(item)
+            if base is not None:
+                self.itemconfigure(item, state="normal", fill=base)
+            else:
+                self.itemconfigure(item, state="normal")
+        self.addtag_withtag("anim", "ct")
+        if kind == "drawer" and self.drawer_open:   # laci turun: sapaan muncul pelan
+            self._draw_greeting(self._widget_rects(), self._drawer_y(False) - HANDLE_D, fade=0.0)
+        # 4) urutan: latar < sapaan < pita < teks kartu < penutup tepi < widget & tombol
+        self.tag_raise("strip")
+        self.tag_raise("ct")
+        if kind == "scroll":
+            self._edge_covers()
+        for item in self.find_withtag("txt"):
+            tags = self.gettags(item)
+            if "ct" not in tags and "greet" not in tags:
+                self.addtag_withtag("wtop", item)
+        self.tag_raise("wtop")
+        self._anim = {"kind": kind, "to_open": to_open, "to_scroll": to_scroll,
+                      "y0": from_first, "y1": to_first, "cur": int(round(from_first)),
+                      "h0": from_hy, "h1": self._drawer_y(to_open), "hcur": int(round(from_hy)),
+                      "greet_in": kind == "drawer" and self.drawer_open,
+                      "ms": DRAWER_MS if kind == "drawer" else SCROLL_MS,
+                      "t0": time.perf_counter()}     # jam mulai SETELAH persiapan
+        self._anim_step()
+
+    def _card_strip(self, cols, cw, n):
+        """Semua kartu (koordinat lokal, baris pertama di y = pad) ke satu gambar RGBA."""
+        Image = photos.Image
+        W = self._size[0]
+        rows = -(-n // cols)
+        pad = 40                            # ruang bayangan di atas / bawah
+        strip = Image.new("RGBA", (W, rows * (CARD_H + GAP) + 2 * pad), (0, 0, 0, 0))
+
+        def place(img, x, y):
+            x, y = int(round(x)), int(round(y))
+            sx0, sy0 = max(0, -x), max(0, -y)
+            sx1, sy1 = min(img.width, strip.width - x), min(img.height, strip.height - y)
+            if sx1 > sx0 and sy1 > sy0:
+                strip.alpha_composite(img.crop((sx0, sy0, sx1, sy1)), (x + sx0, y + sy0))
+        for i in range(n):
+            r, c = divmod(i, cols)
+            x0 = PAD + c * (cw + GAP)
+            y0 = pad + r * (CARD_H + GAP)
+            self._paint_card(place, i, x0, y0, x0 + cw, y0 + CARD_H)
+        return strip, pad
+
+    def _edge_covers(self):
+        """Gulir laci penuh: potongan latar (tanpa kartu) di atas pita, meniru pudar tepi
+        atas (di bawah widget) dan bawah layar. Bagian atas padat = gambar RGB (ringan)."""
+        base = self._base_rgb
+        if base is None:
+            return
+        Image = photos.Image
+        W, H = self._size
+        top = int(self.cards_top)
+        self._cover_imgs = []
+
+        def faded(y0, y1):
+            band = base.crop((0, y0, W, y1)).convert("RGBA")
+            col = Image.new("L", (1, y1 - y0))
+            col.putdata([int(255 * (1 - self._fade(y + 0.5))) for y in range(y0, y1)])
+            band.putalpha(col.resize((W, y1 - y0)))
+            return band
+        parts = [(photos.to_photoimage(base.crop((0, 0, W, top))), 0)] if top > 0 else []
+        parts.append((photos.to_photoimage(faded(top, min(H, top + FADE_TOP))), top))
+        parts.append((photos.to_photoimage(faded(H - FADE_BOTTOM, H)), H - FADE_BOTTOM))
+        for ph, y in parts:
+            self._cover_imgs.append(ph)
+            self.create_image(0, y, anchor="nw", image=ph, tags=("cover",))
+        self.tag_raise("cover")
+
+    def _anim_step(self):
+        self._anim_job = None
+        a = self._anim
+        if a is None or self._closed:
+            return
+        t_start = time.perf_counter()
+        t = min(1.0, (t_start - a["t0"]) * 1000.0 / a["ms"])
+        e = 1 - (1 - t) ** 3                  # ease-out: cepat lalu melambat
+        y = int(round(a["y0"] + (a["y1"] - a["y0"]) * e))
+        if y != a["cur"]:
+            self.move("anim", 0, y - a["cur"])
+            a["cur"] = y
+        if a["kind"] == "drawer":
+            hy = int(round(a["h0"] + (a["h1"] - a["h0"]) * e))
+            if hy != a["hcur"]:
+                self.move("handle", 0, hy - a["hcur"])
+                a["hcur"] = hy
+            # sapaan tertutup laci saat naik, muncul lagi saat laci turun
+            g = max(0.0, (e - 0.45) / 0.55) if a["greet_in"] else max(0.0, 1 - e * 1.8)
+            for item, fill in self._greet_fill.items():
+                self.itemconfigure(item, fill=_mix(C.BG, fill, g))
+        if t < 1.0:     # jadwal frame tetap dari jam mulai (gambar ulang Tk ikut terhitung)
+            a["k"] = max(a.get("k", 0) + 1, int((t_start - a["t0"]) * 1000 / C.UI_FRAME_MS) + 1)
+            due = a["t0"] + a["k"] * C.UI_FRAME_MS / 1000.0
+            self._anim_job = self.after(max(1, int((due - time.perf_counter()) * 1000)),
+                                        self._anim_step)
+            return
+        self._finish_anim()
+
+    def _finish_anim(self):
+        """Animasi selesai: keadaan akhir + susunan biasa (pudar tepi, kursor aktif lagi)."""
+        self._layout()                        # _stop_anim menerapkan keadaan tujuan
+        try:
+            x, y = self.winfo_pointerx() - self.winfo_rootx(), self.winfo_pointery() - \
+                self.winfo_rooty()
+            self._set_hover(self._index_at(x, y))
+        except tk.TclError:
+            pass
+
+    def _stop_anim(self):
+        """Hentikan animasi (selesai, ukuran berubah, data dimuat ulang): langsung ke keadaan
+        tujuan, hapus pita & penutup."""
+        a, self._anim = self._anim, None
+        if self._anim_job is not None:
+            try:
+                self.after_cancel(self._anim_job)
+            except tk.TclError:
+                pass
+            self._anim_job = None
+        if a is None:
+            return
+        self.drawer_open, self.card_scroll = a["to_open"], a["to_scroll"]
+        self.delete("strip")
+        self.delete("cover")
+        self.dtag("anim", "anim")
+        self.dtag("wtop", "wtop")
+        self._strip_photo = None
+        self._cover_imgs = []
 
     def _fade_text(self):
         """Teks kartu di tepi area gulir: warnanya dicampur ke latar (ikut memudar)."""
@@ -1003,7 +1228,7 @@ class DashboardView(tk.Canvas):
                              fill=C.MUTED, text="Belum ada yang bisa ditampilkan.")
             return
         for i, (x0, y0, x1, y1) in enumerate(self.rects):
-            if y1 + dy < -40 or y0 + dy > H + 40:
+            if not self._all_rows and (y1 + dy < -40 or y0 + dy > H + 40):
                 continue
             it = self.items[i]
             lv = _level_color(it["level"])
@@ -1077,7 +1302,7 @@ class DashboardView(tk.Canvas):
         self.coords(self._hover_item, int(round(x0)), int(round(y0)))
 
     def _motion(self, e):
-        if self._drag is not None:
+        if self._drag is not None or self._anim is not None:
             return
         self._set_hover(self._index_at(e.x, e.y))
         if any(x0 <= e.x < x1 and y0 <= e.y < y1 for x0, y0, x1, y1 in self._wrects):
@@ -1088,6 +1313,8 @@ class DashboardView(tk.Canvas):
     def _click(self, e):
         if self._ate_click:              # klik di tombol pena / x
             self._ate_click = False
+            return
+        if self._anim is not None:       # laci / kartu sedang bergerak
             return
         if self.editing:
             self._press_edit(e)
@@ -1105,16 +1332,25 @@ class DashboardView(tk.Canvas):
     def _wheel(self, e):
         """Roda mouse: area kartu digulir atas-bawah (tanpa scrollbar); widget & sapaan diam.
         Kartu memudar di batas atas area dan di bawah layar."""
+        a = self._anim
+        if a is not None and a["kind"] == "drawer":
+            return                           # laci sedang naik / turun
+        scroll = a["to_scroll"] if a is not None else self.card_scroll
         if not self.editing and self._handle is not None:
             if not self.drawer_open and e.delta < 0:
                 self._toggle_drawer()
                 self._ate_click = False
                 return
-            if self.drawer_open and e.delta > 0 and self.card_scroll == 0:
+            if self.drawer_open and e.delta > 0 and scroll == 0:
                 self._toggle_drawer()
                 self._ate_click = False
                 return
         if not self.editing and not self.drawer_open:
+            return
+        if not self.editing:                 # laci penuh: gulir halus
+            new = max(0, min(scroll - int(e.delta / 120 * 80), self._max_scroll(self.cards_top)))
+            if new != scroll:
+                self._start_anim("scroll", True, new)
             return
         old = self.card_scroll
         self.card_scroll = max(0, old - int(e.delta / 120 * 80))
@@ -1146,7 +1382,8 @@ class DashboardView(tk.Canvas):
 
     def destroy(self):
         self._closed = True
-        for j in (self._job, self._refresh_job, self._resize_job, self._clock_job):
+        for j in (self._job, self._refresh_job, self._resize_job, self._clock_job,
+                  self._anim_job):
             if j is not None:
                 try:
                     self.after_cancel(j)
