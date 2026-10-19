@@ -39,6 +39,8 @@ PEN_D = 36                  # tombol pena (mode atur widget)
 DEL_D = 22                  # tombol x (sembunyikan widget, mode atur)
 CHIP_H = 34                 # widget tersembunyi di baki (mode atur)
 HANDLE_D = 30               # tombol panah laci kartu (kecilkan / tampilkan semua)
+CLOSE_D = 24                # tombol x tutup kartu (pojok kanan atas, hanya saat disorot)
+URGENT_GLOW = "#ff8a1a"     # gradasi oranye kartu prioritas (urgent)
 DRAWER_MS = 520             # laci kartu naik / turun (ease-in-out, maks. 30 fps, berbasis waktu)
 HERO_PT, HERO_OPEN_PT = 40, 24   # sapaan: besar (laci kecil) / mengecil ke atas (laci penuh)
 SCROLL_MS = 200             # gulir kartu di laci penuh (halus, bukan loncat 80 px)
@@ -167,6 +169,10 @@ class DashboardView(tk.Canvas):
         self._photo = None
         self._img_item = self.create_image(0, 0, anchor="nw")
         self._hover_item = self.create_image(0, 0, anchor="nw", state="hidden")
+        self._close_item = self.create_image(0, 0, state="hidden")   # x tutup kartu (sorot)
+        self._close_at = None          # (cx, cy, indeks kartu) tombol x yang tampil
+        self._all_items = []           # semua kartu (termasuk yang ditutup)
+        self._hidden = 0               # jumlah kartu yang ditutup akun ini
         self._hover_photo = None
         self._closed = False
         self._job = self._refresh_job = self._resize_job = None
@@ -219,7 +225,9 @@ class DashboardView(tk.Canvas):
 
         def work():
             box["info"] = D.info(self.role, self.user, list(self.widgets))
-            box["items"] = D.items(self.role, self.user)
+            cards = D.items(self.role, self.user)
+            box["all"] = cards
+            box["items"], box["hidden"] = D.visible(self._uid(), cards)
 
         threading.Thread(target=work, daemon=True).start()
         self._poll(box)
@@ -236,6 +244,8 @@ class DashboardView(tk.Canvas):
             self._again = False
             self.after_idle(self.load)
         self.items = box["items"]
+        self._all_items = box.get("all", self.items)
+        self._hidden = box.get("hidden", 0)
         self.info = box.get("info") or {}
         self._layout()
         self._refresh_job = self.after(REFRESH_MS, self.load)
@@ -509,7 +519,7 @@ class DashboardView(tk.Canvas):
         w, h = int(x1 - x0), int(y1 - y0)
         sh, pad = _shadow(w, h, 16, 14, 95)
         place(sh, x0 - pad, y0 - pad + 6)
-        border = _mix(C.BORDER, lv, 0.35) if it["level"] == "urgent" else C.BORDER
+        border = _mix(C.BORDER, URGENT_GLOW, 0.55) if it["level"] == "urgent" else C.BORDER
         place(_cached(("body", w, h, border, C.CARD), lambda: make_body(w, h, border)), x0, y0)
         place(self._tint(w, h, lv, it["level"]), x0, y0)
         # ikon bulat (redup untuk info / selesai)
@@ -913,7 +923,10 @@ class DashboardView(tk.Canvas):
     def _tint(w, h, color, level):
         """Cahaya lembut warna tingkat dari kiri-atas kartu (gaya notifikasi), memudar ke
         kanan. Urgent / todo lebih terang; info / selesai samar."""
-        strength = {"urgent": 0.20, "todo": 0.14}.get(level, 0.06)
+        strength = {"urgent": 0.46, "todo": 0.14}.get(level, 0.06)
+        power = 0.85 if level == "urgent" else 1.6     # prioritas: gradasi oranye lebar
+        if level == "urgent":
+            color = URGENT_GLOW
 
         def make():
             Image = photos.Image
@@ -921,7 +934,7 @@ class DashboardView(tk.Canvas):
             v = Image.linear_gradient("L").resize((w, h))                  # atas 0 -> bawah 255
             a = Image.composite(g, Image.new("L", (w, h), 0),
                                 v.point(lambda x: 255 - x // 2))           # atas lebih terang
-            a = a.point(lambda x: int((x / 255.0) ** 1.6 * 255 * strength))
+            a = a.point(lambda x: int((x / 255.0) ** power * 255 * strength))
             m = I.round_mask(w - 2, h - 2, 15)
             mask = Image.new("L", (w, h), 0)
             mask.paste(m, (1, 1))
@@ -1032,6 +1045,7 @@ class DashboardView(tk.Canvas):
         """Tombol panah minimalis di atas laci kartu + keterangan kecil."""
         self.delete("handle")
         if self._handle is None or self.items is None:
+            self._draw_restore()
             return
         cx, cy = self._handle
         up = not self.drawer_open
@@ -1048,6 +1062,7 @@ class DashboardView(tk.Canvas):
                              font=self.f["small"], fill=C.MUTED, text=f"{shown} dari {n}")
         self.tag_bind("handle", "<Button-1>", self._toggle_drawer)
         self.tag_bind("handle", "<Enter>", lambda e: self.config(cursor="hand2"))
+        self._draw_restore()
 
     def _toggle_drawer(self, _e=None):
         self._ate_click = True
@@ -1105,6 +1120,8 @@ class DashboardView(tk.Canvas):
         self.tag_raise("strip")
         self.tag_raise(self._hover_item)
         self.tag_raise("ct")
+        self.itemconfigure(self._close_item, state="hidden")
+        self._close_at = None
         self._strip = {"cur": first, "first0": first, "rects0": list(self.rects)}
         self._edge_covers(top_cover)
 
@@ -1388,6 +1405,7 @@ class DashboardView(tk.Canvas):
             return
         self.hover = i
         self.config(cursor="hand2" if i is not None else "")
+        self._show_close(i)
         if i is None or i >= len(self.rects):
             self.itemconfigure(self._hover_item, state="hidden")
             return
@@ -1408,6 +1426,66 @@ class DashboardView(tk.Canvas):
             self.itemconfigure(self._hover_item, state="hidden")   # hanya kartu yang utuh
         self.coords(self._hover_item, int(round(x0)), int(round(y0)))
 
+    def _show_close(self, i):
+        """Tombol x tutup kartu: hanya terlihat saat kartu disorot (dan kartunya utuh)."""
+        self._close_at = None
+        if i is None or i >= len(self.rects) or self.editing or self._anim is not None:
+            self.itemconfigure(self._close_item, state="hidden")
+            return
+        x0, y0, x1, y1 = self.rects[i]
+        if self._fade(y0) < 0.99 or self._fade(y1) < 0.99:
+            self.itemconfigure(self._close_item, state="hidden")
+            return
+        cx, cy = x1 - 18 - CLOSE_D / 2 + 6, y0 + 14 + CLOSE_D / 2 - 2
+        self._close_photo = self._disc(CLOSE_D, "#3a3936", 240, "close", "#e8e5dc")
+        self.itemconfigure(self._close_item, image=self._close_photo, state="normal")
+        self.coords(self._close_item, int(round(cx)), int(round(cy)))
+        self.tag_raise(self._close_item)
+        self._close_at = (cx, cy, i)
+
+    def _in_close(self, x, y):
+        c = self._close_at
+        return c is not None and (x - c[0]) ** 2 + (y - c[1]) ** 2 <= (CLOSE_D / 2 + 3) ** 2
+
+    def _uid(self):
+        return (self.user or {}).get("id", "")
+
+    def _dismiss(self, i):
+        """Tutup kartu i (tersimpan per akun; muncul lagi kalau isinya berubah)."""
+        if self.items is None or not 0 <= i < len(self.items):
+            return
+        it = self.items.pop(i)
+        D.dismiss(self._uid(), it)
+        self._hidden += 1
+        self._set_hover(None)
+        self._layout()
+
+    def _restore(self, _e=None):
+        """Tampilkan lagi semua kartu yang ditutup."""
+        self._ate_click = True
+        D.restore_all(self._uid())
+        self.items = list(self._all_items)
+        self._hidden = 0
+        self._layout()
+
+    def _draw_restore(self):
+        """Tautan kecil "n ditutup · kembalikan" di samping tombol laci (atau di atas kartu)."""
+        self.delete("restore")
+        if not self._hidden or self.items is None or self.editing:
+            return
+        if self._handle is not None:
+            x, y, anchor = self._size[0] - PAD, self._handle[1], "e"
+        else:
+            top = min((r[1] for r in self.rects if r[1] > -1000), default=self._size[1] - 60)
+            x, y, anchor = self._size[0] - PAD, top - 16, "e"
+        t = self.create_text(x, y, anchor=anchor, tags=("txt", "restore"), font=self.f["small"],
+                             fill=C.MUTED, text=f"{self._hidden} kartu ditutup  ·  kembalikan")
+        self.tag_bind("restore", "<Button-1>", self._restore)
+        self.tag_bind("restore", "<Enter>", lambda e: (self.config(cursor="hand2"),
+                                                       self.itemconfigure(t, fill=C.TEXT)))
+        self.tag_bind("restore", "<Leave>", lambda e: (self.config(cursor=""),
+                                                       self.itemconfigure(t, fill=C.MUTED)))
+
     def _motion(self, e):
         if self._drag is not None or self._anim is not None:
             return
@@ -1424,6 +1502,9 @@ class DashboardView(tk.Canvas):
             self._ate_click = False
             return
         if self._anim is not None:       # laci / kartu sedang bergerak
+            return
+        if self._in_close(e.x, e.y):     # tombol x: tutup kartu
+            self._dismiss(self._close_at[2])
             return
         if self._in_peek(e.y):           # kartu baris ke-2 yang mengintip: buka laci
             self._toggle_drawer()

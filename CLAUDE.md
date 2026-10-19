@@ -344,6 +344,13 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   tiap frame ~20 ms = patah-patah. Selama animasi timer Windows 1 ms (_set_timer, timeBeginPeriod)
   supaya after() tidak dibulatkan ke 15,6 ms (31/47 ms). Ukur 2000x1210 & 2560x1400: laci & gulir
   33-35 ms / frame (maks. 35). Error callback Tk dicatat ke app.log (App._tk_error).
+- Kartu bisa DITUTUP: tombol x (CLOSE_D 24, ui_icons "close") di pojok kanan atas hanya saat
+  kartu disorot (_show_close; kartu terpotong / pudar = tanpa x). Klik x = dashboard.dismiss ->
+  data\dashboard_dismissed.json {akun: {key: {sig = judul + isi, t}}}: tersembunyi selama isinya
+  sama, isi berubah = muncul lagi; catatan > 30 hari dibuang. Disaring di thread (D.visible).
+  Tautan "n kartu ditutup · kembalikan" di kanan baris tombol laci (D.restore_all).
+- Kartu PRIORITAS (urgent): gradasi oranye lebar (URGENT_GLOW #ff8a1a, kekuatan 0,46) + garis
+  tepi oranye (_tint / _paint_card).
 - Halaman utama murid (course_dock): kartu kursus 1:1 dengan cahaya gradasi warna kursus dari kiri-atas
   (_tint, sama gaya kartu Dashboard); terkunci = gradasi samar; hover sedikit lebih terang.
 - Halaman utama murid & trial = "Dashboard" (menu sidebar ikon home, juga di layar kursus &

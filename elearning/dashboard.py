@@ -332,6 +332,73 @@ def load_widgets(uid, role):
     return [w for w in load_slots(uid, role) if w]
 
 
+# --- kartu yang ditutup (tombol x di pojok kartu) ---------------------------------------------
+# data\dashboard_dismissed.json = {id akun: {key kartu: {"sig": judul + isi, "t": tanggal}}}.
+# Kartu tetap tersembunyi selama isinya sama; isinya berubah (mis. 6 -> 7 murid) = muncul lagi.
+DISMISS_KEEP_DAYS = 30      # catatan lebih lama dari ini dibuang
+
+
+def _dismiss_path():
+    import os
+    return os.path.join(C.DATA_DIR, "dashboard_dismissed.json")
+
+
+def _sig(it):
+    return f"{it.get('title', '')}\n{it.get('body', '')}"
+
+
+def _read_dismissed():
+    import json
+    try:
+        with open(_dismiss_path(), encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _write_dismissed(data):
+    import json
+    import os
+    os.makedirs(C.DATA_DIR, exist_ok=True)
+    tmp = f"{_dismiss_path()}.{os.getpid()}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=1)
+    os.replace(tmp, _dismiss_path())
+
+
+def visible(uid, cards):
+    """(kartu yang tampil, jumlah yang ditutup) untuk akun ini."""
+    mine = _read_dismissed().get(str(uid), {})
+    shown = [it for it in cards
+             if not (it.get("key") in mine and mine[it["key"]].get("sig") == _sig(it))]
+    return shown, len(cards) - len(shown)
+
+
+def dismiss(uid, it):
+    """Tutup satu kartu (sampai isinya berubah)."""
+    data = _read_dismissed()
+    mine = data.setdefault(str(uid), {})
+    limit = (date.today() - timedelta(days=DISMISS_KEEP_DAYS)).isoformat()
+    for k in [k for k, v in mine.items() if v.get("t", "") < limit]:
+        del mine[k]
+    mine[it.get("key", "")] = {"sig": _sig(it), "t": date.today().isoformat()}
+    try:
+        _write_dismissed(data)
+    except OSError as exc:
+        C.log(f"Dashboard: kartu tidak bisa ditutup: {exc!r}")
+
+
+def restore_all(uid):
+    """Tampilkan lagi semua kartu yang ditutup akun ini."""
+    data = _read_dismissed()
+    if data.pop(str(uid), None) is not None:
+        try:
+            _write_dismissed(data)
+        except OSError as exc:
+            C.log(f"Dashboard: kartu tidak bisa dikembalikan: {exc!r}")
+
+
 def save_slots(uid, slots):
     import json
     import os
