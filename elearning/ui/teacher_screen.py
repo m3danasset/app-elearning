@@ -28,7 +28,7 @@ from elearning.ui.widgets import ScrollFrame, Switch, add_hover
 PROGRAM_LABEL = {"adult": "Murid dewasa", "kids": "Murid anak"}
 CATEGORIES = ("adult", "kids")  # urutan kategori di daftar murid
 LIST_SORTS = ("Kategori", "Nama A–Z", "ID")
-VIEW_TITLE = {"dashboard": "Dashboard", "students": "Murid & Kursus", "reports": "Laporan Kerja", "quizzes": "Kuis",
+VIEW_TITLE = {"dashboard": "Dashboard", "live": "Live Kelas", "students": "Murid & Kursus", "reports": "Laporan Kerja", "quizzes": "Kuis",
               "examples": "Bahan dari Guru", "schedule": "Jadwal Murid",
               "certificates": "Sertifikat"}
 
@@ -93,6 +93,16 @@ class TeacherScreen(SidebarLayout):
         if self.view == "reports":
             TaskSheetPanel(self.body, self.teacher).pack(fill="both", expand=True)
             return
+        if self.view == "live":         # murid online sekarang + kelas guru yang berjalan
+            from elearning.ui.live_view import LiveBoard
+            from elearning.ui.widgets import ScrollFrame
+            wrap = tk.Frame(self.body, bg=C.BG, padx=28, pady=8)
+            wrap.pack(fill="both", expand=True)
+            sf = ScrollFrame(wrap, bg=C.BG)
+            sf.pack(fill="both", expand=True)
+            LiveBoard(sf.inner, teacher_id=self.teacher["id"],
+                      on_open=self.open_student).pack(fill="x", padx=(0, 12))
+            return
         if self.view == "examples":
             ExamplesPanel(self.body).pack(fill="both", expand=True)
             return
@@ -121,6 +131,8 @@ class TeacherScreen(SidebarLayout):
     def _populate(self, sb):
         sb.nav("Dashboard", "home", lambda: self._set_view("dashboard"),
                active=self.view == "dashboard")
+        sb.nav("Live Kelas", "play", lambda: self._set_view("live"),
+               active=self.view == "live")
         sb.nav("Murid & Kursus", "users", lambda: self._set_view("students"),
                active=self.view == "students")
         sb.nav("Bahan dari Guru", "image", lambda: self._set_view("examples"),

@@ -122,7 +122,8 @@ class HomeScreen(SidebarLayout):
         from elearning.app_settings import feature
         self.dock = CourseDock(self.content, self.courses, self.allowed, self.on_open_course,
                                title, hello, hero=True, teaser=feature("teaser"),
-                               usb=not self.trial and not ai_only(self.student))
+                               usb=not self.trial and not ai_only(self.student),
+                               stats=None if self.trial else self.student)
         self.dock.pack(fill="both", expand=True)
         self._build_grid()
 

@@ -36,7 +36,7 @@ KEYWORDS = {"expired": ("status", "expired"), "active": ("status", "active"),
 TAB_TITLE = {"dashboard": "Dashboard", "students": "Murid", "teachers": "Guru",
              "reports": "Agenda & Laporan",
              "analytics": "Analytics", "schedule": "Jadwal", "certificates": "Sertifikat",
-             "signups": "Pendaftar", "survey": "Survey"}
+             "signups": "Pendaftar", "survey": "Survey", "live": "Live Kelas"}
 
 
 class AdminScreen(SidebarLayout):
@@ -131,6 +131,7 @@ class AdminScreen(SidebarLayout):
         self.reports_board = ReportsBoard(self.scroll.inner)
         self.task_board = None        # Agenda & Laporan: agenda admin + sheet guru
         self.survey_board = None      # Survey: pertanyaan (English) + hasil
+        self.live_board = None        # Live Kelas: murid online sekarang
         self.analytics = None
         self.schedule_board = None
         self.cert_board = None
@@ -164,7 +165,7 @@ class AdminScreen(SidebarLayout):
         certs, signs = self._waiting()
         badge = {"certificates": certs, "signups": signs}
         # Murid & Guru = SATU menu, dua halaman (tombol Murid | Guru di atas daftar)
-        for key, icon in (("dashboard", "home"), ("analytics", "activity"),
+        for key, icon in (("dashboard", "home"), ("live", "play"), ("analytics", "activity"),
                           ("signups", "user"), ("people", "users"), ("reports", "report"),
                           ("schedule", "clock"), ("certificates", "check"),
                           ("survey", "quiz")):
@@ -461,7 +462,7 @@ class AdminScreen(SidebarLayout):
                 self.add_btn.pack(side="right", padx=(8, 0), after=self.export_btn)
         else:
             self.add_btn.pack_forget()
-        if self.tab in ("analytics", "reports", "survey"):   # tanpa ringkasan & filter
+        if self.tab in ("analytics", "reports", "survey", "live"):   # tanpa ringkasan & filter
             self.summary.pack_forget()
             self.rbar.pack_forget()
         else:
@@ -499,6 +500,9 @@ class AdminScreen(SidebarLayout):
             from elearning.ui.task_sheet_view import AgendaPanel
             self.task_board = AgendaPanel(self.scroll.inner,
                                           {"id": self.admin_id, "name": self._admin_name()})
+        if self.tab == "live" and self.live_board is None:
+            from elearning.ui.live_view import LiveBoard
+            self.live_board = LiveBoard(self.scroll.inner, on_open=self._open_person)
         if self.tab == "survey" and self.survey_board is None:
             from elearning.ui.survey_admin import SurveyBoard
             self.survey_board = SurveyBoard(self.scroll.inner, by=self.admin_id)
@@ -509,7 +513,8 @@ class AdminScreen(SidebarLayout):
         want = {"students": self.people_board, "teachers": self.people_board,
                 "reports": self.task_board, "analytics": self.analytics,
                 "schedule": self.schedule_board, "certificates": self.cert_board,
-                "signups": self.signup_board, "survey": self.survey_board}[self.tab]
+                "signups": self.signup_board, "survey": self.survey_board,
+                "live": self.live_board}[self.tab]
         if self._shown is not want:
             if self._shown is not None:
                 self._shown.pack_forget()
@@ -628,6 +633,11 @@ class AdminScreen(SidebarLayout):
             self._after = self.after(REFRESH_MS, self.refresh)
             return
         if self.tab == "analytics":   # dihitung ulang hanya saat dibuka
+            return
+        if self.tab == "live":             # diperbarui sendiri tiap 5 detik
+            if self.live_board is not None:
+                self.live_board.reload()
+            self._after = None
             return
         if self.tab == "survey":
             if self.survey_board is not None:

@@ -301,6 +301,19 @@ eport_tasks.json, per guru per bulan, bagian MINGGU INI (week)
   "n tugas minggu ini belum selesai", admin "n tugas selesai belum dicek", widget "tugas
   selesai hari ini". Excel: sheet "Laporan Guru Sheet".
 
+## Live Kelas (admin & guru) + widget progres murid
+- elearning/presence.py: app murid (bukan trial) menulis data\presence\<ID>.json tiap PUSH_S 15
+  dtk (App._presence_tick / _presence_info: layar, view, kursus, pelajaran, posisi video + diputar,
+  Blender terbuka / di depan, Chrome, idle GetLastInputInfo, nama PC); logout / tutup = dihapus;
+  > STALE_S 75 dtk = offline. activity(rec) -> (teks, jenis video | blender | browse | page | idle).
+- ui/live_view.LiveBoard (menu "Live Kelas" tepat di bawah Dashboard, admin tab "live", guru view
+  "live"): dibaca di thread tiap 5 dtk, SATU canvas: ringkasan, "Kelas berjalan" (jadwal sekarang,
+  hadir x/y = online, nama belum login; guru hanya kelasnya), kartu murid (warna aktivitas, progres
+  video, PC, lama tanpa input). Klik kartu = buka murid. JANGAN pakai self._w di widget Tk.
+- Dashboard murid: widget progres di bawah kartu kursus (course_dock stats=student,
+  student_stats.compute di thread): Videos watched x/y + bar, Badges, Your work (portfolio ·
+  assignment), Study time this week + streak. Tampil hanya kalau ruangnya cukup; trial tidak.
+
 ## Panel Admin > Survey (pertanyaan bisa dibuat / diubah, English)
 - elearning/survey_questions.py: data\survey_questions.json {"student": [...], "trial": [...]};
   pertanyaan {id, kind single | multi | text, text, options (2-8), required}. "student" = SEMUA

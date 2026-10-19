@@ -55,6 +55,7 @@ class App(tk.Tk):
         self.blender_float = BlenderFloat(self)   # ikon mengambang saat Blender terbuka (murid)
         self.badges = BadgeTracker(self)          # badge murid + notifikasi (lihat badge_ui.py)
         self._student = None
+        self._presence_job = None                 # live kelas: status murid tiap 15 dtk
         self.protocol("WM_DELETE_WINDOW", self._close)   # tutup jendela = murid keluar
         self.after(60_000, self._beat)
         from elearning.ui.dev_panel import install_shortcut
@@ -136,6 +137,65 @@ class App(tk.Tk):
         except Exception as exc:
             config.log(f"Ikon: WM_SETICON GAGAL: {exc!r}")
 
+    # --- live kelas: status murid untuk admin / guru (presence.py) -----------------
+    def _presence_info(self):
+        """Apa yang sedang dibuka murid (dibaca dari layar Tk, ringan)."""
+        from elearning import blender_launcher, presence
+        from elearning.ui.course_screen import CourseScreen
+        from elearning.ui.home_screen import HomeScreen
+        scr = self._screen
+        info = {"name": (self._student or {}).get("name", ""),
+                "program": (self._student or {}).get("program", ""),
+                "pc": sessions.pc_name(), "idle": round(presence.idle_seconds())}
+        if isinstance(scr, CourseScreen):
+            info.update(screen="course", view=scr.view, course=scr.course["id"],
+                        course_title=scr.course["title"])
+            panel = getattr(scr, "panel", None)
+            player = getattr(panel, "player", None)
+            if scr.view == "materi" and scr.lesson_items:
+                it = scr.lesson_items[min(scr.lesson_index, len(scr.lesson_items) - 1)]
+                info["lesson"] = it.get("label") or it.get("title", "")
+                if player is not None:
+                    info.update(playing=bool(getattr(player, "playing", False)),
+                                pos=round(float(getattr(player, "pos", 0) or 0)),
+                                dur=round(float(getattr(player, "dur", 0) or 0)))
+        elif isinstance(scr, HomeScreen):
+            info.update(screen="home", view="dashboard" if scr.view == "courses" else scr.view)
+        try:
+            info["blender"] = bool(blender_launcher.blender_running())
+            info["blender_front"] = bool(blender_launcher.foreground_is_blender())
+        except Exception:
+            pass
+        try:
+            info["browser"] = bool(web_launcher.running())
+        except Exception:
+            pass
+        return info
+
+    def _presence_tick(self):
+        from elearning import presence
+        self._presence_job = None
+        st = self._student
+        if st is None or is_trial(st):
+            return
+        try:
+            presence.write(st["id"], self._presence_info())
+        except Exception as exc:
+            config.log(f"Live kelas: status gagal dibuat: {exc!r}")
+        self._presence_job = self.after(presence.PUSH_S * 1000, self._presence_tick)
+
+    def _presence_stop(self):
+        from elearning import presence
+        if self._presence_job is not None:
+            try:
+                self.after_cancel(self._presence_job)
+            except Exception:
+                pass
+            self._presence_job = None
+        st = self._student
+        if st is not None and not is_trial(st):
+            presence.clear(st["id"])
+
     # --- catatan masuk / keluar murid ------------------------------------------
     def _beat(self):
         sessions.heartbeat()
@@ -151,6 +211,7 @@ class App(tk.Tk):
 
     def _quit(self):
         web_launcher.close()   # Chrome murid ikut ditutup
+        self._presence_stop()
         self.badges.stop()
         self.blender_float.stop()
         sessions.end()
@@ -198,6 +259,8 @@ class App(tk.Tk):
         self._after_login()
         if feature("badges"):             # Dev: badge bisa dimatikan
             self.badges.start(student)   # badge (trial diabaikan); notifikasi setelah layar siap
+        if not is_trial(student):        # live kelas untuk admin / guru
+            self._presence_job = self.after(2000, self._presence_tick)
 
     def login_teacher(self, teacher):
         from elearning import i18n
@@ -320,6 +383,7 @@ class App(tk.Tk):
 
     def _logout(self):
         web_launcher.close()   # Chrome murid ikut ditutup
+        self._presence_stop()
         self._account_id = None
         self.badges.stop()
         self._student = None

@@ -18,6 +18,7 @@ Widget USB (kalau ada) bergeser ke kanan kartu teaser selama teaser tampil.
 """
 
 import os
+import threading
 import time
 import tkinter as tk
 import tkinter.font as tkfont
@@ -50,6 +51,8 @@ TEASER_RISE = 14           # kartu naik sekian px saat muncul (ikut pudar)
 TEASER_GAP = 30            # jarak kartu teaser -> widget USB (> ruang bayangan teaser)
 TEASER_BLUR, TEASER_SH_DY, TEASER_SH_A = SH_BLUR, SH_DY, SH_ALPHA   # bayangan yang sama
 SLIDE_MS = 340             # widget USB bergeser ke kanan / kembali (ease-in-out)
+STATS_W, STATS_H = 880, 92  # widget progres belajar di bawah kartu kursus (murid)
+STATS_PAD = 28             # ruang bayangan di sekitar widget progres
 
 
 def _rgb(c):
@@ -142,7 +145,7 @@ class CourseDock(tk.Canvas):
     FRAME_MS = C.UI_FRAME_MS   # maks. 30 fps
 
     def __init__(self, master, courses, allowed, on_open, title, hello, foot=None, usb=False,
-                 hero=False, teaser=False):
+                 hero=False, teaser=False, stats=None):
         super().__init__(master, bg=C.BG, highlightthickness=0, bd=0)
         # teks bawah kartu (terbuka, terkunci); resource trial memakai "Open in Blender" dst.
         self.foot = foot or ("Open course  →", "Locked  ·  ask your teacher")
@@ -203,6 +206,14 @@ class CourseDock(tk.Canvas):
         self._tz_timer = None
         self._tz_job = None
         self._tz_item = self.create_image(0, 0, anchor="nw")
+        # widget progres belajar (murid, bukan trial): angka dihitung di thread
+        self.stats_student = stats
+        self._stats = None
+        self._stats_photo = None
+        self._stats_bars = []
+        self._stats_item = self.create_image(0, 0, anchor="nw")
+        if stats is not None:
+            self._load_stats()
         path = None
         try:
             from elearning.ui import video_background as VB
@@ -427,6 +438,7 @@ class CourseDock(tk.Canvas):
         self._compose_band()
         self._title_y = title_y
         self._usb_layout(title_y if self.hero else title_y - 14)
+        self._stats_layout()
         self._tz_relayout()
 
     def _text_shadows(self, items):
@@ -723,6 +735,112 @@ class CourseDock(tk.Canvas):
         self.after(1000 // VIDEO_FPS, self._video_tick)
 
     # --- widget USB ------------------------------------------------------------------------
+    # --- widget progres belajar (di bawah kartu kursus) ------------------------------------
+    def _load_stats(self):
+        box = {}
+
+        def work():
+            try:
+                from elearning import student_stats
+                box["s"] = student_stats.compute(self.stats_student)
+            except Exception as exc:
+                C.log(f"Progres murid: gagal dihitung: {exc!r}")
+                box["s"] = None
+            box["done"] = True
+        threading.Thread(target=work, daemon=True).start()
+
+        def poll():
+            if self._closed:
+                return
+            if not box.get("done"):
+                self.after(80, poll)
+                return
+            self._stats = box["s"]
+            self._stats_layout()
+        self.after(80, poll)
+
+    def _stats_layout(self):
+        """Satu kartu (bayangan & sudut bulat seperti widget USB) berisi 4 angka; hanya tampil
+        kalau ada ruang di bawah kartu kursus."""
+        self.delete("statw")
+        self._stats_bars = []
+        st = self._stats
+        w, h = self._size
+        if st is None or w < 300:
+            self.itemconfigure(self._stats_item, image="")
+            return
+        band_bottom = self._band[0] + self._band[1]
+        ww = int(min(STATS_W, w - 48))
+        y = band_bottom + 4
+        if ww < 420 or y + STATS_H + 14 > h:
+            self.itemconfigure(self._stats_item, image="")
+            return
+        x = int((w - ww) / 2)
+        self._compose_stats(x, int(y), ww)
+        self._stats_text(x, int(y), ww)
+
+    def _compose_stats(self, x0, y0, w):
+        from elearning.ui.dashboard_view import _shadow
+        Image = photos.Image
+        h, pad = STATS_H, STATS_PAD
+        key = ("statsbody", w, h)
+        img = I._img_cache.get(key)
+        if img is None:
+            img = Image.new("RGBA", (w + 2 * pad, h + 2 * pad), (0, 0, 0, 0))
+            sh, sp = _shadow(w, h, 18)
+            self._paste_clipped(img, sh, pad - sp, pad - sp + SH_DY)
+            body = Image.new("RGBA", (w, h), _rgb(C.BORDER) + (0,))
+            body.putalpha(I.round_mask(w, h, 16).point(lambda v: int(v * 0.93)))
+            inner = Image.new("RGBA", (w - 2, h - 2), _rgb(C.CARD) + (0,))
+            inner.putalpha(I.round_mask(w - 2, h - 2, 15).point(lambda v: int(v * 0.93)))
+            body.alpha_composite(inner, (1, 1))
+            for k in range(1, 4):                       # garis pemisah antar angka
+                lx = int(w * k / 4)
+                line = Image.new("RGBA", (1, h - 32), _rgb(C.BORDER) + (255,))
+                body.alpha_composite(line, (lx, 16))
+            img.alpha_composite(body, (pad, pad))
+            I._img_cache[key] = img
+        self._stats_photo = photos.to_photoimage(img)
+        self.coords(self._stats_item, x0 - pad, y0 - pad)
+        self.itemconfigure(self._stats_item, image=self._stats_photo)
+
+    def _stats_text(self, x0, y0, w):
+        from elearning import student_stats as SS
+        st = self._stats
+        cw = w / 4
+        done, total = st["videos_done"], st["videos_total"]
+        cells = (
+            ("Videos watched", f"{done}/{total}" if total else "–",
+             f"{round(done / total * 100)}% complete" if total else "no videos yet", "bar"),
+            ("Badges earned", str(st["badges"]), "across your courses", None),
+            ("Your work", f"{st['portfolio']} · {st['assignment']}", "portfolio · assignment",
+             None),
+            ("Study time this week", SS.fmt_time(st["week_seconds"]),
+             f"{st['streak']}-day streak" if st["streak"] >= 2 else "keep it going!", None),
+        )
+        for i, (label, value, sub, viz) in enumerate(cells):
+            cx = x0 + i * cw + 20
+            tw = cw - 40
+            self.create_text(cx, y0 + 16, text=self._fit(label, "wsmall", tw), anchor="nw",
+                             font=self.f["wsmall"], fill=C.MUTED, tags=("fg", "statw"))
+            self.create_text(cx, y0 + 32, text=self._fit(value, "wbig", tw), anchor="nw",
+                             font=self.f["wbig"], fill=C.TEXT, tags=("fg", "statw"))
+            if viz == "bar" and total:
+                bw = int(tw)
+                bg = I.pill(bw, 6, C.SIDEBAR_ACTIVE, C.CARD, r=3)
+                self._stats_bars.append(bg)
+                self.create_image(cx, y0 + 64, image=bg, anchor="nw", tags=("fg", "statw"))
+                fw = int(bw * done / total)
+                if fw >= 6:
+                    fg = I.pill(fw, 6, USB_ON, C.SIDEBAR_ACTIVE, r=3)
+                    self._stats_bars.append(fg)
+                    self.create_image(cx, y0 + 64, image=fg, anchor="nw", tags=("fg", "statw"))
+                self.create_text(cx + bw, y0 + 36, text=sub, anchor="ne", font=self.f["wsmall"],
+                                 fill=USB_ON, tags=("fg", "statw"))
+            else:
+                self.create_text(cx, y0 + 60, text=self._fit(sub, "wsmall", tw), anchor="nw",
+                                 font=self.f["wsmall"], fill=C.MUTED, tags=("fg", "statw"))
+
     def _usb_layout(self, title_y):
         """Widget di tengah ruang kosong di atas judul. Tidak tampil kalau tidak ada USB yang
         tercolok atau ruangnya kurang."""
