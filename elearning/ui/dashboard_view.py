@@ -40,6 +40,8 @@ CHIP_H = 34                 # widget tersembunyi di baki (mode atur)
 HANDLE_D = 30               # tombol panah laci kartu (kecilkan / tampilkan semua)
 DRAWER_MS = 420             # laci kartu naik / turun (ease-out, maks. 30 fps, berbasis waktu)
 SCROLL_MS = 200             # gulir kartu di laci penuh (halus, bukan loncat 80 px)
+PEEK = 64                   # laci kecil: kartu baris ke-2 mengintip sekian px di bawah layar
+PEEK_ALPHA = 0.5            # ... samar (paling terang), memudar ke 0 di tepi bawah layar
 WIDGET_ACCENT = {"clock": BLUE, "done": "#3fb68b", "online": "#ea7600", "date": "#b39af0",
                  "signups": "#ea7600", "certs": "#3fb68b", "classes": BLUE,
                  "students": BLUE, "idle": "#e3c26f", "unscheduled": "#e3c26f",
@@ -153,6 +155,8 @@ class DashboardView(tk.Canvas):
         self._all_rows = False         # _draw_cards_text: semua baris (juga di bawah layar)
         self._base_rgb = None          # latar + widget tanpa kartu (penutup tepi saat gulir)
         self._greet_fill = {}
+        self._strip = None             # mode pita (laci penuh / animasi): posisi pita kartu
+        self._peek_top = None          # laci kecil: y atas kartu baris ke-2 (mengintip)
         self.cards_top = TOP_H
         self._size = (0, 0)
         self._layer = None
@@ -322,6 +326,7 @@ class DashboardView(tk.Canvas):
         rows = -(-n // cols) if n else 0
         rowh = CARD_H + GAP
         self._handle = None
+        self._peek_top = None
         if self.editing:
             top = self.cards_top = self._hero_h() + self.shift - 12
             first_y = top + 12
@@ -333,6 +338,8 @@ class DashboardView(tk.Canvas):
             first_y = top + 6
             if not self.drawer_open:
                 self.card_scroll = 0
+                if rows > 1:
+                    self._peek_top = first_y + rowh
         # laci penuh / mode atur: bisa digulir sampai baris terakhir keluar dari area pudar
         self.card_scroll = max(0, min(self.card_scroll,
                                       rows * rowh + FADE_BOTTOM - (H - top)))
@@ -340,13 +347,16 @@ class DashboardView(tk.Canvas):
         for i in range(n):
             r, c = divmod(i, cols)
             x0 = PAD + c * (cw + GAP)
-            if not self.editing and not self.drawer_open and r > 0:
-                y0 = -10_000                 # laci kecil: hanya baris pertama
+            if not self.editing and not self.drawer_open and r > 1:
+                y0 = -10_000                 # laci kecil: baris 1 + baris 2 yang mengintip
             else:
                 y0 = first_y + r * rowh - self.card_scroll       # koordinat layar
             self.rects.append((x0, y0, x0 + cw, y0 + CARD_H))
         self.hover = None
         self.itemconfigure(self._hover_item, state="hidden")
+        if self._strip_ok():                 # laci penuh: kartu = pita yang digeser saat gulir
+            self._prep_strip(first_y - self.card_scroll, top_cover=self.cards_top)
+            return
         self._build_layer()
         self._draw_text()
 
@@ -357,7 +367,9 @@ class DashboardView(tk.Canvas):
             wb = (max(r[3] for r in self._widget_rects()) if self.widgets
                   else WIDGET_Y + 36)
             return wb + 34
-        return self._size[1] - PAD - CARD_H - 30
+        n = len(self.items or [])
+        peek = PEEK if n > self._cols(self._size[0]) else 0     # ada baris ke-2
+        return self._size[1] - PAD - CARD_H - 30 - peek
 
     def _max_scroll(self, top):
         cols = self._cols(self._size[0])
@@ -903,11 +915,16 @@ class DashboardView(tk.Canvas):
         """0..1: kartu di y terlihat sepenuhnya (1) / memudar / hilang (0)."""
         H = self._size[1]
         t0 = self.cards_top
-        if y < t0:
+        if y < t0 or y > H:
             return 0.0
-        if not self.drawer_open and not self.editing:    # laci kecil: utuh, tanpa pudar
-            return 1.0 if y <= H else 0.0
-        return max(0.0, min(1.0, (y - t0) / FADE_TOP, (H - y) / FADE_BOTTOM))
+        if self.editing:
+            return max(0.0, min(1.0, (y - t0) / FADE_TOP, (H - y) / FADE_BOTTOM))
+        if self.drawer_open:                 # laci penuh: potong tegas di atas, pudar di bawah
+            return max(0.0, min(1.0, (H - y) / FADE_BOTTOM))
+        pk = self._peek_top                  # laci kecil: baris ke-2 samar, memudar ke bawah
+        if pk is None or y < pk:
+            return 1.0
+        return PEEK_ALPHA * max(0.0, (H - y) / max(1.0, H - pk))
 
     def _fade_mask(self, W, H):
         t0 = int(self.cards_top)
@@ -917,7 +934,8 @@ class DashboardView(tk.Canvas):
             col = Image.new("L", (1, H))
             col.putdata([int(255 * self._fade(y + 0.5)) for y in range(H)])
             return col.resize((W, H))
-        return _cached(("fade", W, H, t0, self.drawer_open or self.editing), make)
+        return _cached(("fade", W, H, t0, self.drawer_open, self.editing, self._peek_top),
+                       make)
 
     def _btn_size(self, it):
         text = it["action"] + "  →"
@@ -1021,47 +1039,38 @@ class DashboardView(tk.Canvas):
         self._start_anim("drawer", not self.drawer_open, 0)
 
     # --- animasi laci & gulir ---------------------------------------------------------------
-    # Kartu digambar SEKALI ke satu pita RGBA (item canvas sendiri) + teksnya; tiap frame hanya
-    # digeser (canvas.move), tidak digambar ulang. Latar di belakangnya = lapisan TANPA kartu.
-    # Selesai -> susunan biasa digambar ulang (_layout). Mode ringan: langsung, tanpa animasi.
-    def _start_anim(self, kind, to_open, to_scroll):
-        """kind "drawer": laci naik (to_open) / turun; "scroll": gulir laci penuh ke to_scroll."""
+    # MODE PITA: kartu digambar SEKALI ke satu pita RGBA (item canvas "strip") + teksnya ("ct");
+    # latar di belakangnya = lapisan TANPA kartu. Laci penuh SELALU mode pita, jadi gulir hanya
+    # canvas.move (tanpa persiapan / gambar ulang). Laci naik / turun memakai pita yang sama.
+    # Penutup tepi = potongan latar: potong tegas di bawah tombol laci, pudar di bawah layar.
+    # Mode ringan: tanpa pita, tanpa animasi (langsung).
+    def _strip_ok(self):
         W, H = self._size
-        if C.lite() or self.editing or not self.items or W < 100 or H < 100:
-            self._stop_anim()
-            self.drawer_open, self.card_scroll = to_open, to_scroll
-            self._layout()
-            return
-        to_first = self._drawer_y(to_open) + 28 - to_scroll
-        a = self._anim
-        if a is not None and a["kind"] == kind == "scroll":     # gulir lagi: ganti tujuan
-            a.update(y0=a["cur"], y1=to_first, to_scroll=to_scroll, t0=time.perf_counter(), k=0)
-            return
-        self._stop_anim()
-        self._set_hover(None)
-        from_hy = self._drawer_y(self.drawer_open)
-        from_first = from_hy + 28 - self.card_scroll
+        return (self.drawer_open and not self.editing and bool(self.items) and not C.lite()
+                and W >= 100 and H >= 100)
+
+    def _prep_strip(self, first, top_cover=None):
+        """Masuk mode pita dengan baris kartu pertama di y = first."""
+        W, H = self._size
         cols = self._cols(W)
         cw = (W - 2 * PAD - (cols - 1) * GAP) / cols
         n = len(self.items)
-        # 1) latar + widget TANPA kartu
-        self._no_cards = True
+        first = int(round(first))
+        self._no_cards = True                # 1) latar + widget TANPA kartu
         try:
             self._build_layer()
         finally:
             self._no_cards = False
-        # 2) pita kartu (semua baris)
-        strip, pad = self._card_strip(cols, cw, n)
+        strip, pad = self._card_strip(cols, cw, n)      # 2) pita semua kartu
         self._strip_photo = photos.to_photoimage(strip)
-        self.create_image(0, int(round(from_first)) - pad, anchor="nw", image=self._strip_photo,
+        self.create_image(0, first - pad, anchor="nw", image=self._strip_photo,
                           tags=("anim", "strip"))
-        # 3) teks: semua kartu di posisi awal, warna utuh (tanpa pudar tepi)
-        rowh = CARD_H + GAP
+        rowh = CARD_H + GAP                  # 3) teks semua kartu, warna utuh
         self.rects = []
         for i in range(n):
             r, c = divmod(i, cols)
             x0 = PAD + c * (cw + GAP)
-            y0 = int(round(from_first)) + r * rowh
+            y0 = first + r * rowh
             self.rects.append((x0, y0, x0 + cw, y0 + CARD_H))
         self._all_rows = True
         try:
@@ -1075,25 +1084,20 @@ class DashboardView(tk.Canvas):
             else:
                 self.itemconfigure(item, state="normal")
         self.addtag_withtag("anim", "ct")
-        if kind == "drawer" and self.drawer_open:   # laci turun: sapaan muncul pelan
-            self._draw_greeting(self._widget_rects(), self._drawer_y(False) - HANDLE_D, fade=0.0)
-        # 4) urutan: latar < sapaan < pita < teks kartu < penutup tepi < widget & tombol
+        # 4) urutan: latar < sapaan < pita < bingkai sorot < teks kartu < penutup < widget
         self.tag_raise("strip")
+        self.tag_raise(self._hover_item)
         self.tag_raise("ct")
-        if kind == "scroll":
-            self._edge_covers()
+        self._strip = {"cur": first, "first0": first, "rects0": list(self.rects)}
+        self._edge_covers(top_cover)
+
+    def _raise_top(self):
+        """Widget, tombol laci & pena selalu di atas pita dan penutup."""
         for item in self.find_withtag("txt"):
             tags = self.gettags(item)
             if "ct" not in tags and "greet" not in tags:
                 self.addtag_withtag("wtop", item)
         self.tag_raise("wtop")
-        self._anim = {"kind": kind, "to_open": to_open, "to_scroll": to_scroll,
-                      "y0": from_first, "y1": to_first, "cur": int(round(from_first)),
-                      "h0": from_hy, "h1": self._drawer_y(to_open), "hcur": int(round(from_hy)),
-                      "greet_in": kind == "drawer" and self.drawer_open,
-                      "ms": DRAWER_MS if kind == "drawer" else SCROLL_MS,
-                      "t0": time.perf_counter()}     # jam mulai SETELAH persiapan
-        self._anim_step()
 
     def _card_strip(self, cols, cw, n):
         """Semua kartu (koordinat lokal, baris pertama di y = pad) ke satu gambar RGBA."""
@@ -1116,43 +1120,101 @@ class DashboardView(tk.Canvas):
             self._paint_card(place, i, x0, y0, x0 + cw, y0 + CARD_H)
         return strip, pad
 
-    def _edge_covers(self):
-        """Gulir laci penuh: potongan latar (tanpa kartu) di atas pita, meniru pudar tepi
-        atas (di bawah widget) dan bawah layar. Bagian atas padat = gambar RGB (ringan)."""
-        base = self._base_rgb
-        if base is None:
-            return
-        Image = photos.Image
-        W, H = self._size
-        top = int(self.cards_top)
+    def _edge_covers(self, top_y=None):
+        """Potongan latar (tanpa kartu) di atas pita: bagian atas padat sampai top_y (kartu
+        terpotong tegas di bawah tombol laci; gambar RGB, ringan) + pudar di bawah layar."""
+        self.delete("cover")
         self._cover_imgs = []
+        base = self._base_rgb
+        if base is not None:
+            Image = photos.Image
+            W, H = self._size
+            parts = []
+            if top_y:
+                top_y = int(top_y)
+                parts.append((photos.to_photoimage(base.crop((0, 0, W, top_y))), 0))
+            y0 = H - FADE_BOTTOM
+            band = base.crop((0, y0, W, H)).convert("RGBA")
+            col = Image.new("L", (1, FADE_BOTTOM))
+            col.putdata([int(255 * (1 - min(1.0, (H - y - 0.5) / FADE_BOTTOM)))
+                         for y in range(y0, H)])
+            band.putalpha(col.resize((W, FADE_BOTTOM)))
+            parts.append((photos.to_photoimage(band), y0))
+            for ph, y in parts:
+                self._cover_imgs.append(ph)
+                self.create_image(0, y, anchor="nw", image=ph, tags=("cover",))
+            self.tag_raise("cover")
+        self._raise_top()
 
-        def faded(y0, y1):
-            band = base.crop((0, y0, W, y1)).convert("RGBA")
-            col = Image.new("L", (1, y1 - y0))
-            col.putdata([int(255 * (1 - self._fade(y + 0.5))) for y in range(y0, y1)])
-            band.putalpha(col.resize((W, y1 - y0)))
-            return band
-        parts = [(photos.to_photoimage(base.crop((0, 0, W, top))), 0)] if top > 0 else []
-        parts.append((photos.to_photoimage(faded(top, min(H, top + FADE_TOP))), top))
-        parts.append((photos.to_photoimage(faded(H - FADE_BOTTOM, H)), H - FADE_BOTTOM))
-        for ph, y in parts:
-            self._cover_imgs.append(ph)
-            self.create_image(0, y, anchor="nw", image=ph, tags=("cover",))
-        self.tag_raise("cover")
+    def _sync_rects(self):
+        """Kotak kartu (untuk klik / sorot) ikut posisi pita sekarang."""
+        st = self._strip
+        if st is None:
+            return
+        d = st["cur"] - st["first0"]
+        self.rects = [(x0, y0 + d, x1, y1 + d) for x0, y0, x1, y1 in st["rects0"]]
+
+    def _start_anim(self, kind, to_open, to_scroll):
+        """kind "drawer": laci naik (to_open) / turun; "scroll": gulir laci penuh ke to_scroll."""
+        W, H = self._size
+        if C.lite() or self.editing or not self.items or W < 100 or H < 100:
+            self._stop_anim()
+            self.drawer_open, self.card_scroll = to_open, to_scroll
+            self._layout()
+            return
+        now = time.perf_counter()
+        a = self._anim
+        to_first = self._drawer_y(to_open) + 28 - to_scroll
+        if kind == "scroll":
+            if self._strip is None:          # (seharusnya tidak terjadi) susun ulang saja
+                self.card_scroll = to_scroll
+                self._layout()
+                return
+            if a is not None and a["kind"] == "scroll":     # gulir lagi: ganti tujuan
+                a.update(y0=self._strip["cur"], y1=to_first, to_scroll=to_scroll, t0=now, k=0)
+                return
+            self._set_hover(None)
+            self._anim = {"kind": "scroll", "to_open": True, "to_scroll": to_scroll,
+                          "y0": self._strip["cur"], "y1": to_first, "ms": SCROLL_MS,
+                          "t0": now, "k": 0}
+            self._anim_step()
+            return
+        if a is not None:
+            return
+        self._set_hover(None)
+        from_hy = self._drawer_y(self.drawer_open)
+        closing = self.drawer_open
+        if closing and self._strip is not None:
+            # laci turun: pita yang sama; potongan atas hanya di atas widget (sapaan terlihat
+            # lagi), sapaan muncul pelan di belakang kartu
+            wb = (max(r[3] for r in self._widget_rects()) if self.widgets
+                  else WIDGET_Y + 36)
+            self._edge_covers(wb + 12)
+            self._draw_greeting(self._widget_rects(), self._drawer_y(False) - HANDLE_D, fade=0.0)
+            self.tag_lower("greet", "strip")
+            from_first = self._strip["cur"]
+        else:                                # laci naik dari susunan biasa (laci kecil)
+            from_first = from_hy + 28 - self.card_scroll
+            self._prep_strip(from_first)
+        self._anim = {"kind": "drawer", "to_open": to_open, "to_scroll": to_scroll,
+                      "y0": from_first, "y1": to_first, "h0": from_hy,
+                      "h1": self._drawer_y(to_open), "hcur": int(round(from_hy)),
+                      "greet_in": closing, "ms": DRAWER_MS,
+                      "t0": time.perf_counter(), "k": 0}    # jam mulai SETELAH persiapan
+        self._anim_step()
 
     def _anim_step(self):
         self._anim_job = None
-        a = self._anim
-        if a is None or self._closed:
+        a, st = self._anim, self._strip
+        if a is None or st is None or self._closed:
             return
         t_start = time.perf_counter()
         t = min(1.0, (t_start - a["t0"]) * 1000.0 / a["ms"])
         e = 1 - (1 - t) ** 3                  # ease-out: cepat lalu melambat
         y = int(round(a["y0"] + (a["y1"] - a["y0"]) * e))
-        if y != a["cur"]:
-            self.move("anim", 0, y - a["cur"])
-            a["cur"] = y
+        if y != st["cur"]:
+            self.move("anim", 0, y - st["cur"])
+            st["cur"] = y
         if a["kind"] == "drawer":
             hy = int(round(a["h0"] + (a["h1"] - a["h0"]) * e))
             if hy != a["hcur"]:
@@ -1163,26 +1225,27 @@ class DashboardView(tk.Canvas):
             for item, fill in self._greet_fill.items():
                 self.itemconfigure(item, fill=_mix(C.BG, fill, g))
         if t < 1.0:     # jadwal frame tetap dari jam mulai (gambar ulang Tk ikut terhitung)
-            a["k"] = max(a.get("k", 0) + 1, int((t_start - a["t0"]) * 1000 / C.UI_FRAME_MS) + 1)
+            a["k"] = max(a["k"] + 1, int((t_start - a["t0"]) * 1000 / C.UI_FRAME_MS) + 1)
             due = a["t0"] + a["k"] * C.UI_FRAME_MS / 1000.0
             self._anim_job = self.after(max(1, int((due - time.perf_counter()) * 1000)),
                                         self._anim_step)
             return
-        self._finish_anim()
-
-    def _finish_anim(self):
-        """Animasi selesai: keadaan akhir + susunan biasa (pudar tepi, kursor aktif lagi)."""
-        self._layout()                        # _stop_anim menerapkan keadaan tujuan
+        self._anim = None
+        self.drawer_open, self.card_scroll = a["to_open"], a["to_scroll"]
+        if a["kind"] == "scroll":             # tetap mode pita: tidak ada gambar ulang
+            self._sync_rects()
+        else:                                 # laci: susunan akhir (penuh = pita baru)
+            self._layout()
         try:
-            x, y = self.winfo_pointerx() - self.winfo_rootx(), self.winfo_pointery() - \
-                self.winfo_rooty()
+            x = self.winfo_pointerx() - self.winfo_rootx()
+            y = self.winfo_pointery() - self.winfo_rooty()
             self._set_hover(self._index_at(x, y))
         except tk.TclError:
             pass
 
     def _stop_anim(self):
-        """Hentikan animasi (selesai, ukuran berubah, data dimuat ulang): langsung ke keadaan
-        tujuan, hapus pita & penutup."""
+        """Keluar dari animasi & mode pita (ukuran berubah, data dimuat ulang, laci selesai):
+        keadaan tujuan diterapkan, pita & penutup dihapus."""
         a, self._anim = self._anim, None
         if self._anim_job is not None:
             try:
@@ -1190,15 +1253,16 @@ class DashboardView(tk.Canvas):
             except tk.TclError:
                 pass
             self._anim_job = None
-        if a is None:
-            return
-        self.drawer_open, self.card_scroll = a["to_open"], a["to_scroll"]
-        self.delete("strip")
-        self.delete("cover")
-        self.dtag("anim", "anim")
-        self.dtag("wtop", "wtop")
-        self._strip_photo = None
-        self._cover_imgs = []
+        if a is not None:
+            self.drawer_open, self.card_scroll = a["to_open"], a["to_scroll"]
+        if self._strip is not None:
+            self._strip = None
+            self.delete("strip")
+            self.delete("cover")
+            self.dtag("anim", "anim")
+            self.dtag("wtop", "wtop")
+            self._strip_photo = None
+            self._cover_imgs = []
 
     def _fade_text(self):
         """Teks kartu di tepi area gulir: warnanya dicampur ke latar (ikut memudar)."""
@@ -1266,8 +1330,12 @@ class DashboardView(tk.Canvas):
         return CourseDock._wrap(f, text, width, max_lines)
 
     # --- interaksi ---------------------------------------------------------------------------
+    def _in_peek(self, y):
+        return (not self.drawer_open and not self.editing and self._peek_top is not None
+                and y >= self._peek_top)
+
     def _index_at(self, x, y):
-        if self._fade(y) < 0.5:          # di atas batas / di area pudar bawah: tidak aktif
+        if self._in_peek(y) or self._fade(y) < 0.5:          # di atas batas / di area pudar bawah: tidak aktif
             return None
         for i, (x0, y0, x1, y1) in enumerate(self.rects):
             if x0 <= x < x1 and y0 <= y < y1:
@@ -1305,6 +1373,8 @@ class DashboardView(tk.Canvas):
         if self._drag is not None or self._anim is not None:
             return
         self._set_hover(self._index_at(e.x, e.y))
+        if self._in_peek(e.y):
+            self.config(cursor="hand2")
         if any(x0 <= e.x < x1 and y0 <= e.y < y1 for x0, y0, x1, y1 in self._wrects):
             self.config(cursor="fleur" if self.editing else "hand2")
         elif self.editing and self._hit_chip(e.x, e.y) is not None:
@@ -1315,6 +1385,10 @@ class DashboardView(tk.Canvas):
             self._ate_click = False
             return
         if self._anim is not None:       # laci / kartu sedang bergerak
+            return
+        if self._in_peek(e.y):           # kartu baris ke-2 yang mengintip: buka laci
+            self._toggle_drawer()
+            self._ate_click = False
             return
         if self.editing:
             self._press_edit(e)
