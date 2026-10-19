@@ -640,9 +640,14 @@ class CourseEditor(_Card):
         self.video = K.has_video(c) if not new else True
         self._id_auto = new
 
-        def label(r, text):
-            tk.Label(grid, text=text, bg=PANEL, fg=MUTED, font=(C.FONT, 10), anchor="w").grid(
-                row=r, column=0, sticky="w", padx=(0, 14), pady=5)
+        def label(r, text, hint=""):
+            box = tk.Frame(grid, bg=PANEL)
+            box.grid(row=r, column=0, sticky="nw", padx=(0, 14), pady=(9, 5))
+            tk.Label(box, text=text, bg=PANEL, fg=FG, font=(C.FONT, 10), anchor="w").pack(
+                fill="x")
+            if hint:
+                tk.Label(box, text=hint, bg=PANEL, fg=MUTED, font=(C.FONT, 8), anchor="w",
+                         justify="left", wraplength=150).pack(fill="x")
 
         def entry(r, key, ph=""):
             e = RoundEntry(grid, self.v[key], placeholder=ph, width_chars=26, font=(C.FONT, 10),
@@ -659,10 +664,10 @@ class CourseEditor(_Card):
             tk.Label(grid, text=dict(K.PROGRAMS)[self.prog], bg=PANEL, fg=FG,
                      font=(C.FONT, 10), anchor="w").grid(row=r, column=1, sticky="w")
         r += 1
-        label(r, "Judul")
+        label(r, "Judul kursus", "Tampil di kartu")
         first = entry(r, "title", "mis. BASIC 3")
         r += 1
-        label(r, "ID")
+        label(r, "ID kursus", "Tetap, tidak bisa diganti" if new else "")
         if new:
             id_e = entry(r, "id", "otomatis dari judul")
             id_e.entry.bind("<Key>", lambda ev: setattr(self, "_id_auto", False), add="+")
@@ -671,16 +676,16 @@ class CourseEditor(_Card):
             tk.Label(grid, text=c["id"], bg=PANEL, fg=FG, font=("Consolas", 10),
                      anchor="w").grid(row=r, column=1, sticky="w")
         r += 1
-        label(r, "Grup")
+        label(r, "Grup", "Label kecil di atas judul")
         entry(r, "group", "mis. BASIC (kosong = judul)")
         r += 1
-        label(r, "Deskripsi")
-        entry(r, "desc", "Bahasa Indonesia (guru / admin)")
+        label(r, "Deskripsi", "Dilihat guru & admin")
+        entry(r, "desc", "Bahasa Indonesia")
         r += 1
-        label(r, "Deskripsi English")
-        entry(r, "desc_en", "English (layar murid)")
+        label(r, "Deskripsi murid", "English, di kartu murid")
+        entry(r, "desc_en", "English")
         r += 1
-        label(r, "Warna")
+        label(r, "Warna kursus")
         opts = list(K.COLORS)
         if all(col != self.color for _k, col, _n in opts):
             opts.append(("cur", self.color, "Sekarang"))
@@ -688,7 +693,7 @@ class CourseEditor(_Card):
                     lambda v: setattr(self, "color", v)).grid(row=r, column=1, sticky="w",
                                                               pady=6)
         r += 1
-        label(r, "Video pelajaran")
+        label(r, "Punya video", "Mati = tanpa menu video (mis. AI)")
         vrow = tk.Frame(grid, bg=PANEL)
         vrow.grid(row=r, column=1, sticky="we", pady=4)
         Switch(vrow, self.video, command=lambda v: setattr(self, "video", v),
@@ -701,7 +706,7 @@ class CourseEditor(_Card):
         r += 1
         self.open_all = False
         if new:
-            label(r, "Buka untuk semua")
+            label(r, "Buka untuk semua murid", "Langsung terbuka untuk murid program ini")
             self.all_row = tk.Frame(grid, bg=PANEL)
             self.all_row.grid(row=r, column=1, sticky="we", pady=4)
             self.all_sw = Switch(self.all_row, False,
@@ -809,7 +814,7 @@ class CourseDelete(_Card):
         self.msg.pack(fill="x", pady=(6, 0))
         btns = tk.Frame(b, bg=PANEL)
         btns.pack(side="bottom", fill="x")
-        DP._btn(btns, "Hapus", self._do, "danger").pack(side="right")
+        DP._btn(btns, "Hapus kursus", self._do, "danger").pack(side="right")
         cancel = DP._btn(btns, "Batal", self.destroy)
         cancel.pack(side="right", padx=(0, 8))
         self.show(cancel)                    # Enter tidak langsung menghapus

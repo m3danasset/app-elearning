@@ -272,6 +272,15 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   nilai ke bawaan". Nilai baru: tambah baris di VALUES; modulnya harus membaca atribut itu
   saat dipakai (bukan disalin saat import).
 
+## Label jendela Dev (jelas, tidak ambigu)
+- Navigasi: "Kelola" (Akun, Kursus) & "Pengaturan app". Tombol Settings: "Coba sekarang"
+  (= Apply Now, sementara sampai app ditutup), "Simpan permanen" (= Apply As Default),
+  "Nilai ke bawaan". Akun: "Masuk ke akun", "Edit murid / guru / admin", "Nonaktifkan /
+  Aktifkan", "Hapus akun", "Akun baru"; status murid tampil Aktif / Nonaktif. Kursus:
+  "Urungkan akses". Dialog: label kiri + KETERANGAN kecil di bawahnya (Card.label(grid, r,
+  text, hint)), mis. "Masuk sebagai akun ini" = setelah dibuat Dev langsung login ke akun
+  baru. Label / tombol Dev baru wajib jelas begini (Bahasa Indonesia, tanpa istilah Inggris).
+
 ## Dev > Akun (lengkap)
 - Tabel 6 kolom: Jenis | ID | Nama | Status (murid Active / Expired merah) | Login terakhir
   (sessions.overview, dimuat sekali per reload_accounts, _load_last) | PIN. Kepala: jumlah per

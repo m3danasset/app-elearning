@@ -583,10 +583,10 @@ class DevPanel(tk.Toplevel):
         def section(text):
             tk.Label(nav, text=text, bg=PANEL, fg=MUTED, font=(C.FONT, 9),
                      anchor="w").pack(fill="x", padx=20, pady=(10, 3))
-        section("Dev")
+        section("Kelola")
         self._add_nav(nav, "akun", "Akun", "users")
         self._add_nav(nav, "kursus", "Kursus", "grid")
-        section("Settings")
+        section("Pengaturan app")
         for key, label, icon in self._pages():
             self._add_nav(nav, key, label, icon)
         _draggable(self, nav)
@@ -602,25 +602,27 @@ class DevPanel(tk.Toplevel):
         self.status = tk.Label(self.bottom, text="", bg=PANEL, fg=MUTED, font=(C.FONT, 9),
                                anchor="w")
         self._bar_acc = tk.Frame(self.bottom, bg=PANEL)
-        _btn(self._bar_acc, "Masuk", self._login, "primary").pack(side="right")
+        _btn(self._bar_acc, "Masuk ke akun", self._login, "primary").pack(side="right")
         self.edit_btn = _btn(self._bar_acc, "Edit", self._edit)
         self.edit_btn.pack(side="right", padx=(0, 8))
         self.stat_btn = _btn(self._bar_acc, "Nonaktifkan", self._toggle_status)
         self.stat_btn.pack(side="right", padx=(0, 8))
-        self.del_btn = _btn(self._bar_acc, "Hapus", self._delete, "danger")
+        self.del_btn = _btn(self._bar_acc, "Hapus akun", self._delete, "danger")
         self.del_btn.pack(side="right", padx=(0, 8))
         _btn(self._bar_acc, "Akun baru", self._new_account).pack(side="right", padx=(0, 8))
         self._bar_set = tk.Frame(self.bottom, bg=PANEL)
         # Apply Now = sementara (sampai app ditutup); Apply As Default = disimpan ke file
-        self.apply_btn = _btn(self._bar_set, "Apply Now", lambda: self._apply(False), "primary")
+        self.apply_btn = _btn(self._bar_set, "Coba sekarang", lambda: self._apply(False),
+                              "primary")
         self.apply_btn.pack(side="right")
-        self.default_btn = _btn(self._bar_set, "Apply As Default", lambda: self._apply(True))
+        self.default_btn = _btn(self._bar_set, "Simpan permanen", lambda: self._apply(True))
         self.default_btn.pack(side="right", padx=(0, 8))
-        _btn(self._bar_set, "Reset nilai", self._reset_values).pack(side="right", padx=(0, 8))
+        _btn(self._bar_set, "Nilai ke bawaan", self._reset_values).pack(side="right",
+                                                                       padx=(0, 8))
         self._bar_crs = tk.Frame(self.bottom, bg=PANEL)
         _btn(self._bar_crs, "Kursus baru", lambda: self.crs.new_course(), "primary").pack(
             side="right")
-        self.undo_btn = _btn(self._bar_crs, "Urungkan", lambda: self.crs.undo())
+        self.undo_btn = _btn(self._bar_crs, "Urungkan akses", lambda: self.crs.undo())
         self.undo_btn.pack(side="right", padx=(0, 8))
         self.area = tk.Frame(main, bg=PANEL)
         self.area.pack(fill="both", expand=True)
@@ -736,9 +738,9 @@ class DevPanel(tk.Toplevel):
                  anchor="w").pack(side="left")
         self.acc_count = tk.Label(top, text="", bg=PANEL, fg=MUTED, font=(C.FONT, 10))
         self.acc_count.pack(side="right", padx=(0, 10))
-        tk.Label(wrap, text="Masuk ke akun mana pun tanpa PIN, buat akun baru (Ctrl+N), ubah, "
-                            "nonaktifkan, atau hapus. Klik 2x sel = ubah di tempat, kursor di "
-                            "baris = PIN terlihat.", bg=PANEL, fg=MUTED, font=(C.FONT, 10),
+        tk.Label(wrap, text="Pilih akun lalu \"Masuk ke akun\" (tanpa PIN). Akun baru: "
+                            "Ctrl+N. Klik 2x sel = ubah langsung. Arahkan kursor ke baris = PIN "
+                            "terlihat. Nonaktif = tidak bisa login, data tetap.", bg=PANEL, fg=MUTED, font=(C.FONT, 10),
                  anchor="w", justify="left", wraplength=700).pack(fill="x", pady=(2, 14))
         bar = tk.Frame(wrap, bg=PANEL)
         bar.pack(fill="x", padx=(0, 10))
@@ -810,7 +812,7 @@ class DevPanel(tk.Toplevel):
         if col == "status":
             if kind in ("adult", "kids"):
                 exp = (it[3] or {}).get("status") == "expired"
-                return ("Expired", "#ff8a80") if exp else ("Active", MUTED)
+                return ("Nonaktif", "#ff8a80") if exp else ("Aktif", MUTED)
             return "-", MUTED
         if col == "last":
             if kind == "trial":
@@ -969,7 +971,8 @@ class DevPanel(tk.Toplevel):
         kind = it[0] if it is not None else None
         self.del_btn.config(state="disabled" if kind in (None, "trial") else "normal")
         self.edit_btn.config(state="disabled" if kind in (None, "trial") else "normal",
-                             text="Edit akun" if kind in ("admin", "teacher")
+                             text="Edit guru" if kind == "teacher"
+                             else "Edit admin" if kind == "admin"
                              else "Edit murid" if kind in ("adult", "kids") else "Edit")
         student = kind in ("adult", "kids")
         exp = student and (it[3] or {}).get("status") == "expired"
@@ -1401,7 +1404,8 @@ class DevPanel(tk.Toplevel):
         if n:
             self._note(f"{n} perubahan belum diterapkan")
         elif temp:
-            self._note("Sementara: kembali saat app ditutup (Apply As Default = simpan).")
+            self._note("Sedang dicoba: kembali seperti semula saat app ditutup "
+                       "(Simpan permanen = tetap).")
         else:
             self._note("")
 

@@ -18,8 +18,8 @@ from elearning.ui import dev_panel as DP
 from elearning.ui import ui_icons as I
 
 PANEL, FG, MUTED, LINE = DP.PANEL, DP.FG, DP.MUTED, DP.LINE
-LABEL_W = 132
-TYPES = (("adult", "Murid dewasa"), ("kids", "SUPERKIDS"), ("teacher", "Guru"),
+LABEL_W = 150
+TYPES = (("adult", "Dewasa (PB)"), ("kids", "SUPERKIDS (SK)"), ("teacher", "Guru"),
          ("admin", "Admin"))
 
 
@@ -113,10 +113,15 @@ class Card(tk.Toplevel):
         self.fit()
 
     @staticmethod
-    def label(grid, r, text):
-        lbl = tk.Label(grid, text=text, bg=PANEL, fg=MUTED, font=(C.FONT, 10), anchor="w")
-        lbl.grid(row=r, column=0, sticky="w", padx=(0, 12), pady=5)
-        return lbl
+    def label(grid, r, text, hint=""):
+        """Label kolom (kiri) + keterangan kecil di bawahnya supaya tidak salah paham."""
+        box = tk.Frame(grid, bg=PANEL)
+        box.grid(row=r, column=0, sticky="nw", padx=(0, 12), pady=(9, 5))
+        tk.Label(box, text=text, bg=PANEL, fg=FG, font=(C.FONT, 10), anchor="w").pack(fill="x")
+        if hint:
+            tk.Label(box, text=hint, bg=PANEL, fg=MUTED, font=(C.FONT, 8), anchor="w",
+                     justify="left", wraplength=LABEL_W - 8).pack(fill="x")
+        return box
 
     def entry(self, parent, var, placeholder="", width=24, on_enter=None):
         from elearning.ui.controls import RoundEntry
@@ -131,7 +136,8 @@ class Card(tk.Toplevel):
         f = tk.Frame(grid, bg=PANEL)
         self.entry(f, var, "4-10 karakter", 14, on_enter).pack(side="left", fill="x",
                                                                 expand=True)
-        DP._btn(f, "Acak", lambda: var.set(random_pin())).pack(side="left", padx=(8, 0))
+        DP._btn(f, "Buat PIN acak", lambda: var.set(random_pin())).pack(side="left",
+                                                                        padx=(8, 0))
         return f
 
 
@@ -186,28 +192,32 @@ class Chips(tk.Canvas):
 class NewAccount(Card):
     def __init__(self, panel, kind="adult"):
         from elearning.ui.widgets import Switch
-        super().__init__(panel, 540)
+        super().__init__(panel, 600)
         self.kind = kind if kind in dict(TYPES) else "adult"
-        g = self.grid = self.head("Akun baru", "Murid baru: kursus yang tidak dipilih terkunci. "
-                                                "Guru & admin masuk dengan ID + PIN.")
+        g = self.grid = self.head("Buat akun baru",
+                                  "Murid masuk dengan ID saja. Guru & admin masuk dengan ID + PIN.")
         self.v = {k: tk.StringVar() for k in ("name", "id", "pin", "birth")}
         self.v["pin"].set(random_pin())
-        self.label(g, 0, "Jenis")
+        self.label(g, 0, "Jenis akun")
         self.seg = DP.Seg(g, TYPES, self.kind, self._set_kind)
         self.seg.grid(row=0, column=1, sticky="w", pady=4)
         self.label(g, 1, "Nama")
         self.name_e = self.entry(g, self.v["name"], "Nama lengkap", on_enter=self._save)
         self.name_e.grid(row=1, column=1, sticky="we", pady=4)
-        self.label(g, 2, "ID")
+        self.label(g, 2, "ID login", "Diketik saat masuk")
         self.id_e = self.entry(g, self.v["id"], "otomatis", 14, self._save)
         self.id_auto = tk.Label(g, text="", bg=PANEL, fg=FG, font=("Consolas", 10), anchor="w")
         self.rows = {}
-        self.rows["pin"] = (self.label(g, 3, "PIN"), self.pin_box(g, self.v["pin"], self._save))
-        self.rows["birth"] = (self.label(g, 4, "Tanggal lahir"),
+        self.rows["pin"] = (self.label(g, 3, "PIN login", "4-10 karakter"),
+                            self.pin_box(g, self.v["pin"], self._save))
+        self.rows["birth"] = (self.label(g, 4, "Tanggal lahir", "Opsional, untuk umur"),
                               self.entry(g, self.v["birth"], "YYYY-MM-DD (boleh kosong)", 24,
                                          self._save))
-        self.rows["courses"] = (self.label(g, 5, "Kursus dibuka"), tk.Frame(g, bg=PANEL))
-        self.label(g, 6, "Langsung masuk")
+        self.rows["courses"] = (self.label(g, 5, "Kursus terbuka",
+                                           "Klik untuk pilih. Yang tidak dipilih terkunci."),
+                                tk.Frame(g, bg=PANEL))
+        self.label(g, 6, "Masuk sebagai akun ini",
+                   "Setelah dibuat, Dev langsung login ke akun baru (untuk mencoba)")
         self.login_after = False
         Switch(g, False, command=lambda v: setattr(self, "login_after", v),
                bg=PANEL).grid(row=6, column=1, sticky="w", pady=4)
@@ -225,8 +235,7 @@ class NewAccount(Card):
         for key, (lbl, w) in self.rows.items():
             show = student if key in ("birth", "courses") else not student
             if show:
-                lbl.grid(sticky="nw" if key == "courses" else "w",
-                         pady=(9, 5) if key == "courses" else 5)
+                lbl.grid()
                 w.grid(row=lbl.grid_info()["row"], column=1, sticky="we" if key != "courses"
                        else "w", pady=4)
             else:
@@ -241,7 +250,7 @@ class NewAccount(Card):
         else:
             self.id_e.grid_remove()
             nid = T.next_teacher_id() if kind == "teacher" else A.next_admin_id()
-            self.id_auto.config(text=f"{nid}   (otomatis)")
+            self.id_auto.config(text=f"{nid}   (dibuat otomatis)")
             self.id_auto.grid(row=2, column=1, sticky="w", pady=4)
         self._auto_id = True
         if not first:
@@ -299,8 +308,7 @@ class StudentEditor(Card):
         super().__init__(panel, 560)
         self.ST = ST
         self.st = ST.lookup_student(sid)
-        g = self.head(f"Edit murid {sid}", "ID baru ikut memindahkan foto, progres, badge, "
-                                             "portfolio, riwayat login, jadwal, dan sertifikat.")
+        g = self.head(f"Edit murid {sid}", "Perubahan disimpan saat klik Simpan.")
         self.v = {"name": tk.StringVar(value=self.st["name"]),
                   "id": tk.StringVar(value=self.st["id"]),
                   "birth": tk.StringVar(value=self.st.get("birth") or "")}
@@ -308,17 +316,17 @@ class StudentEditor(Card):
         self.label(g, 0, "Nama")
         first = self.entry(g, self.v["name"], on_enter=self._save)
         first.grid(row=0, column=1, sticky="we", pady=4)
-        self.label(g, 1, "ID")
+        self.label(g, 1, "ID login", "Ganti = semua data ikut pindah")
         self.entry(g, self.v["id"], width=14, on_enter=self._save).grid(row=1, column=1,
                                                                         sticky="w", pady=4)
-        self.label(g, 2, "Kategori")
+        self.label(g, 2, "Program", "Dewasa = ID PB, anak = ID SK")
         DP.Seg(g, (("adult", "Dewasa"), ("kids", "SUPERKIDS")), self.prog,
                self._set_prog).grid(row=2, column=1, sticky="w", pady=4)
-        self.label(g, 3, "Status")
-        DP.Seg(g, (("active", "Active"), ("expired", "Expired (tidak bisa login)")),
+        self.label(g, 3, "Status akun")
+        DP.Seg(g, (("active", "Aktif"), ("expired", "Nonaktif (tidak bisa login)")),
                self.status, lambda v: setattr(self, "status", v)).grid(row=3, column=1,
                                                                         sticky="w", pady=4)
-        self.label(g, 4, "Tanggal lahir")
+        self.label(g, 4, "Tanggal lahir", "Opsional, untuk umur")
         self.entry(g, self.v["birth"], "YYYY-MM-DD (boleh kosong)", on_enter=self._save).grid(
             row=4, column=1, sticky="we", pady=4)
         self.cbox = tk.Frame(self.body, bg=PANEL)
@@ -344,9 +352,12 @@ class StudentEditor(Card):
         head.pack(fill="x")
         tk.Label(head, text="Kursus", bg=PANEL, fg=FG, font=(C.FONT, 11, "bold"),
                  anchor="w").pack(side="left")
-        for t in ("Buka", "Tampil"):
+        for t in ("Terbuka", "Terlihat"):
             tk.Label(head, text=t, bg=PANEL, fg=MUTED, font=(C.FONT, 9), width=8).pack(
                 side="right")
+        tk.Label(self.cbox, text="Terlihat = kartu muncul di halaman murid.  Terbuka = bisa "
+                             "dipelajari (mati = kartu terkunci).", bg=PANEL, fg=MUTED,
+                 font=(C.FONT, 8), anchor="w").pack(fill="x")
         tk.Frame(self.cbox, bg=LINE, height=1).pack(fill="x", pady=(4, 0))
         self.cv_rows = []
         self._dots = []
@@ -421,14 +432,14 @@ class AccountEditor(Card):
             name = (teachers.get_teacher(uid) or {}).get("name", name)
         self._old = (name, pin or "")
         g = self.head(f"Edit {'admin' if kind == 'admin' else 'guru'} {uid}",
-                      "PIN dipakai bersama ID untuk masuk.")
+                      "Masuk dengan ID + PIN ini.")
         self.name_var, self.var = tk.StringVar(value=name), tk.StringVar(value=pin or "")
         self.label(g, 0, "Nama")
         first = self.entry(g, self.name_var, on_enter=self._save)
         first.grid(row=0, column=1, sticky="we", pady=4)
-        self.label(g, 1, "PIN")
+        self.label(g, 1, "PIN login", "4-10 karakter, tanpa spasi")
         self.pin_box(g, self.var, self._save).grid(row=1, column=1, sticky="we", pady=4)
-        self.footer("Simpan", self._save, note="PIN 4-10 karakter, tanpa spasi.")
+        self.footer("Simpan", self._save)
         self.show(first.entry)
         first.entry.select_range(0, "end")
 
@@ -490,8 +501,8 @@ class DeleteConfirm(Card):
     def __init__(self, panel, kind, uid, name):
         super().__init__(panel, 460)
         self.kind, self.uid = kind, uid
-        self.head(f"Hapus {uid}  {name}?", self.WHAT.get(kind, "") + " Tidak bisa dikembalikan.")
-        _ok, cancel = self.footer("Hapus", self._do, "danger")
+        self.head(f"Hapus akun {uid} ({name})?", self.WHAT.get(kind, "") + " Tidak bisa dikembalikan.")
+        _ok, cancel = self.footer("Hapus permanen", self._do, "danger")
         self.show(cancel)                       # Enter tidak langsung menghapus
 
     def _do(self):
