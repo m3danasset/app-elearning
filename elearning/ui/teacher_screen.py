@@ -26,7 +26,8 @@ from elearning.ui.teacher_progress import ProgressBoard, QuizPanel
 from elearning.ui.widgets import ScrollFrame, Switch, add_hover
 
 PROGRAM_LABEL = {"adult": "Murid dewasa", "kids": "Murid anak"}
-CATEGORIES = ("adult", "kids")  # urutan kategori di sidebar kiri
+CATEGORIES = ("adult", "kids")  # urutan kategori di daftar murid
+LIST_SORTS = ("Kategori", "Nama A–Z", "ID")
 VIEW_TITLE = {"dashboard": "Dashboard", "students": "Murid & Kursus", "reports": "Laporan Kerja", "quizzes": "Kuis",
               "examples": "Bahan dari Guru", "schedule": "Jadwal Murid",
               "certificates": "Sertifikat"}
@@ -145,8 +146,6 @@ class TeacherScreen(SidebarLayout):
     def open_student(self, student_id):
         """Dari search palette: tampilkan murid itu (daftar murid ikut menunjuknya)."""
         self.students = list_students()
-        if self._list_ok:
-            self.list_q.set("")          # murid yang dipilih pasti terlihat di daftar
         self.collapsed.clear()
         self._on_student_click(student_id)
         self._rebuild_list(keep_scroll=False)
@@ -156,16 +155,18 @@ class TeacherScreen(SidebarLayout):
 
     # --- daftar murid (kolom kiri halaman Murid & Kursus) ------------------------------
     def _build_student_list(self, parent):
-        """Kolom daftar murid per kategori: kolom saring + daftar yang bisa digulir."""
-        from elearning.ui.controls import RoundEntry
+        """Kolom daftar murid: urutan (Nama A-Z / ID / Kategori) + daftar yang bisa digulir."""
+        from elearning.ui.controls import RoundSelect
         col = tk.Frame(parent, bg=C.BG, width=290)
         col.pack(side="left", fill="y")
         col.pack_propagate(False)
-        self.list_q = tk.StringVar()
-        box = RoundEntry(col, self.list_q, placeholder="Cari murid (nama / ID)", icon="search",
-                         width_chars=22, font=(C.FONT, 10), height=36, radius=10)
-        box.pack(fill="x", padx=(20, 8), pady=(18, 8))
-        self.list_q.trace_add("write", lambda *a: self._rebuild_list(keep_scroll=False))
+        bar = tk.Frame(col, bg=C.BG)
+        bar.pack(fill="x", padx=(20, 8), pady=(18, 8))
+        tk.Label(bar, text="Urutkan", bg=C.BG, fg=C.MUTED, font=(C.FONT, 10)).pack(
+            side="left", padx=(0, 8))
+        self.list_sort = tk.StringVar(value=getattr(TeacherScreen, "_sort", LIST_SORTS[0]))
+        RoundSelect(bar, self.list_sort, *LIST_SORTS, command=self._set_list_sort).pack(
+            side="left")
         self.list_scroll = ScrollFrame(col, bg=C.BG)
         self.list_scroll.pack(fill="both", expand=True, padx=(12, 0))
         tk.Frame(parent, bg=C.BORDER, width=1).pack(side="left", fill="y", pady=12)
@@ -177,16 +178,22 @@ class TeacherScreen(SidebarLayout):
         for w in inner.winfo_children():
             w.destroy()
         self._row_widgets = {}
-        q = self.list_q.get().strip().lower()
-        searching = bool(q)
-        found = 0
+        mode = self.list_sort.get()
+        if mode != "Kategori":           # Nama A-Z / ID: satu daftar rata, tanpa kelompok
+            key = (lambda s: s["id"]) if mode == "ID" else \
+                (lambda s: (s["name"].lower(), s["id"]))
+            for s in sorted(self.students, key=key):
+                self._row_widgets[s["id"]] = self._student_row(inner, s)
+            if not self.students:
+                tk.Label(inner, text="Belum ada murid.", bg=C.BG, fg=C.MUTED,
+                         font=(C.FONT, 10)).pack(fill="x", padx=10, pady=10)
+            return
         for program in CATEGORIES:
-            group = [s for s in self.students if s["program"] == program
-                     and (not q or q in s["name"].lower() or q in s["id"].lower())]
+            group = sorted((s for s in self.students if s["program"] == program),
+                           key=lambda s: (s["name"].lower(), s["id"]))
             if not group:
                 continue
-            found += len(group)
-            folded = program in self.collapsed and not searching
+            folded = program in self.collapsed
             head = tk.Frame(inner, bg=C.BG, cursor="hand2")
             head.pack(fill="x", pady=(10, 2))
             tk.Label(head, text=("▸ " if folded else "▾ ") + PROGRAM_LABEL[program], bg=C.BG,
@@ -199,11 +206,14 @@ class TeacherScreen(SidebarLayout):
                 continue
             for s in group:
                 self._row_widgets[s["id"]] = self._student_row(inner, s)
-        if not found:
-            tk.Label(inner, text="Belum ada murid." if not self.students else
-                     f"Tidak ada murid yang cocok dengan “{self.list_q.get().strip()}”.",
-                     bg=C.BG, fg=C.MUTED, font=(C.FONT, 10), anchor="w", justify="left",
-                     wraplength=230).pack(fill="x", padx=10, pady=10)
+        if not self.students:
+            tk.Label(inner, text="Belum ada murid.", bg=C.BG, fg=C.MUTED,
+                     font=(C.FONT, 10)).pack(fill="x", padx=10, pady=10)
+
+    def _set_list_sort(self, value):
+        self.list_sort.set(value)
+        TeacherScreen._sort = value      # diingat selama app terbuka
+        self._rebuild_list(keep_scroll=False)
 
     def _rebuild_list(self, keep_scroll=True):
         """Isi ulang daftar murid (dikelompokkan per kategori); murid terpilih dibawa ke area
