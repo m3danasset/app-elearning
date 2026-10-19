@@ -19,7 +19,8 @@ from datetime import datetime
 from elearning import config as C
 
 FMT = "%Y-%m-%d %H:%M:%S"
-SECTIONS = (("week", "MINGGU INI"), ("month", "BULAN INI"))
+SECTIONS = (("day", "LAPORAN HARIAN"), ("week", "MINGGU INI"), ("month", "BULAN INI"))
+DAYS = ("Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu")
 TEXT_MAX = 300
 REPORT_MAX = 600
 MONTHS = ("Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus",
@@ -96,17 +97,33 @@ def items_of(teacher_id, month):
                   key=lambda x: (x.get("created", ""), x["id"]))
 
 
-def grouped(teacher_id, month):
-    """{"week": [...belum selesai], "month": [...], "done": [...selesai, terlama dulu]}."""
+def day_label(day):
+    """"2026-10-19" -> "Senin, 19 Okt"."""
+    d = datetime.strptime(day, "%Y-%m-%d")
+    return f"{DAYS[d.weekday()]}, {d.day} {MONTHS[d.month - 1][:3]}"
+
+
+def short_date(stamp):
+    """"2026-10-19 14:03:00" -> "19/10/26"."""
+    try:
+        return datetime.strptime(stamp[:10], "%Y-%m-%d").strftime("%d/%m/%y")
+    except (TypeError, ValueError):
+        return ""
+
+
+def grouped(teacher_id, month, day=None):
+    """{"day": [...laporan harian hari itu], "week": [...belum selesai], "month": [...],
+    "done": [...selesai, terlama dulu]}. Laporan harian: hanya tanggal `day`."""
     rows = items_of(teacher_id, month)
     out = {k: [x for x in rows if x.get("section") == k and not x.get("done")]
            for k, _l in SECTIONS}
+    out["day"] = [x for x in out["day"] if x.get("day") == day]
     out["done"] = sorted((x for x in rows if x.get("done")),
                          key=lambda x: (x.get("done_at") or "", x["id"]))
     return out
 
 
-def add(teacher_id, month, section, text, report=""):
+def add(teacher_id, month, section, text, report="", day=None):
     text = _clean(text, TEXT_MAX, "Tugas")
     if not text:
         raise ValueError("Tugas belum diisi.")
@@ -120,6 +137,8 @@ def add(teacher_id, month, section, text, report=""):
                "month": month, "section": section, "text": text,
                "report": _clean(report, REPORT_MAX, "Laporan"), "done": False, "done_at": "",
                "check": False, "check_by": "", "check_at": "", "created": now, "edited": now}
+        if section == "day":                    # laporan harian: milik satu tanggal
+            rec["day"] = day or now[:10]
         while any(x["id"] == rec["id"] for x in items):
             rec["id"] += "x"
         items.append(rec)
@@ -176,6 +195,8 @@ def carry_over(teacher_id, to_month):
     n = 0
     for x in items_of(teacher_id, prev):
         if not x.get("done") and (x.get("section"), x["text"]) not in have:
+            if x.get("section") == "day":         # laporan harian tidak dibawa
+                continue
             add(teacher_id, to_month, x.get("section", "week"), x["text"], x.get("report", ""))
             n += 1
     return n
@@ -183,7 +204,8 @@ def carry_over(teacher_id, to_month):
 
 def open_previous(teacher_id, month):
     """Jumlah tugas belum selesai di bulan sebelumnya (tawaran "bawa ke bulan ini")."""
-    return sum(1 for x in items_of(teacher_id, shift_month(month, -1)) if not x.get("done"))
+    return sum(1 for x in items_of(teacher_id, shift_month(month, -1))
+               if not x.get("done") and x.get("section") != "day")
 
 
 def summary(teacher_id=None, month=None):
@@ -192,7 +214,10 @@ def summary(teacher_id=None, month=None):
     today = datetime.now().strftime("%Y-%m-%d")
     tid = str(teacher_id).upper() if teacher_id else None
     rows = [x for x in _load() if x.get("month") == month and (tid is None or x["teacher"] == tid)]
-    return {"open_week": [x for x in rows if x.get("section") == "week" and not x.get("done")],
+    return {"open_day": [x for x in rows if x.get("section") == "day" and not x.get("done")
+                         and x.get("day") == today],
+            "today": [x for x in rows if x.get("section") == "day" and x.get("day") == today],
+            "open_week": [x for x in rows if x.get("section") == "week" and not x.get("done")],
             "open_month": [x for x in rows if x.get("section") == "month" and not x.get("done")],
             "done": [x for x in rows if x.get("done")],
             "unchecked": [x for x in rows if x.get("done") and not x.get("check")],

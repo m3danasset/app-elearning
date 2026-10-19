@@ -236,6 +236,11 @@ def _teacher(now, teacher):
     from elearning import task_sheet as TS
     sm = TS.summary(tid)
     week = sm["open_week"]
+    if not sm["today"]:                      # laporan harian hari ini belum diisi
+        out.append({"key": "daily", "level": "todo", "icon": "report", "tag": "LAPORAN HARIAN",
+                    "title": "Isi laporan harian hari ini",
+                    "body": "Tulis kegiatan kelas hari ini di bagian Laporan Harian.",
+                    "when": "", "action": "Buka sheet", "target": "reports"})
     if week:
         out.append({"key": "report", "level": "todo", "icon": "report", "tag": "LAPORAN KERJA",
                     "title": f"{len(week)} tugas minggu ini belum selesai",

@@ -6,7 +6,6 @@ import tkinter as tk
 
 from elearning import config as C
 from elearning import student_survey as SS
-from elearning.ui.controls import RoundButton, RoundEntry
 from elearning.ui.signup_view import _button, _center_again, _center_modal, _dialog_base
 
 
@@ -27,9 +26,6 @@ class StudentSurveyDialog(tk.Toplevel):
         _dialog_base(self, master, "Quick survey")
         self.student = student
         self.done = False
-        self.level = tk.StringVar()
-        self.picked = set()
-        self.vars = {k: tk.StringVar() for k in ("hardest", "favorite", "note")}
         self.body = tk.Frame(self, bg=C.CARD, padx=28, pady=22)
         self.body.pack(fill="both", expand=True)
         name = (student.get("name") or "").split(" ")[0]
@@ -41,19 +37,10 @@ class StudentSurveyDialog(tk.Toplevel):
                                  "Questions marked * are required.", bg=C.CARD, fg=C.MUTED,
                  font=(C.FONT, 10), anchor="w", justify="left",
                  wraplength=self.W - 56).pack(fill="x", pady=(4, 14))
-        self._label("How did BASIC 1 & 2 feel? *")
-        self._single(self.level, [(k, e) for k, e, _i in SS.LEVELS])
-        self._label("What do you want to make next? (pick any) *")
-        self._multi([(k, e) for k, e, _i in SS.INTERESTS])
-        self.entries = []
-        for key, text in (("hardest", "What was the hardest part?"),
-                          ("favorite", "What did you enjoy the most?"),
-                          ("note", "Anything else you'd like to tell us?")):
-            self._label(text)
-            box = RoundEntry(self.body, self.vars[key], width_chars=52, font=(C.FONT, 11),
-                             height=38, fill=C.BG, radius=9)
-            box.pack(fill="x", pady=(4, 10))
-            self.entries.append(box.entry)
+        from elearning.ui.survey_form import QuestionForm
+        self.form = QuestionForm(self.body, SS.questions(), width=self.W - 56)
+        self.form.pack(fill="x")
+        self.entries = self.form.entries          # pertanyaan dari admin (Panel Survey)
         for n, e in enumerate(self.entries):
             e.bind("<Return>", lambda ev, n=n: self._next(n))
         self.error = tk.Label(self.body, text="", bg=C.CARD, fg=C.ERROR, font=(C.FONT, 10),
@@ -69,45 +56,6 @@ class StudentSurveyDialog(tk.Toplevel):
         self.attributes("-topmost", True)
         self.focus_set()
 
-    def _label(self, text):
-        tk.Label(self.body, text=text, bg=C.CARD, fg=C.TEXT, font=(C.FONT, 10),
-                 anchor="w").pack(fill="x")
-
-    @staticmethod
-    def _paint(b, on):
-        b.config(bg=C.SEG_ON if on else C.BG, fg=C.TEXT if on else C.MUTED,
-                 activebackground=C.SEG_ON if on else C.CARD_HOVER, activeforeground=C.TEXT)
-
-    def _single(self, var, options):
-        row = tk.Frame(self.body, bg=C.CARD)
-        row.pack(fill="x", pady=(4, 12))
-        btns = {}
-
-        def pick(v):
-            var.set("" if var.get() == v else v)
-            for k, b in btns.items():
-                self._paint(b, var.get() == k)
-        for key, text in options:
-            b = RoundButton(row, text=text, command=lambda v=key: pick(v), cursor="hand2",
-                            font=(C.FONT, 10, "bold"), padx=16, pady=7)
-            b.pack(side="left", padx=(0, 8))
-            btns[key] = b
-            self._paint(b, False)
-
-    def _multi(self, options):
-        row = tk.Frame(self.body, bg=C.CARD)
-        row.pack(fill="x", pady=(4, 12))
-
-        def toggle(k, b):
-            self.picked ^= {k}
-            self._paint(b, k in self.picked)
-        for key, text in options:
-            b = RoundButton(row, text=text, cursor="hand2", font=(C.FONT, 10, "bold"),
-                            padx=16, pady=7)
-            b.config(command=lambda k=key, b=b: toggle(k, b))
-            b.pack(side="left", padx=(0, 8))
-            self._paint(b, False)
-
     def _next(self, n):
         if n + 1 < len(self.entries):
             self.entries[n + 1].focus_set()
@@ -116,8 +64,7 @@ class StudentSurveyDialog(tk.Toplevel):
         return "break"
 
     def _submit(self):
-        answers = {k: v.get() for k, v in self.vars.items()}
-        answers.update(level=self.level.get(), interests=sorted(self.picked))
+        answers = self.form.values()
         try:
             SS.add(self.student, answers)
         except ValueError as exc:

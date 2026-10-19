@@ -1,9 +1,11 @@
 """Survey murid setelah menyelesaikan BASIC 2 (config.SURVEY_AFTER_COURSE).
 
 Popup English muncul di Dashboard murid (bukan trial) setelah SEMUA video kursus itu ditonton
-(progress.completed, sama dengan syarat sertifikat). Isinya: tingkat kesulitan, bagian
-tersulit, bagian yang paling disukai, minat lanjutan (game, animasi, iklan, karakter,
-interior), catatan. Submit = tidak muncul lagi; Skip = muncul lagi di sesi app berikutnya.
+(progress.completed, sama dengan syarat sertifikat). PERTANYAAN diatur admin (Panel Admin >
+Survey, survey_questions "student"); bawaan: tingkat kesulitan, minat lanjutan (game, animasi,
+iklan, karakter, interior), bagian tersulit, paling disukai, catatan. Jawaban disimpan sebagai
+"answers" {id pertanyaan: jawaban English}. Submit = tidak muncul lagi; Skip = muncul lagi di
+sesi app berikutnya.
 Jawaban di data\\student_surveys.json (daftar), dilihat admin di Analytics + Excel.
 Fitur Dev "student_survey" bisa mematikannya.
 """
@@ -94,27 +96,28 @@ def skip(student):
     _skipped.add(student["id"].upper())
 
 
-def clean(answers):
-    """Periksa jawaban; ValueError (English, layar murid) kalau ada yang wajib kosong."""
-    level = answers.get("level")
-    if level not in dict((k, v) for k, v, _i in LEVELS):
-        raise ValueError("Please choose how BASIC felt for you.")
-    interests = [k for k, _e, _i in INTERESTS if k in (answers.get("interests") or ())]
-    if not interests:
-        raise ValueError("Please pick at least one thing you want to make next.")
-    out = {"level": level, "interests": interests}
-    for key in ("hardest", "favorite", "note"):
-        text = " ".join(str(answers.get(key, "")).split())
-        if len(text) > TEXT_MAX:
-            raise ValueError(f"Please keep each answer under {TEXT_MAX} characters.")
-        out[key] = text
-    return out
+def questions():
+    from elearning import survey_questions as SQ
+    return SQ.load("student")
+
+
+def answers_of(rec):
+    """Jawaban rekaman {id: jawaban}; rekaman lama (level / interests berkode) diterjemahkan."""
+    if isinstance(rec.get("answers"), dict):
+        return rec["answers"]
+    lv = {k: e for k, e, _i in LEVELS}
+    it = {k: e for k, e, _i in INTERESTS}
+    return {"level": lv.get(rec.get("level"), rec.get("level") or ""),
+            "interests": [it.get(k, k) for k in rec.get("interests") or ()],
+            "hardest": rec.get("hardest", ""), "favorite": rec.get("favorite", ""),
+            "note": rec.get("note", "")}
 
 
 def add(student, answers):
-    rec = dict(clean(answers), student=student["id"].upper(), name=student.get("name", ""),
-               program=student.get("program", ""), course=course_id(),
-               at=datetime.now().strftime(FMT))
+    from elearning import survey_questions as SQ
+    rec = dict(answers=SQ.clean_answers(questions(), answers), student=student["id"].upper(),
+               name=student.get("name", ""), program=student.get("program", ""),
+               course=course_id(), at=datetime.now().strftime(FMT))
     with _lock:
         items = [r for r in list_all() if not (r.get("student") == rec["student"]
                                                 and r.get("course") == rec["course"])]
@@ -124,15 +127,8 @@ def add(student, answers):
     return rec
 
 
-def label(kind, key):
-    """Label Indonesia untuk admin / Excel."""
-    table = LEVELS if kind == "level" else INTERESTS
-    return next((i for k, _e, i in table if k == key), key)
-
-
-def stats(start=None, end=None, program="all"):
-    """Ringkasan untuk Analytics: {count, levels: [(label, n)], interests: [(label, n)],
-    latest: [rec]} dalam periode (start / end datetime, end eksklusif)."""
+def records(start=None, end=None, program="all"):
+    """Rekaman dalam periode (start / end datetime, end eksklusif), terbaru dulu."""
     rows = []
     for r in list_all():
         try:
@@ -145,10 +141,19 @@ def stats(start=None, end=None, program="all"):
             continue
         rows.append(r)
     rows.sort(key=lambda r: r.get("at", ""), reverse=True)
-    levels = [(i, sum(1 for r in rows if r.get("level") == k)) for k, _e, i in LEVELS]
-    ints = [(i, sum(1 for r in rows if k in (r.get("interests") or ()))) for k, _e, i in INTERESTS]
-    ints.sort(key=lambda x: -x[1])
-    return {"count": len(rows), "levels": levels, "interests": ints, "latest": rows[:4]}
+    return rows
+
+
+def stats(start=None, end=None, program="all"):
+    """Untuk Analytics: {count, tally: [(pertanyaan, [(pilihan, n)], penjawab)], texts:
+    [pertanyaan isian], latest: [{name, answers}]}."""
+    from elearning import survey_questions as SQ
+    rows = records(start, end, program)
+    qs = questions()
+    return {"count": len(rows), "tally": SQ.tally(qs, rows, answers_of),
+            "texts": [q for q in qs if q["kind"] == "text"],
+            "latest": [{"name": r.get("name") or r.get("student"), "at": r.get("at", ""),
+                        "answers": answers_of(r)} for r in rows[:4]]}
 
 
 def delete_student(sid):

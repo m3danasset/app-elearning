@@ -106,6 +106,15 @@ class SurveyDialog(tk.Toplevel):
                 r, c = r + 1, 0
             else:
                 r, c = (r + 1, 0) if c == 1 else (r, 1)
+        # pertanyaan tambahan dari admin (Panel Admin > Survey > Survey trial)
+        from elearning import survey_questions as SQ
+        self.extra_q = SQ.load("trial")
+        self.extra = None
+        if self.extra_q:
+            from elearning.ui.survey_form import QuestionForm
+            self.extra = QuestionForm(self.body, self.extra_q, width=540)
+            self.extra.pack(fill="x", pady=(4, 0))
+            self.entries += self.extra.entries
         for n, e in enumerate(self.entries):      # Enter = kolom berikutnya; terakhir = kirim
             e.bind("<Return>", lambda ev, n=n: self._next(n))
         self.error = tk.Label(self.body, text="", bg=C.CARD, fg=C.ERROR, font=(C.FONT, 10),
@@ -154,7 +163,11 @@ class SurveyDialog(tk.Toplevel):
 
     def _submit(self):
         try:
-            SU.add({k: v.get() for k, v in self.vars.items()})
+            values = {k: v.get() for k, v in self.vars.items()}
+            if self.extra is not None:
+                from elearning import survey_questions as SQ
+                values["extra"] = SQ.clean_answers(self.extra_q, self.extra.values())
+            SU.add(values)
         except ValueError as exc:
             self.error.config(text=str(exc))
             return
@@ -365,6 +378,21 @@ class SignupDetail(tk.Toplevel):
                      font=(C.FONT, 10),
                      anchor="w", justify="left", wraplength=360).grid(row=r, column=1,
                                                                       sticky="w", pady=3)
+        extra = rec.get("extra") or {}
+        if extra:                               # jawaban pertanyaan tambahan (English)
+            from elearning import survey_questions as SQ
+            texts = {q["id"]: q["text"] for q in SQ.load("trial")}
+            r = len(SU.FIELDS)
+            for qid, ans in extra.items():
+                ans = ", ".join(ans) if isinstance(ans, list) else ans
+                tk.Label(grid, text=texts.get(qid, qid), bg=C.CARD, fg=C.MUTED,
+                         font=(C.FONT, 10), anchor="nw", justify="left",
+                         wraplength=180).grid(row=r, column=0, sticky="nw", padx=(0, 16),
+                                              pady=3)
+                tk.Label(grid, text=ans or "-", bg=C.CARD, fg=C.TEXT, font=(C.FONT, 10),
+                         anchor="w", justify="left", wraplength=360).grid(
+                    row=r, column=1, sticky="w", pady=3)
+                r += 1
         btns = tk.Frame(body, bg=C.CARD)
         btns.pack(fill="x", pady=(14, 0))
         _button(btns, "Tutup", self.destroy, primary=True).pack(side="right")

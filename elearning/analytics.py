@@ -252,13 +252,51 @@ def occurrences(slots, by_sid, active_ids, a0, a1):
             d += timedelta(days=7)
 
 
+WEEKDAYS = ("Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min")
+
+
+def _categories(students):
+    """Murid aktif per label seperti sheet jadwal: PB (dewasa), IC (intermediate), SK (anak)."""
+    out = {"PB": 0, "IC": 0, "SK": 0}
+    for s in students:
+        if s.get("status") == STATUS_EXPIRED:
+            continue
+        if s["program"] == "kids":
+            out["SK"] += 1
+        elif any(c.startswith("intermediate") for c in s.get("courses", ())):
+            out["IC"] += 1
+        else:
+            out["PB"] += 1
+    return [("Dewasa (PB)", out["PB"]), ("Intermediate (IC)", out["IC"]),
+            ("SUPERKIDS (SK)", out["SK"])]
+
+
+def _tasks(teachers):
+    """Sheet laporan guru bulan ini per guru: [{title, done, total, unchecked}]."""
+    try:
+        from elearning import task_sheet as TS
+        month = TS.this_month()
+        rows = []
+        for t in teachers:
+            items = [x for x in TS.items_of(t["id"], month)]
+            done = sum(1 for x in items if x.get("done"))
+            rows.append({"title": t["name"], "done": done, "total": len(items),
+                         "unchecked": sum(1 for x in items if x.get("done")
+                                          and not x.get("check"))})
+        rows.sort(key=lambda r: (-r["total"], r["title"]))
+        return rows
+    except Exception as exc:
+        C.log(f"Analytics: sheet laporan guru gagal: {exc!r}")
+        return []
+
+
 def _student_survey(p0, p1, program):
     try:
         from elearning import student_survey
         return student_survey.stats(p0, p1, program)
     except Exception as exc:
         C.log(f"Analytics: survey murid gagal: {exc!r}")
-        return {"count": 0, "levels": [], "interests": [], "latest": []}
+        return {"count": 0, "tally": [], "texts": [], "latest": []}
 
 
 def compute(period="30d", program="all"):
@@ -560,4 +598,7 @@ def compute(period="30d", program="all"):
         "teachers": teacher_rows,
         "signups": signup_stats(p0, p1, q0, q1, buckets, compare=n_days is not None),
         "student_survey": _student_survey(p0, p1, program),
+        "categories": _categories(students),
+        "weekday": [sum(row) for row in heat],
+        "tasks": _tasks(teachers),
     }

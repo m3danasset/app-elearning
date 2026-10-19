@@ -101,6 +101,9 @@ def clean(values):
 def add(values):
     """Simpan survey baru (status menunggu). Kembalikan rekamannya."""
     rec = clean(values)
+    extra = values.get("extra")
+    if isinstance(extra, dict) and extra:      # pertanyaan tambahan dari admin (Panel Survey)
+        rec["extra"] = extra
     with _lock:
         rows = _read()
         n = max([int(r["id"][1:]) for r in rows if re.match(r"^S\d+$", r["id"])] or [0]) + 1

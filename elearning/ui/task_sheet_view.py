@@ -11,15 +11,17 @@ TaskSheetPanel : TaskSheet di dalam ScrollFrame (layar guru, menu Laporan Kerja)
 
 import tkinter as tk
 import tkinter.font as tkfont
+from datetime import datetime, timedelta
 
 from elearning import config as C
 from elearning import task_sheet as TS
 from elearning.ui import ui_icons as I
 from elearning.ui.controls import RoundButton, RoundSelect
 
-COLORS = {"week": "#8f1d1d", "month": "#3a6b1f", "done": "#1d4f8a"}
+COLORS = {"day": "#7a4a12", "week": "#8f1d1d", "month": "#3a6b1f", "done": "#1d4f8a"}
 TITLES = dict(TS.SECTIONS, done="SUDAH SELESAI")
-MIN_ROWS = {"week": 8, "month": 6}
+ORDER = ("day", "week", "month", "done")
+EMPTY_ROWS = 2                 # baris kosong yang tampil kalau bagian belum ada isinya
 HEAD_H, ROW_H, GAP = 38, 32, 22
 COL_NO, COL_DONE, COL_CHECK = 52, 74, 84
 HOVER = "#2a2927"
@@ -34,12 +36,15 @@ class TaskSheet(tk.Frame):
         self.admin = admin
         self.teacher = teacher
         self.month = TS.this_month()
+        self.day = datetime.now().strftime("%Y-%m-%d")    # tanggal LAPORAN HARIAN
+        self._day_hits = []          # area panah hari di kepala Laporan Harian
         self._edit = None                 # (bagian, baris, kolom, var, entry, window)
         self._hov = None
         self._imgs = []
         self.f = {"head": tkfont.Font(family=C.FONT, size=11, weight="bold"),
                   "cell": tkfont.Font(family=C.FONT, size=10),
-                  "no": tkfont.Font(family=C.FONT, size=10)}
+                  "no": tkfont.Font(family=C.FONT, size=10),
+                  "small": tkfont.Font(family=C.FONT, size=9)}
         bar = tk.Frame(self, bg=bg)
         bar.pack(fill="x", pady=(0, 12))
         nav = tk.Frame(bar, bg=bg)
@@ -88,11 +93,27 @@ class TaskSheet(tk.Frame):
     def _go(self, step):
         self._commit()
         self.month = TS.shift_month(self.month, step)
+        self._fit_day()
         self.reload()
 
     def _this_month(self):
         self._commit()
         self.month = TS.this_month()
+        self.day = datetime.now().strftime("%Y-%m-%d")
+        self.reload()
+
+    def _fit_day(self):
+        """Tanggal Laporan Harian selalu di dalam bulan yang dilihat (bulan ini = hari ini)."""
+        if self.day[:7] != self.month:
+            today = datetime.now().strftime("%Y-%m-%d")
+            self.day = today if today[:7] == self.month else self.month + "-01"
+
+    def _shift_day(self, step):
+        self._commit()
+        d = datetime.strptime(self.day, "%Y-%m-%d") + timedelta(days=step)
+        self.day = d.strftime("%Y-%m-%d")
+        if self.day[:7] != self.month:            # lewat batas bulan: bulan ikut pindah
+            self.month = self.day[:7]
         self.reload()
 
     def teacher_id(self):
@@ -112,12 +133,12 @@ class TaskSheet(tk.Frame):
             return
         self._cancel()
         tid = self.teacher_id()
-        self.groups = TS.grouped(tid, self.month) if tid else {"week": [], "month": [],
-                                                               "done": []}
+        self.groups = TS.grouped(tid, self.month, self.day) if tid else \
+            {k: [] for k in ORDER}
         self.month_lbl.config(text=TS.month_label(self.month))
         g = self.groups
         unchecked = sum(1 for x in g["done"] if not x.get("check"))
-        self.note.config(text=f"{len(g['week']) + len(g['month'])} belum selesai  ·  "
+        self.note.config(text=f"{len(g['week']) + len(g['month'])} tugas belum selesai  ·  "
                               f"{len(g['done'])} selesai  ·  {unchecked} belum dicek admin")
         n_prev = TS.open_previous(tid, self.month) if (tid and self.editable) else 0
         if n_prev and not (g["week"] or g["month"] or g["done"]):
@@ -156,15 +177,16 @@ class TaskSheet(tk.Frame):
         """Daftar baris: [(bagian, y, tugas atau None)] + y kepala tiap bagian."""
         self.rows, self.heads = [], []
         y = 0
-        for key in ("week", "month", "done"):
+        for key in ORDER:
             items = self.groups.get(key, [])
             self.heads.append((key, y))
             y += HEAD_H
             n = len(items)
             if key == "done":
                 total = max(1, n)
-            else:
-                total = max(MIN_ROWS[key], n + 1 if self.editable else n, 1)
+            else:      # isi + 1 baris "tugas baru"; kosong = EMPTY_ROWS baris saja
+                total = max(EMPTY_ROWS if self.editable else 1,
+                            n + 1 if self.editable else n)
             for i in range(total):
                 self.rows.append((key, i, y, items[i] if i < n else None))
                 y += ROW_H
@@ -193,10 +215,27 @@ class TaskSheet(tk.Frame):
             cv.create_rectangle(1, y + HEAD_H - 10, W - 1, y + HEAD_H, fill=COLORS[key],
                                 width=0)
             cy = y + HEAD_H / 2
-            for col, text in (("no", "NO."), ("task", TITLES[key]), ("done", "DONE"),
+            title = TITLES[key]
+            for col, text in (("no", "NO."), ("task", title), ("done", "DONE"),
                               ("report", "LAPORAN"), ("check", "CHECK")):
                 x0, x1 = xs[col], self._end(xs, col)
-                cv.create_text((x0 + x1) / 2, cy, text=text, fill="white", font=self.f["head"])
+                cv.create_text((x0 + x1) / 2, cy, text=text, fill="#ffffff",
+                               font=self.f["head"])
+            if key == "day":                   # panah ganti tanggal di kepala Laporan Harian
+                self._day_hits = []
+                mid = (xs["task"] + xs["done"]) / 2
+                tw = self.f["head"].measure(title) / 2
+                label = TS.day_label(self.day)
+                cv.create_text(mid + tw + 18, cy, text=label, anchor="w", fill="#f3e3c8",
+                               font=self.f["cell"])
+                lw = self.f["cell"].measure(label)
+                for x, icon, step in ((mid - tw - 22, "chev_left", -1),
+                                      (mid + tw + 18 + lw + 16, "chev_right", 1)):
+                    ic = I.icon(icon, "#ffffff", COLORS[key], 16)
+                    if ic is not None:
+                        self._imgs.append(ic)
+                        cv.create_image(x, cy, image=ic)
+                    self._day_hits.append((x - 14, y, x + 14, y + HEAD_H, step))
             for col in ("task", "done", "report", "check"):
                 cv.create_line(xs[col], y + HEAD_H, xs[col], y + body - 4, fill=C.BORDER)
         for idx in range(len(self.rows)):
@@ -236,6 +275,9 @@ class TaskSheet(tk.Frame):
             return
         cv.create_text(COL_NO / 2, cy, text=str(i + 1), fill=C.MUTED, font=self.f["no"],
                        tags=tag)
+        if item is None and key == "day" and not self.editable and i == 0:
+            cv.create_text(xs["task"] + 10, cy, text="Belum ada laporan harian di tanggal ini.",
+                           anchor="w", fill=C.MUTED, font=self.f["cell"], tags=tag)
         bg = HOVER if self._hov == idx else C.CARD
         if item is not None:
             muted = item.get("done")
@@ -243,16 +285,31 @@ class TaskSheet(tk.Frame):
                                                                 xs["done"] - xs["task"] - 20),
                            anchor="w", fill=C.MUTED if muted else C.TEXT, font=self.f["cell"],
                            tags=tag)
+            # tanggal di kolom laporan: selesai / dicek admin (kanan, redup)
+            stamp = []
+            if item.get("section") == "day" and key == "done" and item.get("day"):
+                stamp.append("harian " + TS.short_date(item["day"]))
+            if item.get("done") and item.get("done_at"):
+                stamp.append("selesai " + TS.short_date(item["done_at"]))
+            if item.get("check") and item.get("check_at"):
+                stamp.append("dicek " + TS.short_date(item["check_at"]))
+            stamp = "  ·  ".join(stamp)
+            sw = self.f["small"].measure(stamp) + 14 if stamp else 0
+            if stamp:
+                cv.create_text(xs["check"] - 10, cy, text=stamp, anchor="e",
+                               fill=C.ON if item.get("check") else C.MUTED,
+                               font=self.f["small"], tags=tag)
             cv.create_text(xs["report"] + 10, cy,
                            text=self._fit(item.get("report", ""),
-                                          xs["check"] - xs["report"] - 20),
+                                          xs["check"] - xs["report"] - 20 - sw),
                            anchor="w", fill=C.TEXT, font=self.f["cell"], tags=tag)
             self._box(xs["done"] + COL_DONE / 2, cy, bool(item.get("done")), bg, tag,
                       enabled=self.editable)
             self._box(xs["check"] + COL_CHECK / 2, cy, bool(item.get("check")), bg, tag,
                       enabled=self.admin is not None, color=C.ON)
         elif self.editable and i == len(self.groups.get(key, [])):
-            cv.create_text(xs["task"] + 10, cy, text="+ Ketik tugas baru…", anchor="w",
+            cv.create_text(xs["task"] + 10, cy, anchor="w",
+                           text="+ Ketik laporan harian…" if key == "day" else "+ Ketik tugas baru…",
                            fill=C.LOCKED, font=self.f["cell"], tags=tag)
 
     def _box(self, x, y, on, bg, tag, enabled=True, color=None):
@@ -287,6 +344,10 @@ class TaskSheet(tk.Frame):
         return None
 
     def _motion(self, e):
+        if any(x0 <= e.x < x1 and y0 <= e.y < y1 for x0, y0, x1, y1, _s in self._day_hits):
+            self._set_hov(None)
+            self.cv.configure(cursor="hand2")
+            return
         hit = self._hit(e.x, e.y)
         self._set_hov(hit[0] if hit else None)
         cur = ""
@@ -308,6 +369,10 @@ class TaskSheet(tk.Frame):
                 self._draw_row(i)
 
     def _click(self, e):
+        for x0, y0, x1, y1, step in self._day_hits:     # panah tanggal Laporan Harian
+            if x0 <= e.x < x1 and y0 <= e.y < y1:
+                self._shift_day(step)
+                return
         hit = self._hit(e.x, e.y)
         self._commit()
         if hit is None:
@@ -380,7 +445,7 @@ class TaskSheet(tk.Frame):
         try:
             if item is None:
                 if text.strip():
-                    TS.add(self.teacher_id(), self.month, key, text)
+                    TS.add(self.teacher_id(), self.month, key, text, day=self.day)
             elif col == "task":
                 if " ".join(text.split()) != item["text"]:
                     TS.set_text(item["id"], text)          # kosong = tugas dihapus
@@ -402,7 +467,7 @@ class TaskSheet(tk.Frame):
             c = cols.index(col) + move[0]
             r = i + move[1] + (1 if c > 1 else -1 if c < 0 else 0)
             c %= 2
-            n_items = len(TS.grouped(self.teacher_id(), self.month).get(key, []))
+            n_items = len(TS.grouped(self.teacher_id(), self.month, self.day).get(key, []))
             if 0 <= r <= n_items:
                 nxt = (key, r, cols[c])
         self.reload(keep_edit=nxt or ())
@@ -419,7 +484,7 @@ class TaskSheetPanel(tk.Frame):
 
     def __init__(self, master, teacher):
         from elearning.ui.widgets import ScrollFrame
-        super().__init__(master, bg=C.BG, padx=32, pady=24)
+        super().__init__(master, bg=C.BG, padx=32, pady=10)
         tk.Label(self, text="Klik sel untuk mengisi (Enter = simpan, Tab = sel berikutnya). "
                             "Centang DONE = tugas pindah ke Sudah selesai. CHECK diisi admin.",
                  bg=C.BG, fg=C.MUTED, font=(C.FONT, 10), anchor="w").pack(fill="x",

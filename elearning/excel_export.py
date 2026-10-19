@@ -936,17 +936,21 @@ def export(path, label, start, end, who="all", sheets=None):
                 when = None
             if when is not None and not _in(when, start, end):
                 continue
+            extra = r.get("extra") or {}
             su_rows.append([len(su_rows) + 1, when, r["id"]]
                            + [SU.display(k, r.get(k, "")) for k in SU.KEYS]
                            + [st_text.get(r.get("status"), r.get("status", "")),
-                              r.get("student", "")])
+                              r.get("student", "")]
+                           + ["; ".join(f"{k}: {', '.join(v) if isinstance(v, list) else v}"
+                                        for k, v in extra.items() if v)])
         waiting = sum(1 for x in su_rows if x[-2] == "Menunggu")
         out.append(("Pendaftar", _sheet(
             "Pendaftar dari Trial (survey)",
             f"{sub}   ·   {len(su_rows)} pendaftar   ·   {waiting} menunggu",
-            ["No", "Masuk", "Kode"] + [f[2] for f in SU.FIELDS] + ["Status", "ID murid"],
-            [6, 18, 8, 24, 16, 7, 24, 26, 18, 16, 24, 16, 36, 18, 30, 12, 10], su_rows,
-            [0, 4, 0] + [8 if f[4] else 0 for f in SU.FIELDS] + [0, 0])))
+            ["No", "Masuk", "Kode"] + [f[2] for f in SU.FIELDS]
+            + ["Status", "ID murid", "Pertanyaan tambahan"],
+            [6, 18, 8, 24, 16, 7, 24, 26, 18, 16, 24, 16, 36, 18, 30, 12, 10, 50], su_rows,
+            [0, 4, 0] + [8 if f[4] else 0 for f in SU.FIELDS] + [0, 0, 8])))
 
     if "certificates" in chosen:
         from elearning import certificates as CE
@@ -1009,6 +1013,7 @@ def export(path, label, start, end, who="all", sheets=None):
 
     if "student_survey" in chosen:
         from elearning import student_survey as SS
+        sv_qs = SS.questions()                    # kolom = pertanyaan yang dipakai sekarang
         sv_rows = []
         for r in sorted(SS.list_all(), key=lambda r: r.get("at", "")):
             when = _when(r.get("at"))
@@ -1017,18 +1022,18 @@ def export(path, label, start, end, who="all", sheets=None):
             st = next((x for x in all_students if x["id"] == r.get("student")), None)
             if st is not None and st["id"] not in sid_set:
                 continue
+            ans = SS.answers_of(r)
             sv_rows.append([len(sv_rows) + 1, when, r.get("student", ""),
                             st["name"] if st else r.get("name", ""),
-                            _label(st) if st else "", titles.get(r.get("course"), r.get("course", "")),
-                            SS.label("level", r.get("level")),
-                            ", ".join(SS.label("interest", k) for k in r.get("interests") or ()),
-                            r.get("hardest", ""), r.get("favorite", ""), r.get("note", "")])
+                            _label(st) if st else "",
+                            titles.get(r.get("course"), r.get("course", ""))]
+                           + [", ".join(v) if isinstance(v, list) else (v or "")
+                              for v in (ans.get(q["id"]) for q in sv_qs)])
         out.append(("Survey Murid", _sheet(
             "Survey Murid (setelah kursus selesai)", f"{sub}   ·   {len(sv_rows)} jawaban",
-            ["No", "Diisi", "ID", "Nama", "Label", "Kursus", "Kesulitan", "Minat lanjutan",
-             "Bagian tersulit", "Paling disukai", "Catatan"],
-            [6, 18, 10, 26, 8, 14, 11, 36, 40, 40, 40], sv_rows,
-            [0, 4, 0, 0, 0, 0, 0, 8, 8, 8, 8])))
+            ["No", "Diisi", "ID", "Nama", "Label", "Kursus"] + [q["text"] for q in sv_qs],
+            [6, 18, 10, 26, 8, 14] + [24 if q["kind"] != "text" else 40 for q in sv_qs],
+            sv_rows, [0, 4, 0, 0, 0, 0] + [8] * len(sv_qs))))
 
     if "tasks" in chosen:
         from elearning import task_sheet as TS
