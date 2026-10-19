@@ -189,6 +189,8 @@ class DashboardView(tk.Canvas):
         self._base_rgb = None          # latar + widget tanpa kartu (penutup tepi saat gulir)
         self._greet_fill = {}
         self._strip = None             # mode pita (laci penuh / animasi): posisi pita kartu
+        self._warm = {}                # gambar laci yang disiapkan SEBELUM animasi (_warm_drawer)
+        self._warm_job = None
         self._peek_top = None          # laci kecil: y atas kartu baris ke-2 (mengintip)
         self._greet_items = ()         # (sapaan, baris tanggal)
         self._greet_sh = []            # bayangan sapaan
@@ -398,6 +400,55 @@ class DashboardView(tk.Canvas):
         area = len(rows) * self._wh + max(0, len(rows) - 1) * WIDGET_GAP if rows else 36
         return WIDGET_Y + area + 40 + 56 + 54
 
+    def _warm_drawer(self):
+        """Saat Dashboard diam: siapkan lapisan tanpa kartu + pita kartu untuk animasi laci
+        (dulu dibuat saat laci ditekan: 110-220 ms diam sebelum bergerak + patah di akhir)."""
+        self._warm_job = None
+        if self._closed or self._anim is not None or not self.items or self.editing:
+            return
+        W, H = self._size
+        if W < 100 or H < 100 or C.lite():
+            return
+        if len(self._warm) > 6:              # ukuran / kartu berganti: buang yang lama
+            self._warm.clear()
+        key = ("layer", self._layer_key())
+        if key not in self._warm:
+            self._no_cards = True
+            try:
+                self._warm[key] = self._compose_layer()
+            finally:
+                self._no_cards = False
+        raw = self.video.raw if self.video.ok() else None
+        layer = self._warm[key]
+        hit = self._warm.get("base")
+        if hit is None or hit[0] is not raw or hit[1] is not layer:
+            keep = self._layer
+            self._layer = layer
+            try:
+                rgb = self._compose_base(raw)
+            finally:
+                self._layer = keep
+            self._warm["base"] = (raw, layer, rgb, photos.to_photoimage(rgb))
+        cols = self._cols(W)
+        cw = (W - 2 * PAD - (cols - 1) * GAP) / cols
+        self._card_strip(cols, cw, len(self.items))
+        # teks kartu pertama kali dibuat Tk ~1 ms per teks (glyph font belum ada): dibuat sekali
+        # di luar layar supaya pembukaan laci pertama tidak tertahan ~70 ms
+        chars = "".join(sorted({ch for it in self.items for k in ("tag", "title", "body",
+                                                                   "action", "when")
+                                for ch in str(it.get(k, ""))} | set("✓ Beres·→0123456789")))
+        if chars and chars != self._warm.get("glyphs"):
+            for key in ("tag", "when", "title", "body", "btn", "sub"):
+                f = self.f.get(key)
+                if f is not None:
+                    self.delete(self.create_text(-9000, -9000, text=chars, font=f))
+            self._warm["glyphs"] = chars
+
+    def _schedule_warm(self):
+        if self._warm_job is not None:
+            self.after_cancel(self._warm_job)
+        self._warm_job = self.after(350, self._warm_drawer)
+
     def _layout(self):
         self._stop_anim()
         W, H = self._size
@@ -454,6 +505,7 @@ class DashboardView(tk.Canvas):
             return
         self._build_layer()
         self._draw_text()
+        self._schedule_warm()                # laci kecil: siapkan gambar untuk animasi buka
 
     def _drawer_y(self, open_):
         """y tombol panah laci: penuh = tepat di bawah widget, kecil = 1 baris di bawah layar.
@@ -548,7 +600,39 @@ class DashboardView(tk.Canvas):
         return (W - PAD - PEN_D / 2, y)
 
     def _build_layer(self):
-        """Semua kartu (bayangan + badan + ikon + tombol) ke SATU gambar RGBA."""
+        """Semua kartu (bayangan + badan + ikon + tombol) ke SATU gambar RGBA. Lapisan TANPA
+        kartu (animasi laci) diambil dari cache kalau susunan widget sama (_warm_drawer)."""
+        key = self._layer_key() if self._no_cards else self._full_key()
+        layer = self._warm.get(("layer", key)) if key is not None else None
+        if layer is None:
+            layer = self._compose_layer()
+            if key is not None:
+                if not self._no_cards:       # satu lapisan berkartu saja (memori: 2560 px = 14 MB)
+                    for k in [k for k in self._warm if k[0] == "layer" and k[1][-1] == "full"]:
+                        self._warm.pop(k, None)
+                self._warm[("layer", key)] = layer
+        self._layer = layer
+        self.video.layer = layer if self.video.ok() else None
+        self._show_static()
+
+    def _layer_key(self):
+        """Kunci lapisan tanpa kartu: ukuran + widget + angka widget + cincin beres."""
+        done = sum(1 for it in self.items or () if it["level"] == "done")
+        return (self._size, tuple(self.widgets), tuple(tuple(map(int, r))
+                                                      for r in self._widget_rects()),
+                done, len(self.items or ()), self.editing)
+
+    def _full_key(self):
+        """Kunci lapisan BERKARTU laci kecil (dipakai lagi saat laci selesai turun). None kalau
+        tidak layak disimpan (mode atur / ringan / laci penuh)."""
+        if self.editing or C.lite() or self.drawer_open or self.hover is not None:
+            return None
+        sig = tuple((it["level"], it["icon"], it.get("action", ""), it["title"], it.get("body", ""))
+                    for it in self.items or ())
+        return self._layer_key() + (tuple(tuple(int(v) for v in r) for r in self.rects),
+                                    int(self.cards_top), self._peek_top, sig, "full")
+
+    def _compose_layer(self):
         Image = photos.Image
         W, H = self._size
         layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -612,9 +696,7 @@ class DashboardView(tk.Canvas):
         a = cards.getchannel("A")
         cards.putalpha(Image.composite(a, Image.new("L", (W, H), 0), self._fade_mask(W, H)))
         layer.alpha_composite(cards)
-        self._layer = layer
-        self.video.layer = layer if self.video.ok() else None
-        self._show_static()
+        return layer
 
     def _paint_card(self, place, i, x0, y0, x1, y1):
         """Satu kartu (bayangan + badan + cahaya + ikon + tombol) lewat place(img, x, y)."""
@@ -1107,10 +1189,28 @@ class DashboardView(tk.Canvas):
 
     def _show_static(self):
         """Frame video terakhir (atau latar polos) + lapisan, langsung di thread utama:
-        tidak menunggu frame video berikutnya dan latar tidak berkedip."""
+        tidak menunggu frame video berikutnya dan latar tidak berkedip. Latar TANPA kartu
+        (animasi laci) dipakai ulang dari cache kalau frame & lapisannya sama (_warm_drawer)."""
+        raw = self.video.raw if self.video.ok() else None
+        slot = "base" if self._no_cards else "base_full"
+        hit = self._warm.get(slot)
+        if hit is not None and hit[0] is raw and hit[1] is self._layer:
+            if self._no_cards:
+                self._base_rgb = hit[2]
+            self._photo = hit[3]
+            self.itemconfigure(self._img_item, image=self._photo)
+            return
+        rgb = self._compose_base(raw)
+        if self._no_cards:
+            self._base_rgb = rgb
+        self._photo = photos.to_photoimage(rgb)
+        if not C.lite():
+            self._warm[slot] = (raw, self._layer, rgb, self._photo)
+        self.itemconfigure(self._img_item, image=self._photo)
+
+    def _compose_base(self, raw):
         Image = photos.Image
         W, H = self._size
-        raw = self.video.raw if self.video.ok() else None
         if raw is not None:      # ukuran baru (sidebar dilipat / dibuka): frame lama proporsional
             if raw.size != (W, H):
                 from elearning.ui.course_dock import cover_resize
@@ -1120,11 +1220,7 @@ class DashboardView(tk.Canvas):
             base = Image.new("RGBA", (W, H), I._rgb(C.BG) + (255,))
         if self._layer is not None:
             base.alpha_composite(self._layer)
-        rgb = base.convert("RGB")
-        if self._no_cards:
-            self._base_rgb = rgb
-        self._photo = photos.to_photoimage(rgb)
-        self.itemconfigure(self._img_item, image=self._photo)
+        return base.convert("RGB")
 
     def _draw_text(self):
         self.delete("txt")
@@ -1275,7 +1371,20 @@ class DashboardView(tk.Canvas):
                 self.addtag_withtag("wtop", item)
         self.tag_raise("wtop")
 
+    def _strip_key(self, cols, cw, n):
+        return (self._size[0], cols, int(round(cw)), n,
+                tuple((it["level"], it["icon"], it.get("action", ""), it["title"])
+                      for it in (self.items or ())[:n]))
+
     def _card_strip(self, cols, cw, n):
+        """Pita semua kartu; dari cache kalau kartunya sama (disiapkan _warm_drawer)."""
+        key = ("strip", self._strip_key(cols, cw, n))
+        hit = self._warm.get(key)
+        if hit is None:
+            hit = self._warm[key] = self._compose_strip(cols, cw, n)
+        return hit
+
+    def _compose_strip(self, cols, cw, n):
         """Semua kartu (koordinat lokal, baris pertama di y = pad) ke satu gambar RGBA."""
         Image = photos.Image
         W = self._size[0]

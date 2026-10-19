@@ -508,6 +508,12 @@ eport_tasks.json, per guru per bulan, bagian MINGGU INI (week)
   tiap frame ~20 ms = patah-patah. Selama animasi timer Windows 1 ms (_set_timer, timeBeginPeriod)
   supaya after() tidak dibulatkan ke 15,6 ms (31/47 ms). Ukur 2000x1210 & 2560x1400: laci & gulir
   33-35 ms / frame (maks. 35). Error callback Tk dicatat ke app.log (App._tk_error).
+- PERSIAPAN LACI DI LUAR ANIMASI (_warm_drawer, 350 ms setelah _layout laci kecil): lapisan
+  tanpa kartu (_layer_key), latar gabungan + PhotoImage ("base"), pita kartu (_strip_key), dan
+  glyph teks kartu (create_text di luar layar sekali; teks pertama Tk ~1 ms / teks). Lapisan
+  BERKARTU laci kecil + latarnya disimpan (_full_key, "base_full") -> akhir tutup tidak menyusun
+  ulang. Diukur 2560x1369: mulai buka 43-65 ms (dulu 112-222), frame akhir 22-40 ms (dulu
+  65-145), frame tengah ~1 ms, jarak 34 ms. Cache maks. 6 entri; mode ringan tanpa cache.
 - JENDELA PENDEK (windowed): _fit_greeting memastikan sapaan tidak menimpa tombol laci / kartu:
   40 pt + intipan baris 2 -> 40 pt tanpa intipan (_peek_on) -> huruf turun sampai HERO_MIN_PT
   24 (_hero_fonts) -> sapaan disembunyikan (_hero_pt None). Ukuran yang sama di laci penuh.
