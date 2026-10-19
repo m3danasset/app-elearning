@@ -133,6 +133,7 @@ NAV_SEL = "#2c2b28"                  # item navigasi terpilih
 NAV_HOV = "#262523"
 LINE = "#2e2d2a"                     # garis pemisah baris
 SEG_BG, SEG_LINE, SEG_ON = "#262523", "#353431", "#3a3935"
+DP_CARD = "#262523"                  # kotak ringkasan (mis. Performa: yang dipakai sekarang)
 RADIUS = 14
 NAV_W = 226
 
@@ -643,7 +644,8 @@ class DevPanel(tk.Toplevel):
 
     def _pages(self):
         from elearning import dev_values as DV
-        out = [("umum", "Tampilan", "image"), ("fitur", "Fitur", "check")]
+        out = [("umum", "Tampilan", "image"), ("perf", "Performa", "activity"),
+               ("fitur", "Fitur", "check")]
         seen = []
         for _key, grp, _label, _kind, _t in DV.VALUES:
             if grp not in seen:
@@ -694,6 +696,8 @@ class DevPanel(tk.Toplevel):
             frac = float(_ui_state().get("scroll", 0.0) or 0.0) if restore else 0.0
             self.after_idle(lambda f=frac: self._restore_scroll(f))
             self._changed()
+        self.status.pack_forget()
+        self.status.pack(side="left", fill="x", expand=True)
 
     def _on_query(self):
         if not self._restoring:
@@ -1339,11 +1343,33 @@ class DevPanel(tk.Toplevel):
                 lambda p, k=key: Switch(p, S.feature(k), bg=PANEL,
                                         command=lambda v, k=k: self._mark_feat(k, v)),
                 f"{key} fitur on off")
-        row("fitur", "Fitur", "PC kuat (driver NVIDIA + >= 12 thread)",
-            "Menentukan carousel login 60 fps.",
-            lambda p: tk.Label(p, text="Ya" if getattr(C, "HIGH_END", False) else "Tidak",
-                               bg=PANEL, fg=MUTED, font=(C.FONT, 10)),
-            "pc kuat nvidia high end fps60")
+        # Performa: preset PC (langsung tersimpan + diterapkan, tidak lewat tombol bawah)
+        head("perf", "Preset performa")
+        # satu blok bertumpuk (tombol preset terlalu lebar untuk baris judul | kontrol)
+        fr = tk.Frame(inner, bg=PANEL)
+        tk.Label(fr, text="Preset untuk PC ini", bg=PANEL, fg=FG, font=(C.FONT, 11),
+                 anchor="w").pack(fill="x", pady=(12, 0))
+        tk.Label(fr, text="Klik = langsung tersimpan & dipakai (tidak perlu tombol di bawah). "
+                          "Buka ulang app supaya semua bagian (thread render, pemutar video) "
+                          "ikut penuh.", bg=PANEL, fg=MUTED, font=(C.FONT, 10), anchor="w",
+                 justify="left", wraplength=640).pack(fill="x", pady=(2, 10))
+        self._perf_seg = Seg(fr, [(k, lbl) for k, lbl, _d, _v in C.PERF_PRESETS],
+                             S.get("perf_preset") or "auto", self._set_perf)
+        self._perf_seg.pack(anchor="w")
+        tk.Label(fr, text="PC ini terdeteksi:  " + self._perf_detected_text(), bg=PANEL,
+                 fg=MUTED, font=(C.FONT, 10), anchor="w").pack(fill="x", pady=(12, 0))
+        box = tk.Frame(fr, bg=DP_CARD)
+        box.pack(fill="x", pady=(12, 14))
+        tk.Label(box, text="Yang dipakai sekarang", bg=DP_CARD, fg=MUTED, font=(C.FONT, 9),
+                 anchor="w").pack(fill="x", padx=14, pady=(10, 0))
+        self._perf_now = tk.Label(box, text="", bg=DP_CARD, fg=FG, font=(C.FONT, 10),
+                                  justify="left", anchor="w", wraplength=620)
+        self._perf_now.pack(fill="x", padx=14, pady=(2, 10))
+        self._perf_text()
+        line = tk.Frame(inner, bg=LINE, height=1)
+        self._reg.append(("row", "perf", "Preset performa", fr, line,
+                          "performa preset ryzen 3 5 nvidia gpu pc lambat ringan cepat deteksi "
+                          "thread cpu mode ringan fps carousel"))
         # Nilai (angka / teks), satu halaman per grup
         group = None
         for key, grp, label, _kind, _t in DV.VALUES:
@@ -1394,6 +1420,46 @@ class DevPanel(tk.Toplevel):
         self.scv.yview_moveto(0)
         if not self._restoring:
             self._remember(scroll=0.0)
+
+    # --- preset performa ------------------------------------------------------------------
+    @staticmethod
+    def _perf_detected_text():
+        import os
+        cpus = getattr(os, "process_cpu_count", os.cpu_count)() or 0
+        nv = os.path.isfile(os.path.join(os.environ.get("SystemRoot", r"C:\Windows"),
+                                         "System32", "nvapi64.dll"))
+        label = dict((k, lbl) for k, lbl, _d, _v in C.PERF_PRESETS)[C.perf_detected()]
+        return f"{cpus} thread CPU  ·  NVIDIA: {'ada' if nv else 'tidak ada'}  ·  saran: {label}"
+
+    def _perf_text(self):
+        names = dict((k, (lbl, d)) for k, lbl, d, _v in C.PERF_PRESETS)
+        cur = C.PERF_PRESET
+        lbl, desc = names[cur]
+        if cur == "auto":
+            lbl = f"Otomatis = {names[C.perf_detected()][0]}"
+            desc = names[C.perf_detected()][1]
+        hi = "60 fps, 4 thread" if C.HIGH_END else "30 fps"
+        self._perf_now.config(
+            text=f"{lbl}:  {desc}\n\nMode ringan: {'ya' if C.lite() else 'tidak'}   ·   "
+                 f"thread kerja: {C.WORKER_THREADS}   ·   carousel login: {hi}")
+
+    def _set_perf(self, preset):
+        try:
+            S.set("perf_preset", preset)
+        except OSError as exc:
+            C.log(f"Dev: preset performa gagal disimpan: {exc!r}")
+            self._note("Gagal menyimpan (folder data?).")
+            return
+        C.apply_perf(preset)
+        self._perf_seg.set(preset)
+        C.log(f"Dev: preset performa -> {preset}")
+        try:
+            self.app.apply_dev_settings()        # layar dibangun ulang dengan preset baru
+        except Exception as exc:
+            C.log(f"Dev: preset performa tidak diterapkan: {exc!r}")
+        self._perf_text()
+        self.lift()
+        self._note("Preset disimpan. Buka ulang app supaya semua bagian ikut.")
 
     def _mark(self, key, value):
         self._pending[key] = value

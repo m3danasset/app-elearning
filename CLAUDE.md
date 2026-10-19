@@ -272,6 +272,17 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   nilai ke bawaan". Nilai baru: tambah baris di VALUES; modulnya harus membaca atribut itu
   saat dipakai (bukan disalin saat import).
 
+## Preset performa (Dev > Pengaturan app > Performa)
+- config.PERF_PRESETS: auto (deteksi: <= 4 thread = Ryzen 3, NVIDIA + >= 12 thread = Ryzen 5 +
+  NVIDIA, lainnya Ryzen 5), ryzen3 (1 thread kerja + MODE RINGAN, 30 fps), ryzen5 (2 thread,
+  efek menyala, 30 fps), ryzen5_nvidia (HIGH_END: carousel login 60 fps / 4 thread). Disimpan di
+  datapp_settings.json "perf_preset", dibaca config saat mulai (_saved_perf -> apply_perf
+  mengisi WORKER_THREADS / LOW_END_PC / HIGH_END / CAROUSEL_*). Klik di Dev = langsung disimpan +
+  apply_perf + app.apply_dev_settings (carousel3d.reconfigure); bagian yang dibuat saat mulai
+  ikut penuh setelah app dibuka ulang. JANGAN salin WORKER_THREADS / LOW_END_PC / HIGH_END ke
+  konstanta modul saat import: baca C.xxx / C.lite() saat dipakai. Baris lama "PC kuat" di
+  Fitur dihapus (ada di Performa: deteksi + ringkasan "Yang dipakai sekarang").
+
 ## Label jendela Dev (jelas, tidak ambigu)
 - Navigasi: "Kelola" (Akun, Kursus) & "Pengaturan app". Tombol Settings: "Coba sekarang"
   (= Apply Now, sementara sampai app ditutup), "Simpan permanen" (= Apply As Default),

@@ -171,6 +171,60 @@ REPORTS_FILE = os.path.join(DATA_DIR, "reports.json")    # laporan kerja guru (d
 TEACHERS_FILE = os.path.join(DATA_DIR, "teachers.json")  # akun guru (diatur admin di Panel Admin)
 
 
+# --- PRESET PERFORMA (jendela Dev > Performa; data\app_settings.json "perf_preset") --------------
+# "auto" = deteksi PC (di atas). Preset lain MEMAKSA profil PC tertentu, mis. PC studio yang
+# terdeteksi salah. Dibaca sekali saat app mulai; Dev bisa menerapkannya langsung (apply_perf).
+PERF_PRESETS = (
+    # kunci, label, keterangan, (thread kerja, mode ringan, PC kuat 60 fps)
+    ("auto", "Otomatis", "Dideteksi dari PC ini (jumlah thread CPU + driver NVIDIA).", None),
+    ("ryzen3", "Ryzen 3", "PC 4 thread, mis. Ryzen 3 2200G + Vega 8: MODE RINGAN (tanpa video "
+     "latar & animasi, carousel diam, video tanpa decode GPU), 1 thread kerja, maks. 30 fps.",
+     (1, True, False)),
+    ("ryzen5", "Ryzen 5", "PC 8+ thread tanpa GPU terpisah, mis. Ryzen 5 2400G + Vega 11: "
+     "animasi & video latar menyala, 2 thread kerja, maks. 30 fps.", (2, False, False)),
+    ("ryzen5_nvidia", "Ryzen 5 + NVIDIA", "Ryzen 5 dengan kartu grafis NVIDIA: semua efek, "
+     "carousel login sampai 60 fps dengan 4 thread render (animasi UI lain tetap 30 fps).",
+     (2, False, True)),
+)
+_AUTO = {"WORKER_THREADS": WORKER_THREADS, "LOW_END_PC": LOW_END_PC, "HIGH_END": HIGH_END}
+PERF_PRESET = "auto"
+
+
+def perf_detected():
+    """Preset yang cocok untuk PC ini menurut deteksi otomatis."""
+    if _AUTO["HIGH_END"]:
+        return "ryzen5_nvidia"
+    return "ryzen3" if _AUTO["LOW_END_PC"] else "ryzen5"
+
+
+def apply_perf(preset):
+    """Pasang preset performa ke atribut modul ini (dibaca saat dipakai oleh modul lain)."""
+    global WORKER_THREADS, LOW_END_PC, HIGH_END, CAROUSEL_WORKERS, CAROUSEL_FPS_MAX, PERF_PRESET
+    prof = dict((k, v) for k, _l, _d, v in PERF_PRESETS).get(preset)
+    if prof is None:
+        preset = "auto"
+        WORKER_THREADS, LOW_END_PC, HIGH_END = (_AUTO["WORKER_THREADS"], _AUTO["LOW_END_PC"],
+                                                _AUTO["HIGH_END"])
+    else:
+        WORKER_THREADS, LOW_END_PC, HIGH_END = prof
+    CAROUSEL_WORKERS = 4 if HIGH_END else WORKER_THREADS
+    CAROUSEL_FPS_MAX = 60 if HIGH_END else 30
+    PERF_PRESET = preset
+    return preset
+
+
+def _saved_perf():
+    try:
+        import json
+        with open(os.path.join(DATA_DIR, "app_settings.json"), encoding="utf-8") as f:
+            return str(json.load(f).get("perf_preset") or "auto")
+    except Exception:
+        return "auto"
+
+
+apply_perf(_saved_perf())
+
+
 def log(msg):
     """Catat masalah ke app.log di samping aplikasi."""
     try:

@@ -41,6 +41,7 @@ ACCENTS = {
 DEFAULTS = {
     "login_mode": "carousel",
     "accent": "orange",
+    "perf_preset": "auto",       # preset performa (Dev > Performa), dibaca config saat mulai
 }
 
 _lock = threading.Lock()
