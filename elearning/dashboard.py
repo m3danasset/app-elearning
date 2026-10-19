@@ -160,7 +160,7 @@ def _online(out, students, teachers, stats):
 
 
 # --- per peran --------------------------------------------------------------------------
-def _admin(now):
+def _admin(now, user=None):
     from elearning import schedule as SCH
     from elearning import sessions, signups
     from elearning import teachers as T
@@ -196,8 +196,17 @@ def _admin(now):
                     "body": _names(free), "when": "", "action": "Atur jadwal",
                     "target": "schedule"})
     _inactive(out, now, students, stats, "students")
-    # laporan guru (sheet tugas): tugas selesai yang belum dicek admin
+    # agenda pribadi admin hari ini (Agenda & Laporan > Agenda saya)
     from elearning import task_sheet as TS
+    if user and user.get("id"):
+        mine = TS.summary(user["id"])
+        todo = mine["open_day"] + mine["open_week"]
+        if todo:
+            out.append({"key": "agenda", "level": "todo", "icon": "report", "tag": "AGENDA SAYA",
+                        "title": f"{len(todo)} agenda belum selesai",
+                        "body": " · ".join(x["text"] for x in todo[:3])[:110],
+                        "when": "", "action": "Buka agenda", "target": "reports"})
+    # laporan guru (sheet tugas): tugas selesai yang belum dicek admin
     sm = TS.summary()
     tname = {t["id"]: t["name"] for t in teachers}
     if teachers:
@@ -512,7 +521,7 @@ def _widget_counts(out, role, user, want, now, studs, stats):
 def items(role, user):
     now = datetime.now()
     try:
-        out = _admin(now) if role == "admin" else _teacher(now, user)
+        out = _admin(now, user) if role == "admin" else _teacher(now, user)
     except Exception as exc:
         import traceback
         C.log("Dashboard gagal dihitung: " + "".join(

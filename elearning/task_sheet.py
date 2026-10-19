@@ -214,6 +214,8 @@ def summary(teacher_id=None, month=None):
     today = datetime.now().strftime("%Y-%m-%d")
     tid = str(teacher_id).upper() if teacher_id else None
     rows = [x for x in _load() if x.get("month") == month and (tid is None or x["teacher"] == tid)]
+    if tid is None:                  # semua guru: agenda pribadi admin tidak ikut dihitung
+        rows = [x for x in rows if not x["teacher"].startswith("ADMIN")]
     return {"open_day": [x for x in rows if x.get("section") == "day" and not x.get("done")
                          and x.get("day") == today],
             "today": [x for x in rows if x.get("section") == "day" and x.get("day") == today],

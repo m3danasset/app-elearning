@@ -33,7 +33,8 @@ KEYWORDS = {"expired": ("status", "expired"), "active": ("status", "active"),
             "offline": ("online", False), "anak": ("program", "kids"),
             "dewasa": ("program", "adult")}
 
-TAB_TITLE = {"dashboard": "Dashboard", "students": "Murid", "teachers": "Guru", "reports": "Laporan Guru",
+TAB_TITLE = {"dashboard": "Dashboard", "students": "Murid", "teachers": "Guru",
+             "reports": "Agenda & Laporan",
              "analytics": "Analytics", "schedule": "Jadwal", "certificates": "Sertifikat",
              "signups": "Pendaftar", "survey": "Survey"}
 
@@ -119,7 +120,7 @@ class AdminScreen(SidebarLayout):
                                         on_birth=self._edit_birth,
                                         on_courses=self._edit_courses)
         self.reports_board = ReportsBoard(self.scroll.inner)
-        self.task_board = None        # Laporan Guru = sheet tugas (task_sheet_view)
+        self.task_board = None        # Agenda & Laporan: agenda admin + sheet guru
         self.survey_board = None      # Survey: pertanyaan (English) + hasil
         self.analytics = None
         self.schedule_board = None
@@ -473,10 +474,9 @@ class AdminScreen(SidebarLayout):
             from elearning.ui.certificate_view import CertificateBoard
             self.cert_board = CertificateBoard(self.scroll.inner, by=self.admin_id)
         if self.tab == "reports" and self.task_board is None:
-            from elearning.ui.task_sheet_view import TaskSheet
-            self.task_board = TaskSheet(self.scroll.inner,
-                                        admin={"id": self.admin_id,
-                                               "name": self._admin_name()})
+            from elearning.ui.task_sheet_view import AgendaPanel
+            self.task_board = AgendaPanel(self.scroll.inner,
+                                          {"id": self.admin_id, "name": self._admin_name()})
         if self.tab == "survey" and self.survey_board is None:
             from elearning.ui.survey_admin import SurveyBoard
             self.survey_board = SurveyBoard(self.scroll.inner, by=self.admin_id)

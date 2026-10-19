@@ -20,6 +20,9 @@ from elearning.ui.controls import RoundButton, RoundSelect
 
 COLORS = {"day": "#7a4a12", "week": "#8f1d1d", "month": "#3a6b1f", "done": "#1d4f8a"}
 TITLES = dict(TS.SECTIONS, done="SUDAH SELESAI")
+# agenda admin sendiri (Panel Admin > Agenda & Laporan > Agenda saya)
+AGENDA_TITLES = {"day": "AGENDA HARIAN", "week": "AGENDA MINGGUAN", "month": "AGENDA BULANAN",
+                 "done": "SUDAH SELESAI"}
 ORDER = ("day", "week", "month", "done")
 EMPTY_ROWS = 2                 # baris kosong yang tampil kalau bagian belum ada isinya
 HEAD_H, ROW_H, GAP = 38, 32, 22
@@ -28,13 +31,17 @@ HOVER = "#2a2927"
 
 
 class TaskSheet(tk.Frame):
-    def __init__(self, master, teacher=None, admin=None, bg=C.BG):
-        """teacher = {id, name} (guru, bisa mengisi) ATAU admin = {id, name} (pilih guru,
-        hanya centang CHECK)."""
+    def __init__(self, master, teacher=None, admin=None, bg=C.BG, titles=None):
+        """Tiga mode:
+        teacher={id, name}               : pemilik sheet (guru) mengisi; CHECK hanya dilihat.
+        admin={id, name}                 : admin meninjau sheet guru (pilih guru, centang CHECK).
+        teacher=admin=akun admin         : agenda admin sendiri, mengisi + centang CHECK.
+        titles: judul bagian (bawaan Laporan Harian / Minggu ini / Bulan ini / Sudah selesai)."""
         super().__init__(master, bg=bg)
         self.bg = bg
         self.admin = admin
         self.teacher = teacher
+        self.titles = titles or TITLES
         self.month = TS.this_month()
         self.day = datetime.now().strftime("%Y-%m-%d")    # tanggal LAPORAN HARIAN
         self._day_hits = []          # area panah hari di kepala Laporan Harian
@@ -56,7 +63,7 @@ class TaskSheet(tk.Frame):
         self._nav_btn(nav, "chev_right", lambda: self._go(1)).pack(side="left")
         RoundButton(nav, text="Bulan ini", command=self._this_month, bg=C.CARD,
                     font=(C.FONT, 10), padx=12, pady=5).pack(side="left", padx=(12, 0))
-        if admin is not None:
+        if teacher is None and admin is not None:      # mode tinjau: pilih guru
             from elearning import teachers as T
             self._teachers = T.list_teachers()
             names = [t["name"] for t in self._teachers] or ["(belum ada guru)"]
@@ -117,14 +124,18 @@ class TaskSheet(tk.Frame):
         self.reload()
 
     def teacher_id(self):
-        if self.admin is None:
+        if self.teacher is not None:
             return self.teacher["id"]
         t = next((t for t in self._teachers if t["name"] == self.t_var.get()), None)
         return t["id"] if t else ""
 
     @property
     def editable(self):
-        return self.admin is None
+        return self.teacher is not None
+
+    @property
+    def can_check(self):
+        return self.admin is not None
 
     # --- data ---------------------------------------------------------------------------
     def reload(self, keep_edit=None):
@@ -138,8 +149,12 @@ class TaskSheet(tk.Frame):
         self.month_lbl.config(text=TS.month_label(self.month))
         g = self.groups
         unchecked = sum(1 for x in g["done"] if not x.get("check"))
-        self.note.config(text=f"{len(g['week']) + len(g['month'])} tugas belum selesai  ·  "
-                              f"{len(g['done'])} selesai  ·  {unchecked} belum dicek admin")
+        if self.titles is AGENDA_TITLES:          # agenda pribadi admin: tanpa "dicek admin"
+            self.note.config(text=f"{len(g['day']) + len(g['week']) + len(g['month'])} agenda "
+                                  f"belum selesai  ·  {len(g['done'])} selesai")
+        else:
+            self.note.config(text=f"{len(g['week']) + len(g['month'])} tugas belum selesai  ·  "
+                                  f"{len(g['done'])} selesai  ·  {unchecked} belum dicek admin")
         n_prev = TS.open_previous(tid, self.month) if (tid and self.editable) else 0
         if n_prev and not (g["week"] or g["month"] or g["done"]):
             self.carry.config(text=f"Bawa {n_prev} tugas belum selesai dari "
@@ -215,7 +230,7 @@ class TaskSheet(tk.Frame):
             cv.create_rectangle(1, y + HEAD_H - 10, W - 1, y + HEAD_H, fill=COLORS[key],
                                 width=0)
             cy = y + HEAD_H / 2
-            title = TITLES[key]
+            title = self.titles[key]
             for col, text in (("no", "NO."), ("task", title), ("done", "DONE"),
                               ("report", "LAPORAN"), ("check", "CHECK")):
                 x0, x1 = xs[col], self._end(xs, col)
@@ -306,11 +321,16 @@ class TaskSheet(tk.Frame):
             self._box(xs["done"] + COL_DONE / 2, cy, bool(item.get("done")), bg, tag,
                       enabled=self.editable)
             self._box(xs["check"] + COL_CHECK / 2, cy, bool(item.get("check")), bg, tag,
-                      enabled=self.admin is not None, color=C.ON)
+                      enabled=self.can_check, color=C.ON)
         elif self.editable and i == len(self.groups.get(key, [])):
             cv.create_text(xs["task"] + 10, cy, anchor="w",
-                           text="+ Ketik laporan harian…" if key == "day" else "+ Ketik tugas baru…",
+                           text=self._placeholder(key),
                            fill=C.LOCKED, font=self.f["cell"], tags=tag)
+
+    def _placeholder(self, key):
+        if self.titles is AGENDA_TITLES:
+            return "+ Ketik agenda…"
+        return "+ Ketik laporan harian…" if key == "day" else "+ Ketik tugas baru…"
 
     def _box(self, x, y, on, bg, tag, enabled=True, color=None):
         """Kotak centang antialias (pill + ikon centang), redup kalau tidak bisa diklik."""
@@ -356,7 +376,7 @@ class TaskSheet(tk.Frame):
             col = hit[1]
             if (col in ("task", "report") and self.editable) or \
                     (item is not None and ((col == "done" and self.editable)
-                                           or (col == "check" and self.admin is not None))):
+                                           or (col == "check" and self.can_check))):
                 cur = "hand2" if col in ("done", "check") else "xterm"
         self.cv.configure(cursor=cur)
 
@@ -385,7 +405,7 @@ class TaskSheet(tk.Frame):
             if col == "done" and item is not None and self.editable:
                 TS.set_done(item["id"], not item.get("done"))   # otomatis pindah bagian
                 self.reload()
-            elif col == "check" and item is not None and self.admin is not None:
+            elif col == "check" and item is not None and self.can_check:
                 TS.set_check(item["id"], not item.get("check"), self.admin.get("id", ""))
                 self.reload()
             elif col in ("task", "report") and self.editable:
@@ -493,3 +513,58 @@ class TaskSheetPanel(tk.Frame):
         sf.pack(fill="both", expand=True)
         self.sheet = TaskSheet(sf.inner, teacher=teacher)
         self.sheet.pack(fill="x", padx=(0, 12))
+
+
+class AgendaPanel(tk.Frame):
+    """Panel Admin > Agenda & Laporan: dua halaman.
+    "Agenda saya"  : sheet milik admin sendiri (agenda harian / mingguan / bulanan / selesai).
+    "Laporan guru" : sheet tiap guru (pilih guru), admin mencentang CHECK."""
+
+    PAGES = (("mine", "Agenda saya"), ("teachers", "Laporan guru"))
+    _last = {"page": "mine"}          # halaman terakhir diingat selama app terbuka
+
+    def __init__(self, master, admin):
+        super().__init__(master, bg=C.BG)
+        self.admin = admin
+        bar = tk.Frame(self, bg=C.BG)
+        bar.pack(fill="x", pady=(0, 12))
+        self._btns = {}
+        for key, label in self.PAGES:
+            b = RoundButton(bar, text=label, command=lambda k=key: self.show(k),
+                            font=(C.FONT, 10, "bold"), padx=16, pady=7, cursor="hand2")
+            b.pack(side="left", padx=(0, 6))
+            self._btns[key] = b
+        self.hint = tk.Label(bar, text="", bg=C.BG, fg=C.MUTED, font=(C.FONT, 10))
+        self.hint.pack(side="left", padx=(12, 0))
+        self.sheets = {}
+        self.page = None
+        self.show(self._last["page"])
+
+    def show(self, key):
+        if key == self.page:
+            return
+        if self.page in self.sheets:
+            self.sheets[self.page]._commit()
+            self.sheets[self.page].pack_forget()
+        self.page = AgendaPanel._last["page"] = key
+        if key not in self.sheets:
+            if key == "mine":
+                self.sheets[key] = TaskSheet(self, teacher=self.admin, admin=self.admin,
+                                             titles=AGENDA_TITLES)
+            else:
+                self.sheets[key] = TaskSheet(self, admin=self.admin)
+        else:
+            self.sheets[key].reload()
+        self.sheets[key].pack(fill="x")
+        for k, b in self._btns.items():
+            on = k == key
+            b.config(bg=C.SEG_ON if on else C.BG, fg=C.TEXT if on else C.MUTED,
+                     activebackground=C.SEG_ON if on else C.CARD_HOVER, activeforeground=C.TEXT)
+        self.hint.config(text="Agenda pribadi admin: klik sel untuk mengisi, centang DONE = "
+                              "pindah ke Sudah selesai." if key == "mine" else
+                         "Sheet laporan kerja guru: pilih guru, centang CHECK kalau sudah "
+                         "diperiksa.")
+
+    def reload(self):
+        if self.page in self.sheets:
+            self.sheets[self.page].reload()

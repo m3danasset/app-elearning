@@ -273,6 +273,14 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   nilai ke bawaan". Nilai baru: tambah baris di VALUES; modulnya harus membaca atribut itu
   saat dipakai (bukan disalin saat import).
 
+## Panel Admin > "Agenda & Laporan" (dulu "Laporan Guru"), dua halaman
+- task_sheet_view.AgendaPanel: "Agenda saya" = TaskSheet(teacher=admin, admin=admin,
+  titles=AGENDA_TITLES: AGENDA HARIAN / MINGGUAN / BULANAN / SUDAH SELESAI; isi + CHECK sendiri,
+  data atas nama ID admin) | "Laporan guru" = TaskSheet(admin=admin): pilih guru, hanya CHECK.
+  Halaman terakhir diingat selama app terbuka. TaskSheet: editable = ada teacher (pemilik),
+  can_check = ada admin. task_sheet.summary(None) TIDAK menghitung agenda admin (ID ADMIN...).
+  Dashboard admin: kartu "AGENDA SAYA" (agenda harian / mingguan belum selesai).
+
 ## Laporan guru = SHEET tugas (pengganti formulir laporan lama)
 - Bagian LAPORAN HARIAN (section "day", field "day" = tanggal) PALING ATAS, panah tanggal di
   kepalanya (_day_hits); bagian kosong = 2 baris (EMPTY_ROWS). Tanggal di kolom LAPORAN (kanan,
