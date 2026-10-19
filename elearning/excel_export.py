@@ -894,7 +894,7 @@ def export(path, label, start, end, who="all", sheets=None):
             if when is not None and not _in(when, start, end):
                 continue
             su_rows.append([len(su_rows) + 1, when, r["id"]]
-                           + [r.get(k, "") for k in SU.KEYS]
+                           + [SU.display(k, r.get(k, "")) for k in SU.KEYS]
                            + [st_text.get(r.get("status"), r.get("status", "")),
                               r.get("student", "")])
         waiting = sum(1 for x in su_rows if x[-2] == "Menunggu")
@@ -902,7 +902,7 @@ def export(path, label, start, end, who="all", sheets=None):
             "Pendaftar dari Trial (survey)",
             f"{sub}   ·   {len(su_rows)} pendaftar   ·   {waiting} menunggu",
             ["No", "Masuk", "Kode"] + [f[2] for f in SU.FIELDS] + ["Status", "ID murid"],
-            [6, 18, 8, 24, 16, 7, 24, 26, 18, 24, 16, 36, 18, 30, 12, 10], su_rows,
+            [6, 18, 8, 24, 16, 7, 24, 26, 18, 16, 24, 16, 36, 18, 30, 12, 10], su_rows,
             [0, 4, 0] + [8 if f[4] else 0 for f in SU.FIELDS] + [0, 0])))
 
     if not out:

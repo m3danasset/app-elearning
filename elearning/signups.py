@@ -27,6 +27,7 @@ FIELDS = (
     ("email", "Email", "Email", False, False),
     ("school", "School / campus / workplace", "Sekolah / kampus / kerja", False, False),
     ("interest", "Class you're interested in", "Minat kelas", False, False),
+    ("computer", "Do you have a PC or laptop at home?", "PC / laptop di rumah", False, True),
     ("parent", "Parent / guardian name", "Nama orang tua / wali", False, False),
     ("parent_phone", "Parent / guardian phone", "Telepon orang tua", False, False),
     ("address", "Address", "Alamat", False, True),
@@ -34,6 +35,19 @@ FIELDS = (
     ("notes", "Anything else we should know?", "Catatan", False, True),
 )
 KEYS = tuple(f[0] for f in FIELDS)
+# Isian PILIHAN (tombol, sekali klik), bukan teks: kunci -> ((nilai, label English, label admin))
+CHOICES = {
+    "computer": (("pc", "PC", "PC"), ("laptop", "Laptop", "Laptop"),
+                 ("both", "PC & laptop", "PC & laptop"), ("none", "No", "Tidak punya")),
+}
+
+
+def display(key, value):
+    """Teks jawaban untuk admin / Excel (pilihan -> label Indonesia)."""
+    for v, _en, label in CHOICES.get(key, ()):
+        if v == value:
+            return label
+    return value or ""
 
 _lock = threading.Lock()
 
@@ -77,6 +91,9 @@ def clean(values):
         raise ValueError("Please enter your age as a number (3-99).")
     if out["email"] and not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", out["email"]):
         raise ValueError("That email address doesn't look right.")
+    for key, options in CHOICES.items():         # pilihan: hanya nilai yang dikenal
+        if out[key] not in {v for v, _en, _id in options}:
+            out[key] = ""
     if out["parent_phone"] and len(re.sub(r"\D", "", out["parent_phone"])) < 8:
         raise ValueError("Please enter a valid parent / guardian phone number.")
     return out

@@ -40,18 +40,15 @@ USB_W, USB_H = 340, 96     # widget USB (gaya widget Dashboard admin / guru, 1 s
 USB_ON = "#3fb68b"
 USB_PAD = 28               # ruang bayangan di sekitar widget
 USB_BTN = 34               # tombol eject bulat di kanan widget
-# Bayangan lembut seperti widget USB (dashboard_view._shadow): kartu kursus & sapaan
-SH_BLUR, SH_DY, SH_ALPHA = 12, 6, 90
-TEXT_SH_ALPHA = (85, 60)   # sapaan besar, baris kecil di bawahnya
+# Bayangan lembut: SATU spesifikasi untuk semua dashboard (dashboard_view.SH_*)
+from elearning.ui.dashboard_view import SH_ALPHA, SH_BLUR, SH_DY, TEXT_SH_ALPHA  # noqa: E402
 TEASER_W = 840             # lebar kartu video teaser (16:9; mengecil kalau ruang kurang)
 TEASER_SHOW_MS = 220       # kursor diam sekian di atas kartu kursus -> teaser muncul
 TEASER_HIDE_MS = 260       # kursor keluar dari kartu -> teaser hilang (kecuali pindah kartu)
 TEASER_FADE_MS = 280       # pudar masuk / keluar (dihitung tiap frame UI, 30 fps)
 TEASER_RISE = 14           # kartu naik sekian px saat muncul (ikut pudar)
 TEASER_GAP = 30            # jarak kartu teaser -> widget USB (> ruang bayangan teaser)
-TEASER_BLUR = 12           # bayangan lembut seperti widget USB: blur (ruang = 2x), turun
-TEASER_SH_DY = 6           # TEASER_SH_DY px, kepekatan TEASER_SH_A
-TEASER_SH_A = 90
+TEASER_BLUR, TEASER_SH_DY, TEASER_SH_A = SH_BLUR, SH_DY, SH_ALPHA   # bayangan yang sama
 SLIDE_MS = 340             # widget USB bergeser ke kanan / kembali (ease-in-out)
 
 
@@ -434,21 +431,10 @@ class CourseDock(tk.Canvas):
 
     def _text_shadows(self, items):
         """Bayangan lembut (kapsul ter-blur seukuran teks, seperti widget) di bawah teks."""
-        from elearning.ui.dashboard_view import _shadow
+        from elearning.ui.dashboard_view import text_shadow
         self._tsh = []
         for item, alpha in items:
-            bb = self.bbox(item)
-            if not bb:
-                continue
-            x0, y0, x1, y1 = bb
-            tw, th = x1 - x0, max(8, y1 - y0 - 6)
-            blur = max(8, th // 3)
-            img, pad = _shadow(tw + 12, th, th // 2, blur, alpha)
-            ph = photos.to_photoimage(img)
-            self._tsh.append(ph)
-            sid = self.create_image(x0 - 6 - pad, y0 + 3 - pad + SH_DY, image=ph, anchor="nw",
-                                    tags="fg")
-            self.tag_lower(sid, item)
+            text_shadow(self, item, alpha, self._tsh, "fg")
 
     def _fit_title(self, s):
         longest = max((c["title"] for c in self.courses), key=len)
@@ -779,8 +765,8 @@ class CourseDock(tk.Canvas):
             return
         out = Image.new("RGBA", (w + 2 * pad, h + 2 * pad), (0, 0, 0, 0))
         color = USB_ON if on else C.MUTED
-        sh, sp = _shadow(w, h, 18, 12, 90)
-        self._paste_clipped(out, sh, x0 - sp - bx0, y0 - sp - by0 + 6)
+        sh, sp = _shadow(w, h, 18)
+        self._paste_clipped(out, sh, x0 - sp - bx0, y0 - sp - by0 + SH_DY)
         key = ("usbbody", w, h)
         body = I._img_cache.get(key)
         if body is None:

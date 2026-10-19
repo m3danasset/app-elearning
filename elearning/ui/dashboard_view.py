@@ -46,7 +46,7 @@ CLOSE_D = 24                # tombol x tutup kartu (pojok kanan atas, hanya saat
 URGENT_GLOW = "#ff8a1a"     # gradasi oranye kartu prioritas (urgent)
 DRAWER_MS = 520             # laci kartu naik / turun (ease-in-out, maks. 30 fps, berbasis waktu)
 HERO_PT, HERO_MIN_PT = 40, 24    # sapaan: 40 pt; jendela pendek -> mengecil sampai 24 / hilang
-SHADOW_ROOM = 24             # ruang bayangan di atas kartu (pad 28 - turun 6 = 22 px)
+SHADOW_ROOM = 24            # ruang bayangan di atas kartu (pad 2 x blur 24 - turun 6 = 18 px)
 PEN_NEAR = 140              # tombol pena muncul saat kursor sedekat ini (px)
 RESIZE_SETTLE_MS = 100      # ukuran jendela diseret: susun ulang SEKALI setelah berhenti
 SCROLL_MS = 200             # gulir kartu di laci penuh (halus, bukan loncat 80 px)
@@ -82,7 +82,30 @@ def _cached(key, make):
     return img
 
 
-def _shadow(w, h, r, blur=14, alpha=110):
+# BAYANGAN LEMBUT YANG SAMA untuk SEMUA dashboard (admin, guru, murid, trial): kartu, widget,
+# widget USB, teaser, dan sapaan. Ubah di sini saja; course_dock memakai nilai yang sama.
+SH_BLUR, SH_DY, SH_ALPHA = 12, 6, 90
+TEXT_SH_ALPHA = (85, 60)    # sapaan besar, baris tanggal di bawahnya
+
+
+def text_shadow(canvas, item, alpha, keep, tags):
+    """Bayangan lembut (kapsul ter-blur seukuran teks) tepat di bawah satu item teks canvas.
+    Gambar disimpan di daftar keep. Kembalikan id item bayangan (None kalau teks kosong)."""
+    bb = canvas.bbox(item)
+    if not bb:
+        return None
+    x0, y0, x1, y1 = bb
+    tw, th = x1 - x0, max(8, y1 - y0 - 6)
+    img, pad = _shadow(tw + 12, th, th // 2, max(8, th // 3), alpha)
+    ph = photos.to_photoimage(img)
+    keep.append(ph)
+    sid = canvas.create_image(x0 - 6 - pad, y0 + 3 - pad + SH_DY, image=ph, anchor="nw",
+                              tags=tags)
+    canvas.tag_lower(sid, item)
+    return sid
+
+
+def _shadow(w, h, r, blur=SH_BLUR, alpha=SH_ALPHA):
     """Bayangan lembut (perkecil-perbesar, tanpa ImageFilter). Kembalikan (RGBA, pad)."""
     return _cached(("shadow", w, h, r, blur, alpha), lambda: _make_shadow(w, h, r, blur, alpha))
 
@@ -168,6 +191,8 @@ class DashboardView(tk.Canvas):
         self._strip = None             # mode pita (laci penuh / animasi): posisi pita kartu
         self._peek_top = None          # laci kecil: y atas kartu baris ke-2 (mengintip)
         self._greet_items = ()         # (sapaan, baris tanggal)
+        self._greet_sh = []            # bayangan sapaan
+        self._greet_sh_imgs = []
         self._timer_on = False         # timer Windows 1 ms selama animasi
         self.cards_top = TOP_H
         self._size = (0, 0)
@@ -563,8 +588,8 @@ class DashboardView(tk.Canvas):
         for k, (x0, y0, x1, y1) in enumerate(self._widget_rects()):
             kind = self.widgets[k]
             w, h = int(x1 - x0), int(y1 - y0)
-            sh, pad = _shadow(w, h, 18, 12, 90)
-            place(sh, x0 - pad, y0 + dy - pad + 6)
+            sh, pad = _shadow(w, h, 18)
+            place(sh, x0 - pad, y0 + dy - pad + SH_DY)
             place(body(w, h, C.BORDER), x0, y0 + dy)
             place(self._tint(w, h, WIDGET_ACCENT.get(kind, BLUE), "todo"), x0, y0 + dy)
             if kind == "done" and self.items is not None:   # cincin "beres"
@@ -607,8 +632,8 @@ class DashboardView(tk.Canvas):
         it = self.items[i]
         lv = _level_color(it["level"])
         w, h = int(x1 - x0), int(y1 - y0)
-        sh, pad = _shadow(w, h, 16, 14, 95)
-        place(sh, x0 - pad, y0 - pad + 6)
+        sh, pad = _shadow(w, h, 16)
+        place(sh, x0 - pad, y0 - pad + SH_DY)
         border = _mix(C.BORDER, URGENT_GLOW, 0.55) if it["level"] == "urgent" else C.BORDER
         place(_cached(("body", w, h, border, C.CARD), lambda: make_body(w, h, border)), x0, y0)
         place(self._tint(w, h, lv, it["level"]), x0, y0)
@@ -1140,6 +1165,7 @@ class DashboardView(tk.Canvas):
             todo = sum(1 for it in self.items if it["level"] in ("urgent", "todo"))
             sub = (f"{D.today_text()}  ·  " +
                    (f"{todo} hal perlu dikerjakan" if todo else "semua beres, kerja bagus!"))
+        self._greet_sh, self._greet_sh_imgs = [], []
         if self._hero_pt is None:            # jendela terlalu pendek: tanpa sapaan
             self._greet_items = ()
             return
@@ -1149,6 +1175,13 @@ class DashboardView(tk.Canvas):
         line = self.create_text(W / 2, sub_y, anchor="n", tags=("txt", "greet"),
                                 font=self.f["sub"], fill=C.MUTED, text=sub)
         self._greet_items = (hero, line)
+        self._greet_sh = []                  # (bayangan, teks, dx, dy): ikut saat laci bergerak
+        for item, alpha in ((hero, TEXT_SH_ALPHA[0]), (line, TEXT_SH_ALPHA[1])):
+            sid = text_shadow(self, item, alpha, self._greet_sh_imgs, ("txt", "greet_sh"))
+            if sid is not None:
+                ix, iy = self.coords(item)
+                sx, sy = self.coords(sid)
+                self._greet_sh.append((sid, item, sx - ix, sy - iy))
 
     def _draw_handle(self):
         """Tombol panah minimalis di atas laci kartu + keterangan kecil."""
@@ -1388,6 +1421,9 @@ class DashboardView(tk.Canvas):
                 W2 = self._size[0] / 2
                 self.coords(hero, W2, int(round(gy0 + (gy1 - gy0) * e)))
                 self.coords(line, W2, int(round(sy0 + (sy1 - sy0) * e)))
+                for sid, item, dx, dy in self._greet_sh:     # bayangan ikut sapaan
+                    ix, iy = self.coords(item)
+                    self.coords(sid, ix + dx, iy + dy)
         if t < 1.0:     # jadwal frame tetap dari jam mulai (gambar ulang Tk ikut terhitung)
             a["k"] = max(a["k"] + 1, int((t_start - a["t0"]) * 1000 / C.UI_FRAME_MS) + 1)
             due = a["t0"] + a["k"] * C.UI_FRAME_MS / 1000.0

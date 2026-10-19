@@ -272,7 +272,9 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 - elearning/signups.py: data\trial_signups.json (S0001, ...; pending / approved / rejected).
   FIELDS = (kunci, label English, label admin, wajib, lebar penuh): nama*, telepon/WA*, umur*,
   email, sekolah, minat kelas, nama & telepon orang tua, alamat, tahu dari mana, catatan.
-  clean() memeriksa (pesan English).
+  clean() memeriksa (pesan English). Isian PILIHAN (signups.CHOICES, tombol segmen sekali
+  klik, klik lagi = batal): "computer" = "Do you have a PC or laptop at home?" -> pc / laptop /
+  both / none (label admin & Excel lewat signups.display: PC, Laptop, PC & laptop, Tidak punya).
 - ui/signup_view.py SurveyDialog: popup English saat akun TRIAL keluar / menutup app
   (App._after_trial dipanggil dari logout() & _close(), BUKAN dari _logout yang dipakai Dev).
   Sekali per sesi trial (_survey_done), Submit / Skip -> lanjut keluar. Fitur "survey" di Dev.
@@ -381,6 +383,11 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   admin / guru = SATU frame dari video latar (tidak bergerak). video_background.VideoPlayer
   static: baca satu frame, disiapkan ulang hanya saat ukuran berubah (pemanggil tetap memakai
   get_latest, tidak berubah). Teaser memakai static=False. Mode ringan tetap tanpa latar video.
+- BAYANGAN SATU SPESIFIKASI untuk SEMUA dashboard (admin, guru, murid, trial): dashboard_view
+  SH_BLUR 12, SH_DY 6, SH_ALPHA 90, TEXT_SH_ALPHA (85, 60) + text_shadow(canvas, item, ...).
+  Dipakai kartu notifikasi, widget, widget USB, kartu kursus, teaser, dan sapaan (admin / guru
+  sekarang juga; bayangan sapaan ikut bergerak bersama laci, _greet_sh). course_dock MENGIMPOR
+  nilai ini (jangan buat angka sendiri). Bayangan bentuk baru: _shadow(w, h, r) tanpa blur/alpha.
 - Bayangan lembut seperti widget USB (dashboard_view._shadow; SH_BLUR 12, SH_DY 6, SH_ALPHA 90)
   di bawah kartu kursus (dicampur ke pita kartu; pita diperpanjang untuk ruang bayangan) dan di
   bawah sapaan + baris tanggal (kapsul ter-blur seukuran teks, CourseDock._text_shadows).

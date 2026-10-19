@@ -94,11 +94,14 @@ class SurveyDialog(tk.Toplevel):
                      fg=C.TEXT if required else C.MUTED, font=(C.FONT, 10),
                      anchor="w").pack(fill="x")
             var = tk.StringVar()
-            box = RoundEntry(cell, var, width_chars=48 if wide else 22, font=(C.FONT, 11),
-                             height=38, fill=C.BG, radius=9)
-            box.pack(fill="x", pady=(4, 0))
             self.vars[key] = var
-            self.entries.append(box.entry)
+            if key in SU.CHOICES:              # pilihan sekali klik (bukan kolom ketik)
+                self._choice_row(cell, key, var)
+            else:
+                box = RoundEntry(cell, var, width_chars=48 if wide else 22, font=(C.FONT, 11),
+                                 height=38, fill=C.BG, radius=9)
+                box.pack(fill="x", pady=(4, 0))
+                self.entries.append(box.entry)
             if wide:
                 r, c = r + 1, 0
             else:
@@ -117,6 +120,30 @@ class SurveyDialog(tk.Toplevel):
         _center_modal(self, master)
         self.attributes("-topmost", True)        # tetap di atas layar penuh
         self.entries[0].focus_set()
+
+    def _choice_row(self, cell, key, var):
+        """Tombol pilihan bergaya segmen (sama dengan pilihan kategori di dialog lain)."""
+        row = tk.Frame(cell, bg=C.CARD)
+        row.pack(fill="x", pady=(4, 0))
+        btns = {}
+
+        def paint():
+            for value, b in btns.items():
+                on = var.get() == value
+                b.config(bg=C.SEG_ON if on else C.BG, fg=C.TEXT if on else C.MUTED,
+                         activebackground=C.SEG_ON if on else C.CARD_HOVER,
+                         activeforeground=C.TEXT)
+
+        def pick(value):
+            var.set("" if var.get() == value else value)   # klik lagi = batal pilih
+            paint()
+        for value, label, _admin in SU.CHOICES[key]:
+            b = RoundButton(row, text=label, command=lambda v=value: pick(v), relief="flat",
+                            bd=0, highlightthickness=0, cursor="hand2",
+                            font=(C.FONT, 10, "bold"), padx=16, pady=7)
+            b.pack(side="left", padx=(0, 8))
+            btns[value] = b
+        paint()
 
     def _next(self, n):
         if n + 1 < len(self.entries):
@@ -334,7 +361,8 @@ class SignupDetail(tk.Toplevel):
         for r, (key, _en, label, _req, _wide) in enumerate(SU.FIELDS):
             tk.Label(grid, text=label, bg=C.CARD, fg=C.MUTED, font=(C.FONT, 10),
                      anchor="nw").grid(row=r, column=0, sticky="nw", padx=(0, 16), pady=3)
-            tk.Label(grid, text=rec.get(key) or "-", bg=C.CARD, fg=C.TEXT, font=(C.FONT, 10),
+            tk.Label(grid, text=SU.display(key, rec.get(key)) or "-", bg=C.CARD, fg=C.TEXT,
+                     font=(C.FONT, 10),
                      anchor="w", justify="left", wraplength=360).grid(row=r, column=1,
                                                                       sticky="w", pady=3)
         btns = tk.Frame(body, bg=C.CARD)
