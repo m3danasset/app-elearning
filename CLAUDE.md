@@ -395,6 +395,16 @@ eport_tasks.json, per guru per bulan, bagian MINGGU INI (week)
   next_admin_id: ID yang pernah dihapus tidak dipakai ulang). _all() = ADMINS + extra dipakai
   get_name / set_name / get_pin / set_pin / list_admins / delete_admin / check_admin.
 
+## Dev > Akun > "Reset progres" (pilih murid)
+- dev_accounts.ResetProgress: murid terpilih di tabel sudah tercentang; StudentPicker (satu kanvas,
+  cari nama / ID, "Centang yang tampil" / "Kosongkan", roda mouse) + Chips bagian
+  (students.RESET_PARTS): Progres video (status & posisi, catatan, emote, jawaban kuis), Badge,
+  Sertifikat (permintaan), Survey (jawaban; popup muncul lagi) tercentang bawaan; Portfolio &
+  assignment (SEMUA file upload) tidak. Tombol "Reset n murid" diklik DUA kali (klik pertama =
+  konfirmasi merah); fokus awal Batal. students.reset_student(sid, parts); reset_progress guru =
+  video + badge. Akun, ID, kategori, akses, foto, jadwal, riwayat login tetap. Murid yang sedang
+  login -> _student_changed (layar dibangun ulang).
+
 ## Dev > Kursus: panel kursus + master toggle akses murid
 - courses.py: daftar di kode = BAWAAN (BUILTIN). Dev membuat / mengubah / menghapus / mengurutkan
   -> SELURUH daftar disimpan di data\courses.json ({"v": 1, "courses": [...]}) dan dipakai
@@ -595,15 +605,19 @@ eport_tasks.json, per guru per bulan, bagian MINGGU INI (week)
   Gambar widget = potongan latar (ikut frame video), ~2,5 ms.
 - Menu USB sidebar Dashboard murid (aturan sama dengan widget): satu menu per flashdisk,
   label = nama volume "KINGSTON (E:)" (ikon usb), muncul / hilang otomatis. Halaman
-  file_browser.UsbPage: nama, sisa ruang, "Open files" (FileBrowser mode resource, root = akar
-  flashdisk: tidak bisa naik / junction keluar; dibuka otomatis), "Eject". File program
+  file_browser.UsbPage: kepala (ikon, nama, sisa ruang, status, tombol Eject) + file browser PENUH
+  DI HALAMAN (InlineFileBrowser = tk.Frame yang memakai ulang semua metode OverlayPanel +
+  FileBrowser, kecuali bagian jendela melayang: tanpa latar redup / x / Esc tutup, klik luar tidak
+  menutup, ukuran ikut halaman lewat <Configure> frame itu sendiri; bindtag frame dipasang ke kanvas
+  di dalam, jadi _on_size WAJIB cek e.widget is self). Mode resource, root = akar flashdisk (tidak
+  bisa naik / junction keluar). Tanpa jendela mini / tombol "Open files". File program
   (RUN_EXTS: .exe, .bat, .lnk, ...) tidak dibuka. Dicabut / dikeluarkan -> kembali ke Dashboard
   + file browser ditutup.
   Hapus (USB saja, FileBrowser on_delete): centang file / item terpilih (file atau folder) ->
-  tombol "Delete n" merah di footer atau tombol Del -> file browser ditutup, popup MiniConfirm
+  tombol "Delete n" merah di footer atau tombol Del -> popup MiniConfirm
   (App._confirm, sama dengan Log out: Cancel fokus awal, Delete merah) -> hapus di thread
-  (cek tetap di dalam akar USB, akar tidak bisa dihapus) -> file browser dibuka lagi di folder
-  yang sama (opts start) + status "Deleted n item(s)". Batal -> langsung dibuka lagi.
+  (cek tetap di dalam akar USB, akar tidak bisa dihapus) -> file browser dibuat ulang di folder
+  yang sama (opts start) + status "Deleted n item(s)". Batal -> file browser tetap seperti tadi.
 
 ## Mini player (mode mengambang saat Blender)
 - ui/mini_player.py MINIMALIS: jendela = video 16:9 saja (sudut membulat RADIUS 12: Windows 11

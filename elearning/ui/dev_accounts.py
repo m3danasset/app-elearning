@@ -5,6 +5,7 @@
 - StudentEditor  : nama, ID, kategori, status, tanggal lahir, kursus tampil / buka.
 - AccountEditor  : nama + PIN guru / admin.
 - DeleteConfirm  : hapus akun (fokus awal Batal).
+- ResetProgress  : pilih murid (banyak) + bagian yang di-reset (klik Reset dua kali).
 
 Semua memakai Card: kartu bersudut bulat tanpa bilah judul, tingginya mengikuti isi.
 """
@@ -532,3 +533,194 @@ class DeleteConfirm(Card):
             panel.app.dev_account_deleted(uid)
         except Exception as exc:
             C.log(f"Dev: setelah hapus {uid}: {exc!r}")
+
+
+# --- reset progres murid ------------------------------------------------------------------------
+class StudentPicker(tk.Canvas):
+    """Daftar murid bercentang (satu kanvas, digulir roda mouse): klik baris = centang."""
+
+    ROW, ROWS = 30, 8
+
+    def __init__(self, master, students, selected, width, on_change):
+        super().__init__(master, width=width, height=self.ROW * self.ROWS, bg=PANEL,
+                         highlightthickness=0, bd=0, cursor="hand2")
+        self.all = students
+        self.sel = set(selected)
+        self.Wd, self.on_change = width, on_change
+        self.shown, self.top = list(students), 0
+        self.f = tkfont.Font(family=C.FONT, size=10)
+        self.fm = tkfont.Font(family="Consolas", size=9)
+        self._imgs = []
+        self.bind("<Button-1>", self._click)
+        self.bind("<MouseWheel>", self._wheel)
+        self._draw()
+
+    def filter(self, query):
+        words = query.lower().split()
+        self.shown = [s for s in self.all
+                      if all(w in f"{s['id']} {s['name']}".lower() for w in words)]
+        self.top = 0
+        self._draw()
+
+    def set_shown(self, on):
+        ids = {s["id"] for s in self.shown}
+        self.sel = (self.sel | ids) if on else (self.sel - ids)
+        self._draw()
+        self.on_change()
+
+    def _wheel(self, e):
+        top = self.top + (-3 if e.delta > 0 else 3)
+        self.top = max(0, min(top, len(self.shown) - self.ROWS))
+        self._draw()
+        return "break"
+
+    def _click(self, e):
+        i = self.top + int(e.y // self.ROW)
+        if 0 <= i < len(self.shown):
+            self.sel ^= {self.shown[i]["id"]}
+            self._draw()
+            self.on_change()
+
+    def _draw(self):
+        self.delete("all")
+        self._imgs = []
+        bg, R = DP.SEG_BG, self.ROW
+        box = I.pill(self.Wd, R * self.ROWS, bg, PANEL, r=8)     # latar daftar bersudut bulat
+        if box is not None:
+            self._imgs.append(box)
+            self.create_image(0, 0, image=box, anchor="nw")
+        if not self.shown:
+            self.create_text(self.Wd / 2, R * self.ROWS / 2, text="Tidak ada murid yang cocok",
+                             fill=MUTED, font=self.f)
+        for row, s in enumerate(self.shown[self.top:self.top + self.ROWS]):
+            y = row * R + R / 2
+            on = s["id"] in self.sel
+            fill = C.ACCENT if on else bg
+            img = I.pill(18, 18, fill, bg, r=4, border=None if on else "#6d6a62")
+            if img is not None:
+                self._imgs.append(img)
+                self.create_image(12, y - 9, image=img, anchor="nw")
+            if on:
+                ic = I.icon("check_bold", "#ffffff", fill, 14)
+                if ic is not None:
+                    self._imgs.append(ic)
+                    self.create_image(21, y, image=ic)
+            self.create_text(42, y, text=s["id"], anchor="w", fill=MUTED, font=self.fm)
+            self.create_text(124, y, text=s["name"], anchor="w", fill=FG if on else "#c9c6bd",
+                             font=self.f)
+            prog = "SUPERKIDS" if s["program"] == "kids" else "Dewasa"
+            if s.get("status") == "expired":
+                prog += " · Nonaktif"
+            self.create_text(self.Wd - 14, y, text=prog, anchor="e", fill=MUTED, font=self.fm)
+        n = len(self.shown)
+        if n > self.ROWS:                     # bilah gulir tipis (posisi saja)
+            h = R * self.ROWS
+            bar = max(24, h * self.ROWS / n)
+            y0 = (h - bar) * self.top / max(1, n - self.ROWS)
+            img = I.pill(4, bar, "#5a5953", bg, r=2)
+            if img is not None:
+                self._imgs.append(img)
+                self.create_image(self.Wd - 6, y0, image=img, anchor="nw")
+
+    def selected(self):
+        return [s["id"] for s in self.all if s["id"] in self.sel]
+
+
+class ResetProgress(Card):
+    """Pilih murid (satu / banyak) + bagian yang di-reset. Tombol Reset harus diklik DUA kali
+    (klik pertama = konfirmasi); fokus awal di Batal."""
+
+    def __init__(self, panel, selected=()):
+        from elearning import students as ST
+        super().__init__(panel, 660)
+        self.students = ST.list_students()
+        inner = self.W - 44 - LABEL_W - 12
+        g = self.head("Reset progres murid",
+                      "Akun, ID, kategori, akses kursus, foto, jadwal, dan riwayat login TIDAK "
+                      "berubah. Yang di-reset tidak bisa dikembalikan.")
+        self.label(g, 0, "Murid", "centang satu atau banyak; cari nama / ID")
+        box = tk.Frame(g, bg=PANEL)
+        box.grid(row=0, column=1, sticky="we", pady=(6, 4))
+        self.q = tk.StringVar()
+        self.entry(box, self.q, "Cari murid…", 30).pack(fill="x")
+        self.pick = StudentPicker(box, self.students, selected, inner, self._changed)
+        self.pick.pack(fill="x", pady=(8, 6))
+        row = tk.Frame(box, bg=PANEL)
+        row.pack(fill="x")
+        self.count = tk.Label(row, text="", bg=PANEL, fg=MUTED, font=(C.FONT, 9), anchor="w")
+        self.count.pack(side="left")
+        DP._btn(row, "Kosongkan", lambda: self.pick.set_shown(False)).pack(side="right")
+        DP._btn(row, "Centang yang tampil", lambda: self.pick.set_shown(True)).pack(
+            side="right", padx=(0, 8))
+        self.q.trace_add("write", lambda *a: self.pick.filter(self.q.get()))
+        self.label(g, 1, "Yang di-reset", "klik untuk menyalakan / mematikan")
+        colors = {"video": "#5b9cf5", "badges": "#e8b04a", "certificates": "#4cc38a",
+                  "survey": "#a78bfa", "work": "#ff6b6b"}
+        self.parts = Chips(g, [(k, lb, colors[k]) for k, lb, _d in ST.RESET_PARTS],
+                           [k for k, _l, _d in ST.RESET_PARTS if k != "work"], width=inner)
+        self.parts.grid(row=1, column=1, sticky="w", pady=(9, 2))
+        self.parts.bind("<Button-1>", lambda e: self.after_idle(self._changed), add="+")
+        self.what = tk.Label(g, text="", bg=PANEL, fg=MUTED, font=(C.FONT, 8), anchor="w",
+                             justify="left", wraplength=inner)
+        self.what.grid(row=2, column=1, sticky="we", pady=(4, 0))
+        self.ok, cancel = self.footer("Reset progres", self._do, "danger")
+        self._armed = False
+        self._changed()
+        self.show(cancel)
+
+    def _changed(self):
+        from elearning import students as ST
+        n = len(self.pick.selected())
+        self.count.config(text=f"{n} murid dicentang" if n else "Belum ada murid dicentang")
+        parts = self.parts.selected()
+        labels = {k: (lb, d) for k, lb, d in ST.RESET_PARTS}
+        self.what.config(text="\n".join(f"• {labels[k][0]}: {labels[k][1]}" for k in parts)
+                         or "Pilih minimal satu bagian.",
+                         fg="#ff8a8a" if "work" in parts else MUTED)
+        self._armed = False
+        self.ok.config(text=f"Reset {n} murid" if n else "Reset progres")
+        if hasattr(self, "msg"):
+            self.msg.config(text="", fg=MUTED)
+            self.fit()
+
+    def _do(self):
+        from elearning import students as ST
+        ids, parts = self.pick.selected(), self.parts.selected()
+        if not ids:
+            self.error("Centang minimal satu murid.")
+            return
+        if not parts:
+            self.error("Pilih minimal satu bagian yang di-reset.")
+            return
+        if not self._armed:                     # klik pertama = minta konfirmasi
+            self._armed = True
+            self.ok.config(text=f"Ya, reset {len(ids)} murid")
+            self.msg.config(text=f"Klik sekali lagi untuk me-reset {len(ids)} murid. "
+                                 "Tidak bisa dikembalikan.", fg="#ff8a8a")
+            self.fit()
+            return
+        done, failed = [], []
+        for sid in ids:
+            try:
+                ST.reset_student(sid, parts)
+                done.append(sid)
+            except (ValueError, OSError) as exc:
+                C.log(f"Dev: reset {sid} gagal: {exc!r}")
+                failed.append(sid)
+        if done:
+            C.log(f"Dev: reset progres {', '.join(done)} ({', '.join(parts)})")
+        panel = self.panel
+        if failed:
+            self._armed = False
+            self.error(f"{len(done)} murid di-reset, {len(failed)} gagal: "
+                       f"{', '.join(failed[:6])} (folder data bisa ditulis?).")
+            return
+        self.destroy()
+        try:
+            panel.reload_accounts()
+            panel._note(f"Progres {len(done)} murid di-reset.")
+            cur = getattr(panel.app, "_student", None)
+            if cur is not None and cur.get("id") in done:       # murid yang sedang login
+                panel._student_changed(cur["id"], cur["id"])
+        except Exception as exc:
+            C.log(f"Dev: setelah reset: {exc!r}")

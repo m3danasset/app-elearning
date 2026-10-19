@@ -611,6 +611,8 @@ class DevPanel(tk.Toplevel):
         self.stat_btn.pack(side="right", padx=(0, 8))
         self.del_btn = _btn(self._bar_acc, "Hapus akun", self._delete, "danger")
         self.del_btn.pack(side="right", padx=(0, 8))
+        _btn(self._bar_acc, "Reset progres", self._reset_progress).pack(side="right",
+                                                                       padx=(0, 8))
         _btn(self._bar_acc, "Akun baru", self._new_account).pack(side="right", padx=(0, 8))
         self._bar_set = tk.Frame(self.bottom, bg=PANEL)
         # Apply Now = sementara (sampai app ditutup); Apply As Default = disimpan ke file
@@ -1191,6 +1193,12 @@ class DevPanel(tk.Toplevel):
         if it is None or it[0] == "trial":
             return
         DeleteConfirm(self, it[0], it[1], it[2])
+
+    def _reset_progress(self):
+        """Dialog reset progres; murid yang dipilih di tabel sudah tercentang."""
+        from elearning.ui.dev_accounts import ResetProgress
+        it = self._selected()
+        ResetProgress(self, [it[1]] if it is not None and it[0] in ("adult", "kids") else [])
 
     def _new_account(self):
         from elearning.ui.dev_accounts import NewAccount

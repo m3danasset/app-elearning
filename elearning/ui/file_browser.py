@@ -748,7 +748,8 @@ class FileBrowser(OverlayPanel):
         W, H = self.W, self.H
         y = H - FOOT_H / 2
         x = 20
-        hints = [("Close", "Esc"), ("Up", "Backspace")]
+        hints = [] if isinstance(self, InlineFileBrowser) else [("Close", "Esc")]
+        hints.append(("Up", "Backspace"))
         hints.append(("Check", "Space") if self.pick else ("Open", "Enter"))
         if not self.pick and self.on_delete is not None:
             hints.append(("Delete", "Del"))
@@ -1126,6 +1127,106 @@ class FileBrowser(OverlayPanel):
         top.after(1, lambda: fn([{"path": e["path"], "name": e["name"]} for e in items]))
 
 
+# --- file browser PENUH di dalam halaman (halaman USB murid) ----------------------------------
+class InlineFileBrowser(tk.Frame):
+    """FileBrowser yang sama (tab, Details / thumbnails, A-Z / Date, centang, Open, Delete),
+    tapi digambar PENUH di dalam halaman, bukan jendela melayang. Metode FileBrowser dipakai
+    ulang (disalin ke kelas ini di bawah); yang khusus jendela melayang diganti: tanpa latar
+    redup, tanpa tombol x, klik di luar tidak menutup, ukuran mengikuti halaman (<Configure>)."""
+
+    def __init__(self, master, **opts):
+        super().__init__(master, bg=C.BG)
+        self.top = self.winfo_toplevel()
+        self.dim = None
+        self._closed = False
+        self._job = self._watch_job = self._type_job = None
+        self._fade_t0 = None
+        self._size_job = None
+        self._build(self.top, opts)
+        for w in (self.cv, self.list):            # tombol papan ketik & klik ikut frame ini
+            w.bindtags((str(w), str(self)) + tuple(t for t in w.bindtags()[1:]
+                                                   if t != str(self)))
+        self.bind("<Configure>", self._on_size)
+
+    # --- pengganti bagian jendela melayang ---------------------------------------------------
+    def _make_window(self, top, want_w, want_h, min_w=420, min_h=320):
+        m = self.master
+        self.W = max(min_w, m.winfo_width() or want_w)
+        self.H = max(min_h, m.winfo_height() or want_h)
+        self.cv = tk.Canvas(self, width=self.W, height=self.H, bg=C.BG, highlightthickness=0,
+                            bd=0)
+        self.cv.pack(fill="both", expand=True)
+        self.cv._imgs = []
+
+    def _reveal(self):
+        self.after(20, lambda: self.winfo_exists() and self.list.focus_set())
+
+    def _watch(self):
+        pass
+
+    def close(self):                          # Esc / setelah pilih: halaman tetap ada
+        pass
+
+    def _on_close_button(self, x, y):
+        return False
+
+    def _click_any(self, e):
+        if e.widget is not self.cv:
+            return
+        for bx0, by0, bx1, by1, name, data in self._boxes:
+            if bx0 <= e.x < bx1 and by0 <= e.y < by1:
+                self._press(name, data)
+                return
+        self.list.focus_set()
+
+    def _draw_panel_bg(self, cv, hover_close):
+        p = I.pill(self.W, self.H, C.CARD, C.BG, r=RADIUS_INLINE, border=C.BORDER)
+        if p is not None:
+            cv._imgs.append(p)
+            cv.create_image(0, 0, image=p, anchor="nw", tags="frame")
+
+    def _on_size(self, e):
+        if e.widget is not self:              # Configure kanvas di dalam (bindtag frame ini)
+            return
+        if (e.width, e.height) == (self.W, self.H) or e.width < 300 or e.height < 240:
+            return
+        if self._size_job is not None:
+            self.after_cancel(self._size_job)
+        self._size_job = self.after(60, lambda: self._resize(e.width, e.height))
+
+    def _resize(self, w, h):
+        """Ukuran halaman berubah (jendela / sidebar): daftar & kerangka disusun ulang."""
+        self._size_job = None
+        self.W, self.H = w, h
+        self.lw, self.lh = self.W - 24, self.H - LIST_TOP - FOOT_H - 4
+        self.cv.config(width=w, height=h)
+        self.list.config(width=self.lw, height=self.lh)
+        for item in self.cv.find_all():
+            if self.cv.type(item) == "window":
+                self.cv.itemconfigure(item, width=self.lw, height=self.lh)
+        self._layout()
+        self.offset = max(0, min(self.offset, max(0, self.total_h - self.lh)))
+        self._draw_frame()
+        self._draw_list()
+
+    def destroy(self):
+        if not self._closed:
+            self._closed = True
+            try:
+                self._on_close()
+            except Exception as exc:
+                C.log(f"File browser: {exc!r}")
+        super().destroy()
+
+
+RADIUS_INLINE = 14
+_OWN = set(InlineFileBrowser.__dict__)
+for _cls in (OverlayPanel, FileBrowser):      # pakai ulang metode (FileBrowser menimpa Overlay)
+    for _k, _v in _cls.__dict__.items():
+        if callable(_v) and not _k.startswith("__") and _k not in _OWN:
+            setattr(InlineFileBrowser, _k, _v)
+
+
 # --- halaman Resource (layar kursus murid) ---------------------------------------------------
 class ResourcePage(tk.Frame):
     """Halaman Resource: ringkasan + tombol "Buka file" (membuka file browser resource)."""
@@ -1212,8 +1313,8 @@ RUN_EXTS = (".exe", ".bat", ".cmd", ".com", ".scr", ".msi", ".lnk", ".ps1", ".vb
 
 
 class UsbPage(tk.Frame):
-    """Halaman flashdisk: nama, sisa ruang, "Open files" (file browser HANYA di dalam
-    flashdisk itu, hanya baca) dan "Eject". File browser langsung dibuka saat halaman tampil."""
+    """Halaman flashdisk: kepala (ikon, nama, sisa ruang, status, Eject) + file browser
+    PENUH di bawahnya (InlineFileBrowser, HANYA di dalam flashdisk itu)."""
 
     def __init__(self, master, drive, on_gone=None, open_now=True):
         super().__init__(master, bg=C.BG)
@@ -1224,46 +1325,42 @@ class UsbPage(tk.Frame):
         self.root = drive[0]
         self.on_gone = on_gone
         self.name = usb_save.drive_name(drive)
-        box = tk.Frame(self, bg=C.BG)
-        box.place(relx=0.5, rely=0.42, anchor="center")
-        ic = I.icon("usb", C.MUTED, C.BG, 40)
+        head = tk.Frame(self, bg=C.BG)
+        head.pack(fill="x", padx=28, pady=(14, 10))
+        ic = I.icon("usb", C.MUTED, C.BG, 30)
         if ic is not None:
-            lb = tk.Label(box, image=ic, bg=C.BG, bd=0)
+            lb = tk.Label(head, image=ic, bg=C.BG, bd=0)
             lb.image = ic
-            lb.pack(pady=(0, 10))
-        tk.Label(box, text=self.name, bg=C.BG, fg=C.TEXT, font=(C.FONT, 18, "bold")).pack()
-        self.info = tk.Label(box, text=self._space(drive), bg=C.BG, fg=C.MUTED,
-                             font=(C.FONT, 10))
-        self.info.pack(pady=(4, 16))
-        row = tk.Frame(box, bg=C.BG)
-        row.pack()
-        self.btn = RoundButton(row, text="Open files", command=self.open_browser, bg=C.ACCENT,
-                               fg="white", activebackground=C.ACCENT_HOVER,
-                               activeforeground="white", font=(C.FONT, 11, "bold"),
-                               padx=22, pady=8)
-        add_hover(self.btn, C.ACCENT, C.ACCENT_HOVER)
-        self.btn.pack(side="left", padx=(0, 10))
-        self.eject_btn = RoundButton(row, text="Eject", command=self.eject, bg=C.CARD,
+            lb.pack(side="left", padx=(0, 12))
+        col = tk.Frame(head, bg=C.BG)
+        col.pack(side="left")
+        tk.Label(col, text=self.name, bg=C.BG, fg=C.TEXT, font=(C.FONT, 15, "bold"),
+                 anchor="w").pack(fill="x")
+        self.info = tk.Label(col, text=self._space(drive), bg=C.BG, fg=C.MUTED,
+                             font=(C.FONT, 10), anchor="w")
+        self.info.pack(fill="x")
+        self.eject_btn = RoundButton(head, text="Eject", command=self.eject, bg=C.CARD,
                                      fg=C.TEXT, activebackground=C.CARD_HOVER,
-                                     activeforeground=C.TEXT, font=(C.FONT, 11),
-                                     padx=22, pady=8)
+                                     activeforeground=C.TEXT, font=(C.FONT, 10, "bold"),
+                                     padx=18, pady=7, icon="eject")
         add_hover(self.eject_btn, C.CARD, C.CARD_HOVER)
-        self.eject_btn.pack(side="left")
-        self.status = tk.Label(box, text="", bg=C.BG, fg=C.MUTED, font=(C.FONT, 10),
-                               wraplength=520, justify="center")
-        self.status.pack(pady=(12, 0))
+        self.eject_btn.pack(side="right")
+        self.status = tk.Label(head, text="", bg=C.BG, fg=C.MUTED, font=(C.FONT, 10),
+                               anchor="e", justify="right", wraplength=420)
+        self.status.pack(side="right", padx=(0, 14))
+        self.area = tk.Frame(self, bg=C.BG)
+        self.area.pack(fill="both", expand=True, padx=(28, 28), pady=(0, 20))
+        self.browser = None
         self._ejecting = False
         self._stop = usb_save.monitor(self).subscribe(self._changed)
-        if open_now:
-            self.after(60, self.open_browser)
+        self.after(30, self.open_browser)
 
     @staticmethod
     def _space(d):
         from elearning.ui.course_dock import CourseDock
         if d[2] is None:
             return "Flash drive"
-        return (f"{CourseDock._size_text(d[2])} free of {CourseDock._size_text(d[3])}"
-                "  ·  open and view files")
+        return f"{CourseDock._size_text(d[2])} free of {CourseDock._size_text(d[3])}"
 
     def _changed(self, drives):
         cur = next((d for d in drives if d[0] == self.root), None)
@@ -1278,15 +1375,21 @@ class UsbPage(tk.Frame):
             pass
 
     def open_browser(self, start=None):
+        """File browser penuh di halaman ini (dibuat ulang = kembali ke folder start)."""
         if not os.path.isdir(self.root):
             self.status.config(text="The flash drive is not available.", fg=C.ERROR)
             return
-        open_file_browser(self, mode="resource", root=self.root, title=self.name,
-                          on_open=self._open, on_delete=self._delete, start=start)
+        if self.browser is not None:
+            self.browser.destroy()
+        self.update_idletasks()               # ukuran area sudah final untuk kerangka
+        self.browser = InlineFileBrowser(self.area, mode="resource", root=self.root,
+                                         title=self.name, on_open=self._open,
+                                         on_delete=self._delete, start=start)
+        self.browser.pack(fill="both", expand=True)
 
     def _delete(self, items, folder):
         """Popup konfirmasi mini (sama dengan Log out); Delete -> hapus di thread, lalu file
-        browser dibuka lagi di folder yang sama. Batal -> langsung dibuka lagi."""
+        browser dibuat ulang di folder yang sama. Batal -> file browser tetap seperti tadi."""
         if len(items) == 1:
             name = items[0]["name"]
             name = name if len(name) <= 22 else name[:20] + "…"
@@ -1300,7 +1403,10 @@ class UsbPage(tk.Frame):
             state["ok"] = True
         app._confirm(question, "Delete", go)
         if not state["ok"]:
-            self.open_browser(folder)
+            if self.browser is not None and self.browser.winfo_exists():
+                self.browser.list.focus_set()
+            else:
+                self.open_browser(folder)
             return
         self.status.config(text="Deleting...", fg=C.MUTED)
         box = []

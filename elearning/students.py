@@ -362,19 +362,49 @@ def rename_student(student_id, new_name):
     return lookup_student(sid)
 
 
+# bagian yang bisa di-reset dari Dev (kunci, label, keterangan)
+RESET_PARTS = (
+    ("video", "Progres video", "status & posisi video, catatan, emote, jawaban kuis"),
+    ("badges", "Badge", "semua badge di semua kursus"),
+    ("certificates", "Sertifikat", "permintaan sertifikat (menunggu & selesai)"),
+    ("survey", "Survey", "jawaban survey murid (popup muncul lagi)"),
+    ("work", "Portfolio & assignment", "SEMUA file upload murid ikut terhapus"),
+)
+
+
+def reset_student(student_id, parts=("video", "badges")):
+    """Reset bagian progres murid (RESET_PARTS). Akun, ID, akses kursus, foto, jadwal, dan
+    riwayat login TETAP ada. Gagal menulis -> ValueError."""
+    sid = student_id.strip().upper()
+    parts = set(parts)
+    if sid not in _load():
+        raise ValueError(f"Murid {sid} tidak ditemukan.")
+    if "video" in parts:
+        from elearning import progress
+        progress.delete_student(sid)
+        for key in [k for k in progress._live if k[0] == sid]:
+            progress._live.pop(key, None)
+        if os.path.exists(progress._path(sid)):
+            raise ValueError("Progres tidak bisa dihapus. Pastikan folder data bisa ditulis.")
+    if "badges" in parts:
+        from elearning import achievements
+        if not achievements.reset(sid):
+            raise ValueError("Badge tidak bisa di-reset. Pastikan folder data bisa ditulis.")
+    if "certificates" in parts:
+        from elearning import certificates
+        certificates.delete_student(sid)
+    if "survey" in parts:
+        from elearning import student_survey
+        student_survey.delete_student(sid)
+    if "work" in parts:
+        portfolio.delete_student(sid)
+
+
 def reset_progress(student_id):
     """Guru me-reset progres murid: posisi & status video, catatan, emote, jawaban kuis,
     dan semua badge. Akun, akses kursus, foto, portfolio, dan riwayat login TETAP ada."""
-    sid = student_id.strip().upper()
-    from elearning import achievements, progress
-    progress.delete_student(sid)
-    for key in [k for k in progress._live if k[0] == sid]:
-        progress._live.pop(key, None)
-    if os.path.exists(progress._path(sid)):
-        raise ValueError("Progres tidak bisa dihapus. Pastikan folder data bisa ditulis.")
-    if not achievements.reset(sid):
-        raise ValueError("Badge tidak bisa di-reset. Pastikan folder data bisa ditulis.")
-    C.log(f"Progres {sid} di-reset oleh guru")
+    reset_student(student_id, ("video", "badges"))
+    C.log(f"Progres {student_id.strip().upper()} di-reset oleh guru")
 
 
 def delete_student(student_id):
