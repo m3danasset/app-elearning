@@ -5,7 +5,7 @@ import re
 import tkinter as tk
 
 from elearning import config as C
-from elearning.ui.controls import RoundSelect
+from elearning.ui.controls import RoundButton, RoundSelect
 from elearning import photos, reports, sessions
 from elearning import teachers as T
 from elearning.students import (STATUS_ACTIVE, STATUS_EXPIRED, STATUS_LABEL,
@@ -92,6 +92,15 @@ class AdminScreen(SidebarLayout):
 
         # Urutkan & saring daftar (tab Murid / Guru)
         self.pbar = tk.Frame(body, bg=C.BG)
+        self._people_page = "students"       # halaman terakhir menu Murid & Guru
+        self.page_box = tk.Frame(self.pbar, bg=C.BG)
+        self.page_box.pack(side="left", padx=(0, 22))
+        self._page_btns = {}
+        for key, label in (("students", "Murid"), ("teachers", "Guru")):
+            b = RoundButton(self.page_box, text=label, command=lambda k=key: self._set_tab(k),
+                            font=(C.FONT, 10, "bold"), padx=16, pady=6, cursor="hand2")
+            b.pack(side="left", padx=(0, 6))
+            self._page_btns[key] = b
         tk.Label(self.pbar, text="Urutkan", bg=C.BG, fg=C.MUTED,
                  font=(C.FONT, 10)).pack(side="left", padx=(0, 8))
         self.sort_var = tk.StringVar(value=self._sort)
@@ -154,10 +163,16 @@ class AdminScreen(SidebarLayout):
     def _populate(self, sb):
         certs, signs = self._waiting()
         badge = {"certificates": certs, "signups": signs}
-        for key, icon in (("dashboard", "home"), ("analytics", "activity"), ("students", "users"),
-                          ("teachers", "teacher"), ("reports", "report"),
+        # Murid & Guru = SATU menu, dua halaman (tombol Murid | Guru di atas daftar)
+        for key, icon in (("dashboard", "home"), ("analytics", "activity"),
+                          ("signups", "user"), ("people", "users"), ("reports", "report"),
                           ("schedule", "clock"), ("certificates", "check"),
-                          ("signups", "user"), ("survey", "quiz")):
+                          ("survey", "quiz")):
+            if key == "people":
+                sb.nav("Murid & Guru", icon,
+                       lambda: self._set_tab(self._people_page),
+                       active=self.tab in ("students", "teachers"))
+                continue
             sb.nav(TAB_TITLE[key], icon, lambda k=key: self._set_tab(k),
                    active=self.tab == key,
                    right=str(badge[key]) if badge.get(key) else None)
@@ -428,6 +443,13 @@ class AdminScreen(SidebarLayout):
             self.header.pack(fill="x")
             self.body.pack(fill="both", expand=True)
         self.header.set_title(TAB_TITLE[self.tab], "Panel Admin")
+        if self.tab in ("students", "teachers"):
+            self._people_page = self.tab
+            for k, b in self._page_btns.items():
+                on = k == self.tab
+                b.config(bg=C.SEG_ON if on else C.BG, fg=C.TEXT if on else C.MUTED,
+                         activebackground=C.SEG_ON if on else C.CARD_HOVER,
+                         activeforeground=C.TEXT)
         if self.tab in ("students", "teachers", "schedule"):
             teachers = self.tab == "teachers"
             if self.tab == "schedule":
