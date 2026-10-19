@@ -65,8 +65,6 @@ class AnalyticsBoard(tk.Canvas):
         self._art = {}           # gambar grafik halus (area / donut) per ukuran & data
         self.query = ""          # kata dari kolom cari admin: nama yang cocok disorot
         self.fit_h = 0           # tinggi layar yang tersedia (kisi kartu dibuat pas)
-        self.page = "dashboard"  # "dashboard" (kisi kartu) | "insight" (kesimpulan otomatis)
-        self.on_target = None    # klik saran insight -> buka menu terkait (admin _set_tab)
         self.f = {
             "title": tkfont.Font(family=C.FONT, size=11, weight="bold"),
             "sub": tkfont.Font(family=C.FONT, size=9),
@@ -99,7 +97,7 @@ class AnalyticsBoard(tk.Canvas):
             return
         self.delete("all")
         self._imgs, self._tips = [], []
-        h = (self._insight_page if self.page == "insight" else self._compact)(self.data, w)
+        h = self._compact(self.data, w)
         if int(self.cget("height")) != int(h):
             self.configure(height=int(h))
 
@@ -584,78 +582,6 @@ class AnalyticsBoard(tk.Canvas):
             ("Badge terbanyak", "", hbars(d.get("badges", []), "Belum ada badge.", 150, 64)),
         ]
 
-    # --- halaman Insight ---------------------------------------------------------------------
-    LEVELS = {"bad": (C.ERROR, "Perlu tindakan"), "warn": (C.ACCENT, "Perhatikan"),
-              "good": (GREEN, "Bagus"), "info": (BLUE, "Info")}
-
-    def _insight_page(self, d, W):
-        items = A.insights(d)
-        counts = {lv: sum(1 for it in items if it["level"] == lv) for lv in self.LEVELS}
-        x = 0
-        for lv, (color, label) in self.LEVELS.items():         # ringkasan per tingkat
-            self._img(I.dot(color, C.BG, 10, 4.5), x, 10, anchor="w")
-            t = self._text(x + 14, 10, f"{counts[lv]} {label.lower()}", "name", C.TEXT,
-                           anchor="w")
-            x = self.bbox(t)[2] + 22
-        self._text(W, 10, f"Dari data {d.get('period_label', '')}  ·  diperbarui tiap Muat ulang",
-                   "label", C.MUTED, anchor="e")
-        y = 32
-        if not items:
-            self._card(0, y, W, 80, compact=True)
-            self._text(20, y + 40, "Belum ada insight untuk periode ini.", "name", C.MUTED,
-                       anchor="w")
-            return y + 84
-        cols = 2 if W >= 900 else 1
-        g = 10
-        cw = (W - g * (cols - 1)) / cols
-        col_y = [y] * cols
-        for it in items:
-            c = col_y.index(min(col_y))
-            col_y[c] = self._insight_card(it, c * (cw + g), col_y[c], cw) + g
-        return max(col_y)
-
-    def _insight_card(self, it, x, y, w):
-        color, label = self.LEVELS.get(it["level"], (BLUE, "Info"))
-        f = self.f["name"]
-        tw = w - 76 - 16
-        body = self._wrap_lines(it.get("body", ""), self.f["label"], tw)
-        h = 18 + 22 + len(body) * 17 + (24 if it.get("action") else 0) + 16
-        h = max(h, 74)
-        img = I.pill(int(w), int(h), C.CARD, C.BG, r=12, border=C.BORDER)
-        self._img(img, x, y)
-        self._img(I.pill(4, int(h - 24), color, C.CARD, r=2), x + 10, y + 12)    # garis warna
-        ic = I.icon(it.get("icon", "activity"), "#ffffff", C.CARD, 30, disc=color)
-        self._img(ic, x + 26, y + 16)
-        tx = x + 72
-        self._text(tx, y + 14, it["title"], "val", C.TEXT, width=tw - 90)
-        self._text(x + w - 14, y + 15, label, "small", color, anchor="ne")
-        yy = y + 38
-        for ln in body:
-            self._text(tx, yy, ln, "label", C.MUTED)
-            yy += 17
-        if it.get("action"):
-            t = self._text(tx, yy + 4, it["action"] + ("  →" if it.get("target") else ""),
-                           "dbold", C.ACCENT if it.get("target") else C.TEXT, width=tw)
-            if it.get("target") and self.on_target is not None:
-                tag = f"ins{id(it)}"
-                self.addtag_withtag(tag, t)
-                self.tag_bind(tag, "<Button-1>", lambda e, k=it["target"]: self.on_target(k))
-                self.tag_bind(tag, "<Enter>", lambda e: self.config(cursor="hand2"))
-                self.tag_bind(tag, "<Leave>", lambda e: self.config(cursor=""))
-        return y + h
-
-    @staticmethod
-    def _wrap_lines(text, f, px):
-        lines, cur = [], ""
-        for word in str(text).split():
-            t = f"{cur} {word}".strip()
-            if cur and f.measure(t) > px:
-                lines.append(cur)
-                cur = word
-            else:
-                cur = t
-        return lines + [cur] if cur else lines
-
     @staticmethod
     def _pf_series(pf):
         return [("Gambar", pf["images"], C.ACCENT), ("Video", pf["videos"], BLUE),
@@ -698,7 +624,7 @@ class AnalyticsPanel(tk.Frame):
 
     CACHE_SEC = 120   # hasil per filter disimpan sebentar: pindah bolak-balik instan
 
-    def __init__(self, master, state, on_open=None, on_target=None):
+    def __init__(self, master, state, on_open=None):
         super().__init__(master, bg=C.BG)
         self.state = state
         self._cache = {}
@@ -706,13 +632,6 @@ class AnalyticsPanel(tk.Frame):
 
         bar = tk.Frame(self, bg=C.BG)
         bar.pack(fill="x", pady=(0, 14))
-        self._page_btns = {}
-        for key, label in (("dashboard", "Dashboard"), ("insight", "Insight")):
-            b = RoundButton(bar, text=label, command=lambda k=key: self._set_page(k),
-                            font=(C.FONT, 10, "bold"), padx=14, pady=5)
-            b.pack(side="left", padx=(0, 6))
-            self._page_btns[key] = b
-        tk.Frame(bar, bg=C.BORDER, width=1, height=22).pack(side="left", padx=(10, 16))
         tk.Label(bar, text="Periode", bg=C.BG, fg=C.MUTED, font=(C.FONT, 10)).pack(
             side="left", padx=(0, 10))
         self._pbtns = {}
@@ -734,9 +653,6 @@ class AnalyticsPanel(tk.Frame):
         self._paint()
 
         self.board = AnalyticsBoard(self, on_open=on_open)
-        self.board.on_target = on_target
-        self.board.page = state.get("page", "dashboard")
-        self._paint_pages()
         self.board.pack(fill="x")
         self._bar = bar
         self._sf = self._scroll_frame()
@@ -770,20 +686,6 @@ class AnalyticsPanel(tk.Frame):
         if h != self.board.fit_h:
             self.board.fit_h = h
             self.board.redraw()
-
-    def _set_page(self, page):
-        """Dashboard (kisi kartu) | Insight (kesimpulan otomatis), data yang sama."""
-        if self.board.page == page:
-            return
-        self.board.page = self.state["page"] = page
-        self._paint_pages()
-        self.board.redraw()
-
-    def _paint_pages(self):
-        for k, b in self._page_btns.items():
-            on = k == self.board.page
-            b.config(bg=C.SEG_ON if on else C.BG, fg=C.TEXT if on else C.MUTED,
-                     activebackground=C.SEG_ON if on else C.CARD_HOVER, activeforeground=C.TEXT)
 
     def _paint(self):
         groups = ((self._pbtns, self.state.get("period", "30d")),)

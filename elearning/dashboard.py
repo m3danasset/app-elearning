@@ -227,7 +227,46 @@ def _admin(now, user=None):
                     "body": _names(expired) + "  ·  perpanjang atau hapus di menu Murid.",
                     "when": "", "action": "Kelola", "target": "students"})
     _online(out, students, teachers, stats)
+    out.extend(_insights())
     return out
+
+
+# --- Insight (kesimpulan otomatis Analytics) sebagai kartu Dashboard admin -------------------
+INSIGHT_LEVEL = {"bad": "urgent", "warn": "todo", "good": "done", "info": "info"}
+INSIGHT_ACTION = {"students": "Lihat murid", "schedule": "Buka jadwal", "signups": "Pendaftar",
+                  "reports": "Cek laporan", "survey": "Buka survey", "live": "Live Kelas"}
+# sudah ada sebagai kartu Dashboard sendiri: tidak ditampilkan dua kali
+INSIGHT_DUP = ("perlu diperhatikan", "belum punya jadwal", "pendaftar trial menunggu",
+               "tugas guru belum dicek")
+INSIGHT_MAX = 6
+INSIGHT_CACHE_S = 300        # analytics.compute cukup dihitung ulang tiap 5 menit
+_ins_cache = {"t": 0.0, "cards": []}
+
+
+def _insights():
+    import time
+    if time.time() - _ins_cache["t"] < INSIGHT_CACHE_S:
+        return list(_ins_cache["cards"])
+    cards = []
+    try:
+        from elearning import analytics as A
+        for it in A.insights(A.compute("30d", "all")):
+            if any(p in it["title"] for p in INSIGHT_DUP):
+                continue
+            body = it.get("body", "")
+            if it.get("action"):
+                body = f"{body}  {it['action']}".strip()
+            cards.append({"key": "ins:" + it["title"], "level": INSIGHT_LEVEL.get(it["level"], "info"),
+                          "icon": it.get("icon", "activity"), "tag": "INSIGHT · 30 HARI",
+                          "title": it["title"], "body": body, "when": "",
+                          "action": INSIGHT_ACTION.get(it.get("target"), "Analytics"),
+                          "target": it.get("target") or "analytics"})
+            if len(cards) >= INSIGHT_MAX:
+                break
+    except Exception as exc:
+        C.log(f"Dashboard: insight gagal: {exc!r}")
+    _ins_cache.update(t=time.time(), cards=cards)
+    return list(cards)
 
 
 def _teacher(now, teacher):
