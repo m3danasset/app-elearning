@@ -122,8 +122,6 @@ class TeacherScreen(SidebarLayout):
                active=self.view == "dashboard")
         sb.nav("Murid & Kursus", "users", lambda: self._set_view("students"),
                active=self.view == "students")
-        sb.nav("Kuis", "quiz", lambda: self._set_view("quizzes"),
-               active=self.view == "quizzes")
         sb.nav("Bahan dari Guru", "image", lambda: self._set_view("examples"),
                active=self.view == "examples")
         sb.nav("Laporan Kerja", "report", lambda: self._set_view("reports"),
@@ -137,6 +135,8 @@ class TeacherScreen(SidebarLayout):
             waiting = 0
         sb.nav("Sertifikat", "check", lambda: self._set_view("certificates"),
                active=self.view == "certificates", right=str(waiting) if waiting else None)
+        sb.nav("Kuis", "quiz", lambda: self._set_view("quizzes"),
+               active=self.view == "quizzes")
 
         if not self.students:
             sb.section("Murid")
