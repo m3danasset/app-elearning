@@ -348,6 +348,13 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 - JENDELA PENDEK (windowed): _fit_greeting memastikan sapaan tidak menimpa tombol laci / kartu:
   40 pt + intipan baris 2 -> 40 pt tanpa intipan (_peek_on) -> huruf turun sampai HERO_MIN_PT
   24 (_hero_fonts) -> sapaan disembunyikan (_hero_pt None). Ukuran yang sama di laci penuh.
+- WINDOWED VERTIKAL / SEMPIT (kanvas < NARROW_W 900): widget menyusun ulang mengikuti lebar
+  (urutan slot tetap; min. WIDGET_MIN_FIT 115 px -> 6 / 5 / 3 / 2 per baris, _widget_rows);
+  jendela sempit DAN pendek -> widget ringkas WIDGET_H_COMPACT 72 (tanpa baris ke-3, _sub_y);
+  laci kecil tidak pernah naik melewati widget (_drawer_y); sapaan juga dibatasi LEBAR (nama
+  panjang -> huruf turun); "x dari n" disembunyikan & tautan kembalikan pindah ke kiri; mode atur
+  6 / 4 / 3 / 2 kolom slot. Diperiksa numerik 35 ukuran x laci kecil/penuh (590-2000 x 600-1386):
+  widget < sapaan < tombol laci < kartu, semua di dalam lebar.
 - Penutup atas laci penuh dipotong SHADOW_ROOM 24 px di atas kartu baris 1 (bayangan kartu
   menjorok 22 px); dipotong tepat di atas kartu = bayangan terpotong = garis di latar. Frame
   latar baru di mode pita -> penutup dibuat ulang dari frame yang sama (_video_tick).

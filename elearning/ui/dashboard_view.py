@@ -34,6 +34,9 @@ PAD = 40
 TOP_H = 300                 # widget 1 baris + sapaan (dihitung ulang: _hero_h)
 WIDGET_Y, WIDGET_H, WIDGET_W, WIDGET_GAP = 28, 96, 270, 18
 WIDGET_MIN_W = 150          # lebih sempit dari ini: widget per baris dikurangi
+WIDGET_MIN_FIT = 115        # widget per baris dikurangi kalau lebih sempit dari ini
+WIDGET_H_COMPACT = 72       # jendela sempit DAN pendek: widget ringkas (tanpa baris ke-3)
+NARROW_W = 900              # lebar kanvas di bawah ini = tata letak sempit (windowed vertikal)
 PER_ROW = 6                 # maks. 6 per baris, 2 baris (dashboard.MAX_WIDGETS)
 PEN_D = 36                  # tombol pena (mode atur widget)
 DEL_D = 22                  # tombol x (sembunyikan widget, mode atur)
@@ -201,6 +204,7 @@ class DashboardView(tk.Canvas):
         self._peek_on = True           # laci kecil: baris ke-2 mengintip (dilepas kalau sempit)
         self._cover_top = None
         self._pen_shown = False
+        self._wh = WIDGET_H            # tinggi widget (ringkas di jendela sempit & pendek)
         path = None
         try:
             from elearning.ui import video_background as VB
@@ -298,21 +302,42 @@ class DashboardView(tk.Canvas):
         W = self._size[0]
         rows = [n for n in (sum(1 for w in self.slots[:PER_ROW] if w),
                             sum(1 for w in self.slots[PER_ROW:] if w)) if n]
-        room = W - 2 * PAD - 2 * (PEN_D + 16)            # sisakan ruang tombol pena
+        narrow = W < NARROW_W
+        side = 20 if narrow else PAD
+        room = W - 2 * side - 2 * (PEN_D + (4 if narrow else 16))   # ruang tombol pena
+        fit = max(1, int((room + WIDGET_GAP) // (WIDGET_MIN_FIT + WIDGET_GAP)))
+        if rows and max(rows) > fit:         # tidak muat: susun ulang (urutan slot tetap)
+            total = sum(rows)
+            rows = [fit] * (total // fit) + ([total % fit] if total % fit else [])
         widest = max(rows) if rows else 1
         ww = min(WIDGET_W, (room - (widest - 1) * WIDGET_GAP) / widest)
         return rows, ww
 
+    def _fit_widgets(self):
+        """Jendela sempit & pendek: widget ringkas kalau widget + satu baris kartu tidak muat."""
+        self._wh = WIDGET_H
+        rows, _ww = self._widget_rows()
+        if not rows:
+            return
+        need = (WIDGET_Y + len(rows) * (WIDGET_H + WIDGET_GAP) - WIDGET_GAP
+                + 34 + 28 + CARD_H + PAD)
+        if need > self._size[1]:
+            self._wh = WIDGET_H_COMPACT
+
     def _edit_geo(self):
         """Mode atur: 12 kotak slot (6 x 2) + baki widget tersembunyi di bawahnya."""
         W = self._size[0]
-        room = W - 2 * PAD - 2 * (PEN_D + 16)
-        gw = min(WIDGET_W, (room - (PER_ROW - 1) * WIDGET_GAP) / PER_ROW)
-        x = (W - (PER_ROW * gw + (PER_ROW - 1) * WIDGET_GAP)) / 2
+        narrow = W < NARROW_W
+        room = W - 2 * (20 if narrow else PAD) - 2 * (PEN_D + (4 if narrow else 16))
+        least = WIDGET_MIN_FIT
+        per = next((c for c in (PER_ROW, 4, 3, 2)
+                    if (room - (c - 1) * WIDGET_GAP) / c >= least), 2)   # 6 / 4 / 3 / 2 kolom
+        gw = min(WIDGET_W, (room - (per - 1) * WIDGET_GAP) / per)
+        x = (W - (per * gw + (per - 1) * WIDGET_GAP)) / 2
         y = WIDGET_Y + self.shift * 0.35
         slots = []
         for k in range(D.MAX_WIDGETS):
-            r, c = divmod(k, PER_ROW)
+            r, c = divmod(k, per)
             x0 = x + c * (gw + WIDGET_GAP)
             y0 = y + r * (WIDGET_H + WIDGET_GAP)
             slots.append((x0, y0, x0 + gw, y0 + WIDGET_H))
@@ -345,7 +370,7 @@ class DashboardView(tk.Canvas):
             g = self._geo or self._edit_geo()
             return g["tray"][3] + 30 - self.shift * 0.35
         rows, _ww = self._widget_rows()
-        area = len(rows) * WIDGET_H + max(0, len(rows) - 1) * WIDGET_GAP if rows else 36
+        area = len(rows) * self._wh + max(0, len(rows) - 1) * WIDGET_GAP if rows else 36
         return WIDGET_Y + area + 40 + 56 + 54
 
     def _layout(self):
@@ -415,7 +440,7 @@ class DashboardView(tk.Canvas):
             return sub_y + self.f["sub"].metrics("linespace") + 30
         n = len(self.items or [])
         peek = PEEK if (self._peek_on and n > self._cols(self._size[0])) else 0
-        return self._size[1] - PAD - CARD_H - 30 - peek
+        return max(self._wb() + 34, self._size[1] - PAD - CARD_H - 30 - peek)
 
     def _wb(self):
         rects = self._widget_rects()
@@ -429,15 +454,25 @@ class DashboardView(tk.Canvas):
         """Jendela pendek (windowed): sapaan tidak boleh menimpa tombol laci / kartu. Urutan:
         40 pt + intipan baris ke-2 -> 40 pt tanpa intipan -> huruf mengecil sampai 24 pt ->
         sapaan disembunyikan."""
+        self._fit_widgets()
         wb = self._wb()
+        text = f"{D.greeting()}, {(self.user or {}).get('name', '')}"
+        width = self._size[0] - 2 * PAD
+
+        # huruf terbesar yang muat LEBAR layar (nama panjang / jendela sempit)
+        top = next((pt for pt in range(HERO_PT, HERO_MIN_PT - 1, -2)
+                    if self._hero_fonts[pt].measure(text) <= width), None)
+        if top is None:
+            self._hero_pt = None
+            return
         self._peek_on = True
-        for peek in (True, False):
+        for peek in (True, False):            # lalu TINGGI: intipan dilepas dulu, baru mengecil
             self._peek_on = peek
             room = self._drawer_y(False) - HANDLE_D / 2 - 14 - (wb + 22)
-            if self._greet_h(HERO_PT) <= room:
-                self._hero_pt = HERO_PT
+            if self._greet_h(top) <= room:
+                self._hero_pt = top
                 return
-        for pt in range(HERO_PT - 2, HERO_MIN_PT - 1, -2):
+        for pt in range(top - 2, HERO_MIN_PT - 1, -2):
             if self._greet_h(pt) <= room:
                 self._hero_pt = pt
                 return
@@ -477,8 +512,8 @@ class DashboardView(tk.Canvas):
             x = (W - (cnt * ww + (cnt - 1) * WIDGET_GAP)) / 2
             for k in range(cnt):
                 x0 = x + k * (ww + WIDGET_GAP)
-                out.append((x0, y, x0 + ww, y + WIDGET_H))
-            y += WIDGET_H + WIDGET_GAP
+                out.append((x0, y, x0 + ww, y + self._wh))
+            y += self._wh + WIDGET_GAP
         self._wrects = out
         return out
 
@@ -624,7 +659,7 @@ class DashboardView(tk.Canvas):
             nxt = inf.get("next")
             self._t(x0 + 16, y0 + 52, "kelas berikutnya" if nxt else "tidak ada kelas",
                     "small", BLUE if nxt else C.MUTED)
-            if nxt:
+            if nxt and y1 - y0 >= 90:
                 self._t(x0 + 16, y0 + 70, f"{nxt['start']}  ·  {nxt['students']} murid",
                         "small", C.MUTED)
             return
@@ -638,7 +673,8 @@ class DashboardView(tk.Canvas):
             line = f"Kelas berjalan  {nxt['start']}–{nxt['end']}"
         else:
             line = f"Kelas berikutnya  {nxt['start']}  ·  {nxt['students']} murid"
-        self._t(x0 + 18, y0 + 64, self._fit(line, w - 34), "small", BLUE if nxt else C.MUTED)
+        self._t(x0 + 18, self._sub_y(y0, y1), self._fit(line, w - 34), "small",
+                BLUE if nxt else C.MUTED)
 
     def _w_done(self, kind, x0, y0, x1, y1, w, inf):
         if self.items is None:
@@ -668,7 +704,8 @@ class DashboardView(tk.Canvas):
         self._t(x0 + 18, y0 + 10, str(d.day), "clock")
         nw = self.f["clock"].measure(str(d.day))
         self._t(x0 + 18 + nw + 10, y0 + 18, D.DAYS[d.weekday()], "small", WIDGET_ACCENT["date"])
-        self._t(x0 + 18, y0 + 64, f"{D.MONTHS[d.month - 1]} {d.year}", "small", C.MUTED)
+        self._t(x0 + 18, self._sub_y(y0, y1), f"{D.MONTHS[d.month - 1]} {d.year}", "small",
+                C.MUTED)
 
     def _w_stat(self, kind, x0, y0, x1, y1, w, inf):
         spec = {
@@ -691,19 +728,26 @@ class DashboardView(tk.Canvas):
         self._stat(x0, y0, x1, "–" if val is None else str(val), spec[1], spec[2],
                    WIDGET_ACCENT.get(kind) if warn else C.MUTED)
 
+    @staticmethod
+    def _sub_y(y0, y1):
+        """y baris keterangan widget: biasa 64, widget ringkas (72 px) 50."""
+        return y0 + (64 if y1 - y0 >= 90 else 50)
+
     def _stat(self, x0, y0, x1, value, label, sub, color, dot=False):
+        y1 = y0 + self._wh
         if x1 - x0 < 200:                  # widget sempit: label di bawah angka, tanpa sub
             self._t(x0 + 16, y0 + 8, value, "clock")
             self._t(x0 + 16, y0 + 52, self._fit(("● " if dot else "") + label, x1 - x0 - 28),
                     "small", color)
-            self._t(x0 + 16, y0 + 70, self._fit(sub, x1 - x0 - 28), "small", C.MUTED)
+            if y1 - y0 >= 90:              # widget ringkas: tanpa baris ke-3
+                self._t(x0 + 16, y0 + 70, self._fit(sub, x1 - x0 - 28), "small", C.MUTED)
             return
         self._t(x0 + 18, y0 + 10, value, "clock")
         nw = self.f["clock"].measure(value)
         lx = x0 + 18 + nw + 10
         self._t(lx, y0 + 22, self._fit(("● " if dot else "") + label, x1 - lx - 12), "small",
                 color)
-        self._t(x0 + 18, y0 + 64, self._fit(sub, x1 - x0 - 34), "small", C.MUTED)
+        self._t(x0 + 18, self._sub_y(y0, y1), self._fit(sub, x1 - x0 - 34), "small", C.MUTED)
 
     # --- mode atur widget (tombol pena): slot, baki widget tersembunyi, seret-lepas ---------
     @staticmethod
@@ -1122,7 +1166,7 @@ class DashboardView(tk.Canvas):
         label = f"Tampilkan semua ({n})" if up else "Kecilkan"
         self.create_text(cx + HANDLE_D / 2 + 10, cy, anchor="w", tags=tag,
                          font=self.f["small"], fill=C.MUTED, text=label)
-        if up and n > shown:
+        if up and n > shown and self._size[0] >= NARROW_W:   # sempit: tanpa "x dari n"
             self.create_text(cx - HANDLE_D / 2 - 10, cy, anchor="e", tags=tag,
                              font=self.f["small"], fill=C.MUTED, text=f"{shown} dari {n}")
         self.tag_bind("handle", "<Button-1>", self._toggle_drawer)
@@ -1539,13 +1583,18 @@ class DashboardView(tk.Canvas):
         self.delete("restore")
         if not self._hidden or self.items is None or self.editing:
             return
-        if self._handle is not None:
+        if self._handle is not None and self._size[0] < NARROW_W:   # sempit: di kiri
+            x, y, anchor = PAD, self._handle[1], "w"
+        elif self._handle is not None:
             x, y, anchor = self._size[0] - PAD, self._handle[1], "e"
         else:
             top = min((r[1] for r in self.rects if r[1] > -1000), default=self._size[1] - 60)
             x, y, anchor = self._size[0] - PAD, top - 16, "e"
         t = self.create_text(x, y, anchor=anchor, tags=("txt", "restore"), font=self.f["small"],
-                             fill=C.MUTED, text=f"{self._hidden} kartu ditutup  ·  kembalikan")
+                             fill=C.MUTED,
+                             text=(f"{self._hidden} ditutup  ·  kembalikan"
+                                   if self._size[0] < NARROW_W else
+                                   f"{self._hidden} kartu ditutup  ·  kembalikan"))
         self.tag_bind("restore", "<Button-1>", self._restore)
         self.tag_bind("restore", "<Enter>", lambda e: (self.config(cursor="hand2"),
                                                        self.itemconfigure(t, fill=C.TEXT)))
