@@ -34,6 +34,7 @@ class App(tk.Tk):
         dev_values.apply_all()       # nilai pengaturan dari jendela Dev (Settings > Nilai)
         splash.close()  # splash ditutup tepat sebelum jendela utama dibuat
         super().__init__()
+        self.report_callback_exception = self._tk_error   # error callback Tk -> app.log
         self.title(config.APP_NAME)
         self.configure(bg=config.BG)
         self.minsize(860, 600)
@@ -59,6 +60,13 @@ class App(tk.Tk):
         from elearning.ui.dev_panel import install_shortcut
         install_shortcut(self)   # Ctrl kanan + Shift kanan + Backspace = jendela Dev
         self.show_login()
+
+    @staticmethod
+    def _tk_error(exc, val, tb):
+        """Error di callback Tk: di .exe (tanpa konsol) dulu hilang tanpa jejak; sekarang
+        tercatat di app.log supaya bisa diperiksa."""
+        import traceback
+        config.log("Error Tk:\n" + "".join(traceback.format_exception(exc, val, tb)).rstrip())
 
     def _set_icon(self):
         """Ikon jendela + ikon tombol taskbar (supaya bukan ikon bulu pena bawaan Tk).

@@ -337,7 +337,13 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   ke-2 mengintip PEEK 64 px, samar PEEK_ALPHA 0,5 -> 0 di tepi bawah; klik intipan = buka laci.
   Jadwal frame tetap dari jam mulai (UI_FRAME_MS). Sapaan memudar saat laci naik / muncul saat
   turun. Ukuran berubah / data dimuat -> _stop_anim + _layout. Mode ringan: langsung, tanpa pita.
-  Ukur 2000x1210 & 2560x1400: rata-rata 32-33 ms / frame.
+  SAPAAN TETAP TERLIHAT: laci penuh = sapaan naik & mengecil (HERO_PT 40 -> HERO_OPEN_PT 24)
+  tepat di bawah widget, laci di bawahnya (_greet_pos / _drawer_y); bergerak bersama laci
+  (ease-in-out DRAWER_MS 520). JANGAN pudarkan teks ke C.BG (di atas video latar jadi hitam).
+  Ukuran huruf per frame = Font yang SUDAH dibuat (_hero_fonts 24..40); Font.configure(size)
+  tiap frame ~20 ms = patah-patah. Selama animasi timer Windows 1 ms (_set_timer, timeBeginPeriod)
+  supaya after() tidak dibulatkan ke 15,6 ms (31/47 ms). Ukur 2000x1210 & 2560x1400: laci & gulir
+  33-35 ms / frame (maks. 35). Error callback Tk dicatat ke app.log (App._tk_error).
 - Halaman utama murid (course_dock): kartu kursus 1:1 dengan cahaya gradasi warna kursus dari kiri-atas
   (_tint, sama gaya kartu Dashboard); terkunci = gradasi samar; hover sedikit lebih terang.
 - Halaman utama murid & trial = "Dashboard" (menu sidebar ikon home, juga di layar kursus &

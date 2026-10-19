@@ -12,6 +12,7 @@ Data dihitung di thread (dashboard.items), diperbarui tiap 60 detik.
 """
 
 import os
+import sys
 import threading
 import time
 import tkinter as tk
@@ -38,7 +39,8 @@ PEN_D = 36                  # tombol pena (mode atur widget)
 DEL_D = 22                  # tombol x (sembunyikan widget, mode atur)
 CHIP_H = 34                 # widget tersembunyi di baki (mode atur)
 HANDLE_D = 30               # tombol panah laci kartu (kecilkan / tampilkan semua)
-DRAWER_MS = 420             # laci kartu naik / turun (ease-out, maks. 30 fps, berbasis waktu)
+DRAWER_MS = 520             # laci kartu naik / turun (ease-in-out, maks. 30 fps, berbasis waktu)
+HERO_PT, HERO_OPEN_PT = 40, 24   # sapaan: besar (laci kecil) / mengecil ke atas (laci penuh)
 SCROLL_MS = 200             # gulir kartu di laci penuh (halus, bukan loncat 80 px)
 PEEK = 64                   # laci kecil: kartu baris ke-2 mengintip sekian px di bawah layar
 PEEK_ALPHA = 0.5            # ... samar (paling terang), memudar ke 0 di tepi bawah layar
@@ -157,6 +159,8 @@ class DashboardView(tk.Canvas):
         self._greet_fill = {}
         self._strip = None             # mode pita (laci penuh / animasi): posisi pita kartu
         self._peek_top = None          # laci kecil: y atas kartu baris ke-2 (mengintip)
+        self._greet_items = ()         # (sapaan, baris tanggal)
+        self._timer_on = False         # timer Windows 1 ms selama animasi
         self.cards_top = TOP_H
         self._size = (0, 0)
         self._layer = None
@@ -177,9 +181,14 @@ class DashboardView(tk.Canvas):
             "btn": tkfont.Font(family=C.FONT, size=9, weight="bold"),
             "big": tkfont.Font(family=C.FONT, size=16, weight="bold"),
             "small": tkfont.Font(family=C.FONT, size=9),
-            "hero": tkfont.Font(family=C.FONT, size=40, weight="bold"),
+            "hero": tkfont.Font(family=C.FONT, size=HERO_PT, weight="bold"),
+            "hero_s": tkfont.Font(family=C.FONT, size=HERO_OPEN_PT, weight="bold"),
             "clock": tkfont.Font(family=C.FONT, size=28, weight="bold"),
         }
+        # sapaan saat laci bergerak: SEMUA ukuran huruf dibuat sekali (mengubah ukuran satu
+        # huruf tiap frame ~20 ms = patah-patah; berpindah ke huruf yang sudah ada ~0 ms)
+        self._hero_fonts = {pt: tkfont.Font(family=C.FONT, size=pt, weight="bold")
+                            for pt in range(HERO_OPEN_PT, HERO_PT + 1)}
         path = None
         try:
             from elearning.ui import video_background as VB
@@ -363,13 +372,24 @@ class DashboardView(tk.Canvas):
     def _drawer_y(self, open_):
         """y tombol panah laci: penuh = tepat di bawah widget, kecil = 1 baris di bawah layar.
         Kartu pertama mulai di y + 28."""
-        if open_:
-            wb = (max(r[3] for r in self._widget_rects()) if self.widgets
-                  else WIDGET_Y + 36)
-            return wb + 34
+        if open_:                            # di bawah sapaan yang mengecil ke atas
+            gy, sub_y = self._greet_pos(True)
+            return sub_y + self.f["sub"].metrics("linespace") + 30
         n = len(self.items or [])
         peek = PEEK if n > self._cols(self._size[0]) else 0     # ada baris ke-2
         return self._size[1] - PAD - CARD_H - 30 - peek
+
+    def _greet_pos(self, open_):
+        """(y sapaan, y baris tanggal). Laci penuh: tepat di bawah widget, huruf kecil;
+        laci kecil: besar di tengah antara widget dan laci."""
+        rects = self._widget_rects()
+        wb = max(r[3] for r in rects) if rects else WIDGET_Y + 36
+        if open_:
+            gy = wb + 26
+            return gy, gy + self.f["hero_s"].metrics("linespace") + 2
+        bottom = self._drawer_y(False) - HANDLE_D
+        gy = max(wb + 30, (wb + bottom) / 2 - 46)
+        return gy, gy + 70
 
     def _max_scroll(self, top):
         cols = self._cols(self._size[0])
@@ -976,40 +996,37 @@ class DashboardView(tk.Canvas):
                 self._fade_text()
             return
         self._draw_handle()
-        if self.drawer_open:                 # laci penuh menutupi sapaan
+        if self.drawer_open:                 # laci penuh: sapaan kecil di bawah widget
+            self._draw_greeting(True)
             self._draw_widgets(rects, dy)
             if self.items is not None:
                 self._draw_cards_text(W, H)
                 self._fade_text()
             return
-        bottom = self._handle[1] - HANDLE_D if self._handle else \
-            (min(r[1] for r in self.rects if r[1] > -1000) if self.rects else H)
-        self._draw_greeting(rects, bottom)
+        self._draw_greeting(False)
         self._draw_widgets(rects, dy)
         if self.items is None:
             return
         self._draw_cards_text(W, H)
         self._fade_text()
 
-    def _draw_greeting(self, rects, bottom, fade=1.0):
-        """Sapaan besar + baris tanggal di tengah antara widget dan laci (bottom = atas laci)."""
+    def _draw_greeting(self, open_=False):
+        """Sapaan + baris tanggal. Laci kecil: besar di tengah; laci penuh: kecil di atas."""
         W = self._size[0]
         name = (self.user or {}).get("name", "")
-        wb = max(r[3] for r in rects) if rects else WIDGET_Y + 36
-        gy = max(wb + 30, (wb + bottom) / 2 - 46)       # tengah antara widget & laci
+        gy, sub_y = self._greet_pos(open_)
         if self.items is None:
             sub = f"{D.today_text()}  ·  memuat…"
         else:
             todo = sum(1 for it in self.items if it["level"] in ("urgent", "todo"))
             sub = (f"{D.today_text()}  ·  " +
                    (f"{todo} hal perlu dikerjakan" if todo else "semua beres, kerja bagus!"))
-        self._greet_fill = {}
-        for y, font, fill, text in ((gy, "hero", C.TEXT, f"{D.greeting()}, {name}"),
-                                    (gy + 70, "sub", C.MUTED, sub)):
-            item = self.create_text(W / 2, y, anchor="n", tags=("txt", "greet"),
-                                    font=self.f[font], text=text,
-                                    fill=fill if fade >= 1 else _mix(C.BG, fill, fade))
-            self._greet_fill[item] = fill
+        hero = self.create_text(W / 2, gy, anchor="n", tags=("txt", "greet"),
+                                font=self.f["hero_s" if open_ else "hero"], fill=C.TEXT,
+                                text=f"{D.greeting()}, {name}")
+        line = self.create_text(W / 2, sub_y, anchor="n", tags=("txt", "greet"),
+                                font=self.f["sub"], fill=C.MUTED, text=sub)
+        self._greet_items = (hero, line)
 
     def _draw_handle(self):
         """Tombol panah minimalis di atas laci kartu + keterangan kecil."""
@@ -1095,7 +1112,7 @@ class DashboardView(tk.Canvas):
         """Widget, tombol laci & pena selalu di atas pita dan penutup."""
         for item in self.find_withtag("txt"):
             tags = self.gettags(item)
-            if "ct" not in tags and "greet" not in tags:
+            if "ct" not in tags:
                 self.addtag_withtag("wtop", item)
         self.tag_raise("wtop")
 
@@ -1174,6 +1191,7 @@ class DashboardView(tk.Canvas):
                 a.update(y0=self._strip["cur"], y1=to_first, to_scroll=to_scroll, t0=now, k=0)
                 return
             self._set_hover(None)
+            self._set_timer(True)
             self._anim = {"kind": "scroll", "to_open": True, "to_scroll": to_scroll,
                           "y0": self._strip["cur"], "y1": to_first, "ms": SCROLL_MS,
                           "t0": now, "k": 0}
@@ -1185,13 +1203,7 @@ class DashboardView(tk.Canvas):
         from_hy = self._drawer_y(self.drawer_open)
         closing = self.drawer_open
         if closing and self._strip is not None:
-            # laci turun: pita yang sama; potongan atas hanya di atas widget (sapaan terlihat
-            # lagi), sapaan muncul pelan di belakang kartu
-            wb = (max(r[3] for r in self._widget_rects()) if self.widgets
-                  else WIDGET_Y + 36)
-            self._edge_covers(wb + 12)
-            self._draw_greeting(self._widget_rects(), self._drawer_y(False) - HANDLE_D, fade=0.0)
-            self.tag_lower("greet", "strip")
+            # laci turun: pita yang sama; kartu yang tergulir keluar dari bawah potongan atas
             from_first = self._strip["cur"]
         else:                                # laci naik dari susunan biasa (laci kecil)
             from_first = from_hy + 28 - self.card_scroll
@@ -1199,9 +1211,25 @@ class DashboardView(tk.Canvas):
         self._anim = {"kind": "drawer", "to_open": to_open, "to_scroll": to_scroll,
                       "y0": from_first, "y1": to_first, "h0": from_hy,
                       "h1": self._drawer_y(to_open), "hcur": int(round(from_hy)),
-                      "greet_in": closing, "ms": DRAWER_MS,
-                      "t0": time.perf_counter(), "k": 0}    # jam mulai SETELAH persiapan
+                      "g0": self._greet_pos(closing), "g1": self._greet_pos(to_open),
+                      "pt0": HERO_OPEN_PT if closing else HERO_PT,
+                      "pt1": HERO_PT if closing else HERO_OPEN_PT, "pt": None,
+                      "ms": DRAWER_MS, "t0": time.perf_counter(), "k": 0}
+        self._set_timer(True)
         self._anim_step()
+
+    def _set_timer(self, on):
+        """Timer Windows 1 ms selama animasi: tanpa ini after() dibulatkan ke ~15,6 ms dan jarak
+        frame melompat 31 / 47 ms (terasa patah-patah). Dikembalikan saat animasi selesai."""
+        if on == self._timer_on or sys.platform != "win32":
+            return
+        self._timer_on = on
+        try:
+            import ctypes
+            winmm = ctypes.windll.winmm
+            (winmm.timeBeginPeriod if on else winmm.timeEndPeriod)(1)
+        except Exception as exc:
+            C.log(f"Dashboard: timer 1 ms tidak bisa diatur: {exc!r}")
 
     def _anim_step(self):
         self._anim_job = None
@@ -1210,7 +1238,10 @@ class DashboardView(tk.Canvas):
             return
         t_start = time.perf_counter()
         t = min(1.0, (t_start - a["t0"]) * 1000.0 / a["ms"])
-        e = 1 - (1 - t) ** 3                  # ease-out: cepat lalu melambat
+        if a["kind"] == "drawer":             # ease-in-out: tidak ada lompatan besar di awal
+            e = 4 * t ** 3 if t < 0.5 else 1 - (-2 * t + 2) ** 3 / 2
+        else:                                 # gulir: ease-out (langsung bereaksi)
+            e = 1 - (1 - t) ** 3
         y = int(round(a["y0"] + (a["y1"] - a["y0"]) * e))
         if y != st["cur"]:
             self.move("anim", 0, y - st["cur"])
@@ -1220,10 +1251,16 @@ class DashboardView(tk.Canvas):
             if hy != a["hcur"]:
                 self.move("handle", 0, hy - a["hcur"])
                 a["hcur"] = hy
-            # sapaan tertutup laci saat naik, muncul lagi saat laci turun
-            g = max(0.0, (e - 0.45) / 0.55) if a["greet_in"] else max(0.0, 1 - e * 1.8)
-            for item, fill in self._greet_fill.items():
-                self.itemconfigure(item, fill=_mix(C.BG, fill, g))
+            if self._greet_items:             # sapaan naik + mengecil (turun + membesar)
+                pt = int(round(a["pt0"] + (a["pt1"] - a["pt0"]) * e))
+                if pt != a["pt"]:
+                    self.itemconfigure(self._greet_items[0], font=self._hero_fonts[pt])
+                    a["pt"] = pt
+                hero, line = self._greet_items
+                (gy0, sy0), (gy1, sy1) = a["g0"], a["g1"]
+                W2 = self._size[0] / 2
+                self.coords(hero, W2, int(round(gy0 + (gy1 - gy0) * e)))
+                self.coords(line, W2, int(round(sy0 + (sy1 - sy0) * e)))
         if t < 1.0:     # jadwal frame tetap dari jam mulai (gambar ulang Tk ikut terhitung)
             a["k"] = max(a["k"] + 1, int((t_start - a["t0"]) * 1000 / C.UI_FRAME_MS) + 1)
             due = a["t0"] + a["k"] * C.UI_FRAME_MS / 1000.0
@@ -1231,6 +1268,7 @@ class DashboardView(tk.Canvas):
                                         self._anim_step)
             return
         self._anim = None
+        self._set_timer(False)
         self.drawer_open, self.card_scroll = a["to_open"], a["to_scroll"]
         if a["kind"] == "scroll":             # tetap mode pita: tidak ada gambar ulang
             self._sync_rects()
@@ -1254,6 +1292,7 @@ class DashboardView(tk.Canvas):
                 pass
             self._anim_job = None
         if a is not None:
+            self._set_timer(False)
             self.drawer_open, self.card_scroll = a["to_open"], a["to_scroll"]
         if self._strip is not None:
             self._strip = None
@@ -1456,6 +1495,7 @@ class DashboardView(tk.Canvas):
 
     def destroy(self):
         self._closed = True
+        self._set_timer(False)
         for j in (self._job, self._refresh_job, self._resize_job, self._clock_job,
                   self._anim_job):
             if j is not None:
