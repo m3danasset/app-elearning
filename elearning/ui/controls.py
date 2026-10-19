@@ -541,7 +541,7 @@ class ResizeCurtain:
     def _on_configure(self, e):
         if e.widget is not self.widget:
             return
-        size = e.width   # hanya LEBAR: tinggi isi boleh berubah (ganti periode) tanpa tirai
+        size = (e.width, e.height)   # ukuran jendela utama (tetap, diatur WM): lebar ATAU tinggi
         if self._size is None:           # ukuran pertama: tidak perlu tirai
             self._size = size
             return

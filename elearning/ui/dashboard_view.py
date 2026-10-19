@@ -42,7 +42,8 @@ HANDLE_D = 30               # tombol panah laci kartu (kecilkan / tampilkan semu
 CLOSE_D = 24                # tombol x tutup kartu (pojok kanan atas, hanya saat disorot)
 URGENT_GLOW = "#ff8a1a"     # gradasi oranye kartu prioritas (urgent)
 DRAWER_MS = 520             # laci kartu naik / turun (ease-in-out, maks. 30 fps, berbasis waktu)
-HERO_PT, HERO_OPEN_PT = 40, 24   # sapaan: besar (laci kecil) / mengecil ke atas (laci penuh)
+HERO_PT, HERO_OPEN_PT = 40, 40   # sapaan: ukuran SAMA di laci kecil & penuh (hanya naik)
+RESIZE_SETTLE_MS = 100      # ukuran jendela diseret: susun ulang SEKALI setelah berhenti
 SCROLL_MS = 200             # gulir kartu di laci penuh (halus, bukan loncat 80 px)
 PEEK = 64                   # laci kecil: kartu baris ke-2 mengintip sekian px di bawah layar
 PEEK_ALPHA = 0.5            # ... samar (paling terang), memudar ke 0 di tepi bawah layar
@@ -252,14 +253,30 @@ class DashboardView(tk.Canvas):
 
     # --- tata letak -------------------------------------------------------------------------
     def _on_resize(self, e):
-        if (e.width, e.height) == self._size:
+        """Jendela diseret (windowed): JANGAN susun ulang tiap event (~100 ms per kali = sangat
+        lambat). Tirai gelap App (ResizeCurtain) menutupi; susun ulang sekali setelah ukuran
+        berhenti berubah, sebelum tirai diangkat."""
+        size = (e.width, e.height)
+        if size == getattr(self, "_pending", self._size):
             return
-        self._size = (e.width, e.height)
-        if self.video.player is not None:
-            self.video.player.set_size(e.width, e.height)
+        first = self._size == (0, 0)
+        self._pending = size                 # diterapkan di _resized (gambar tetap ukuran lama)
         if self._resize_job is not None:
             self.after_cancel(self._resize_job)
-        self._layout()          # langsung (latar polos dulu): tidak ada area kosong / hitam
+            self._resize_job = None
+        if first:
+            self._resized()
+        else:
+            self._resize_job = self.after(RESIZE_SETTLE_MS, self._resized)
+
+    def _resized(self):
+        self._resize_job = None
+        if self._closed:
+            return
+        self._size = self._pending
+        if self.video.player is not None:
+            self.video.player.set_size(*self._size)
+        self._layout()
 
     def _cols(self, W):
         return 3 if W >= 1180 else 2 if W >= 720 else 1
@@ -390,13 +407,13 @@ class DashboardView(tk.Canvas):
         return self._size[1] - PAD - CARD_H - 30 - peek
 
     def _greet_pos(self, open_):
-        """(y sapaan, y baris tanggal). Laci penuh: tepat di bawah widget, huruf kecil;
-        laci kecil: besar di tengah antara widget dan laci."""
+        """(y sapaan, y baris tanggal). Laci penuh: tepat di bawah widget; laci kecil: di
+        tengah antara widget dan laci. Ukuran huruf sama (HERO_PT)."""
         rects = self._widget_rects()
         wb = max(r[3] for r in rects) if rects else WIDGET_Y + 36
         if open_:
             gy = wb + 26
-            return gy, gy + self.f["hero_s"].metrics("linespace") + 2
+            return gy, gy + 70
         bottom = self._drawer_y(False) - HANDLE_D
         gy = max(wb + 30, (wb + bottom) / 2 - 46)
         return gy, gy + 70

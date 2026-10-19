@@ -164,6 +164,7 @@ class CourseDock(tk.Canvas):
         self._band_item = self.create_image(0, 0, anchor="nw")
         self._anim = None
         self._size = (0, 0)
+        self._resize_job = None        # jendela diseret: susun ulang sekali setelah berhenti
         self._s = 200
         self._cy = 0
         self._band = (0, 10)        # (y atas pita, tinggi pita)
@@ -250,10 +251,27 @@ class CourseDock(tk.Canvas):
 
     # --- ukuran ---------------------------------------------------------------------------------
     def _on_resize(self, e):
-        if (e.width, e.height) == self._size or e.width < 50 or e.height < 50:
+        """Ukuran berubah. Jendela diseret (windowed): tidak disusun ulang tiap event (lambat);
+        tirai gelap App menutupi, susun ulang sekali setelah ukuran berhenti berubah."""
+        size = (e.width, e.height)
+        if size == getattr(self, "_pending", self._size) or e.width < 50 or e.height < 50:
             return
-        self._size = (e.width, e.height)
-        self.video.set_size(e.width, e.height)
+        first = self._size == (0, 0)
+        self._pending = size                 # diterapkan di _resized (gambar tetap ukuran lama)
+        if self._resize_job is not None:
+            self.after_cancel(self._resize_job)
+            self._resize_job = None
+        if first:
+            self._resized()
+        else:
+            self._resize_job = self.after(100, self._resized)
+
+    def _resized(self):
+        self._resize_job = None
+        if not self.winfo_exists():
+            return
+        self._size = self._pending
+        self.video.set_size(*self._size)
         if self._base is not None and self.video.ok:
             self._base = cover_resize(self._base, self._size)   # frame lama, proporsional
         else:

@@ -337,13 +337,19 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   ke-2 mengintip PEEK 64 px, samar PEEK_ALPHA 0,5 -> 0 di tepi bawah; klik intipan = buka laci.
   Jadwal frame tetap dari jam mulai (UI_FRAME_MS). Sapaan memudar saat laci naik / muncul saat
   turun. Ukuran berubah / data dimuat -> _stop_anim + _layout. Mode ringan: langsung, tanpa pita.
-  SAPAAN TETAP TERLIHAT: laci penuh = sapaan naik & mengecil (HERO_PT 40 -> HERO_OPEN_PT 24)
-  tepat di bawah widget, laci di bawahnya (_greet_pos / _drawer_y); bergerak bersama laci
+  SAPAAN TETAP TERLIHAT & UKURAN SAMA (HERO_PT = HERO_OPEN_PT = 40, permintaan pemilik): laci
+  penuh = sapaan hanya NAIK tepat di bawah widget, laci di bawahnya (_greet_pos / _drawer_y);
+  bergerak bersama laci
   (ease-in-out DRAWER_MS 520). JANGAN pudarkan teks ke C.BG (di atas video latar jadi hitam).
   Ukuran huruf per frame = Font yang SUDAH dibuat (_hero_fonts 24..40); Font.configure(size)
   tiap frame ~20 ms = patah-patah. Selama animasi timer Windows 1 ms (_set_timer, timeBeginPeriod)
   supaya after() tidak dibulatkan ke 15,6 ms (31/47 ms). Ukur 2000x1210 & 2560x1400: laci & gulir
   33-35 ms / frame (maks. 35). Error callback Tk dicatat ke app.log (App._tk_error).
+- RESIZE WINDOWED (jendela diseret): DashboardView & CourseDock TIDAK menyusun ulang tiap event
+  (~60 ms per event = sangat lambat); ukuran baru disimpan (_pending) dan diterapkan SEKALI
+  RESIZE_SETTLE_MS 100 setelah berhenti (_resized). Selama itu tirai gelap App (ResizeCurtain,
+  sekarang juga untuk perubahan TINGGI) menutupi; tirai diangkat setelah susunan baru selesai.
+  Ukur 20 langkah seret: 5,6 ms / langkah (dulu 61 ms).
 - Kartu bisa DITUTUP: tombol x (CLOSE_D 24, ui_icons "close") di pojok kanan atas hanya saat
   kartu disorot (_show_close; kartu terpotong / pudar = tanpa x). Klik x = dashboard.dismiss ->
   data\dashboard_dismissed.json {akun: {key: {sig = judul + isi, t}}}: tersembunyi selama isinya
