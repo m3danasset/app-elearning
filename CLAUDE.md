@@ -48,6 +48,9 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   Menu Badges hanya di sidebar kursus (tidak di halaman utama); guru memilih kursus.
 - ui/badge_art.py (ikon, numpy), ui/badge_ui.py (halaman Badge, notifikasi kiri-bawah di atas
   sidebar, pelacak di thread). Notifikasi ditahan saat video layar penuh / Blender dipakai.
+- Notifikasi badge (BadgeToast) geser masuk SLIDE_MS 300 / keluar CLOSE_MS 260, JADWAL FRAME TETAP
+  (frame k = t0 + k * UI_FRAME_MS) + timer Windows 1 ms selama geser (_set_timer); raise sekali.
+  Diukur: 34,0 ms / frame (33-34,5), 9 frame masuk (dulu after(34) relatif = 48 ms, 21 fps).
 - Easter egg diatur di config.py (SECRET_CODE, SPECIAL_DAYS); ganti berkala.
 - Belum: easter egg khusus trial. (Statistik badge sudah ada di Analytics.)
 
@@ -285,7 +288,8 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 - Bagian LAPORAN HARIAN (section "day", field "day" = tanggal) PALING ATAS, panah tanggal di
   kepalanya (_day_hits); bagian kosong = 2 baris (EMPTY_ROWS). Tanggal di kolom LAPORAN (kanan,
   redup / hijau): "harian dd/mm/yy · selesai ... · dicek ..." (done_at / check_at).
-- elearning/task_sheet.py: dataeport_tasks.json, per guru per bulan, bagian MINGGU INI (week)
+- elearning/task_sheet.py: data
+eport_tasks.json, per guru per bulan, bagian MINGGU INI (week)
   / BULAN INI (month) / SUDAH SELESAI (otomatis: done=True, urut done_at). Kolom NO | tugas |
   DONE (guru) | LAPORAN (guru) | CHECK (admin, check_by). Tugas dikosongkan = dihapus.
   carry_over = bawa tugas belum selesai bulan lalu. reports.json lama tetap ada (export lama).

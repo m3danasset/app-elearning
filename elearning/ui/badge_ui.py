@@ -11,6 +11,7 @@ BadgeTracker : dipasang di App. Menghitung badge dari data di thread terpisah, m
                aplikasi tidak di depan; notifikasi tampil begitu murid kembali.
 """
 
+import sys
 import threading
 import time
 import tkinter as tk
@@ -239,7 +240,8 @@ class BadgeToast(tk.Canvas):
     W, H = 248, 64
     ICON = 40
     HOLD_MS = 4500
-    SLIDE_MS = 240
+    SLIDE_MS = 300           # masuk (9 frame di 30 fps); keluar CLOSE_MS
+    CLOSE_MS = 260
 
     def __init__(self, app, badge, course_title="", on_click=None, on_done=None):
         super().__init__(app, width=self.W, height=self.H, bg=C.SIDEBAR, highlightthickness=0,
@@ -264,6 +266,24 @@ class BadgeToast(tk.Canvas):
         self.bind("<Button-1>", lambda e: self._clicked())
         self._job = None
         self._closing = False
+        self._timer_on = False
+
+    def _set_timer(self, on):
+        """Timer Windows 1 ms selama geser: tanpa ini after() dibulatkan ke ~15,6 ms dan
+        jarak frame jadi ~48 ms (21 fps, patah-patah). Dikembalikan setelah geser selesai."""
+        if on == self._timer_on or sys.platform != "win32":
+            return
+        self._timer_on = on
+        try:
+            import ctypes
+            winmm = ctypes.windll.winmm
+            (winmm.timeBeginPeriod if on else winmm.timeEndPeriod)(1)
+        except Exception as exc:
+            C.log(f"Notifikasi badge: timer 1 ms tidak bisa diatur: {exc!r}")
+
+    def destroy(self):
+        self._set_timer(False)
+        super().destroy()
 
     def raise_widget(self):
         """Naikkan WIDGET ini ke atas layar (Canvas.lift() = menaikkan item gambar)."""
@@ -300,7 +320,7 @@ class BadgeToast(tk.Canvas):
             x0 = int(self.place_info().get("x", 10))
         except Exception:
             x0 = 10
-        self._slide(x0, -self.W - 4, 200, then=self._finish)
+        self._slide(x0, -self.W - 4, self.CLOSE_MS, then=self._finish)
 
     def hide_now(self):
         """Keadaan berubah (layar penuh, Blender, ganti layar): langsung hilang tanpa animasi."""
@@ -327,7 +347,9 @@ class BadgeToast(tk.Canvas):
         self.close()
 
     def _slide(self, x0, x1, ms, then):
-        """Geser berbasis waktu (ease-out), frame tetap maks. 30 fps. Mode ringan: langsung."""
+        """Geser berbasis waktu (ease-out kubik), JADWAL FRAME TETAP: frame ke-k jatuh di
+        t0 + k * UI_FRAME_MS (maks. 30 fps, tidak melantur), timer Windows 1 ms selama geser.
+        Mode ringan: langsung."""
         if C.lite():
             _x, y = self._target()
             self.place(x=int(x1), y=y)
@@ -335,21 +357,32 @@ class BadgeToast(tk.Canvas):
             if then is not None:
                 self.after(1, then)
             return
+        self._set_timer(True)
         t0 = time.perf_counter()
+        frame = C.UI_FRAME_MS / 1000.0
+        _x, y = self._target()           # posisi tegak dihitung sekali per geser
+        state = {"k": 0, "raised": False}
 
         def step():
             self._job = None
             if not self.winfo_exists():
                 return
-            t = min(1.0, (time.perf_counter() - t0) * 1000.0 / ms)
+            now = time.perf_counter()
+            t = min(1.0, (now - t0) * 1000.0 / ms)
             e = 1 - (1 - t) ** 3
-            _x, y = self._target()
-            self.place(x=int(x0 + (x1 - x0) * e), y=y)
-            self.raise_widget()
+            self.place(x=int(round(x0 + (x1 - x0) * e)), y=y)
+            if not state["raised"]:      # naikkan sekali saja (tiap frame = kerja sia-sia)
+                self.raise_widget()
+                state["raised"] = True
             if t < 1.0:
-                self._job = self.after(C.UI_FRAME_MS, step)
-            elif then is not None:
-                then()
+                state["k"] = max(state["k"] + 1, int((now - t0) / frame) + 1)
+                due = t0 + state["k"] * frame
+                self._job = self.after(max(1, int(round((due - time.perf_counter()) * 1000))),
+                                       step)
+            else:
+                self._set_timer(False)
+                if then is not None:
+                    then()
         step()
 
 
