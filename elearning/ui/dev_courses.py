@@ -24,6 +24,7 @@ DIM = "#6f6c64"            # ikon mati
 GREEN = "#3fb68b"          # gembok terbuka
 HOV = DP.NAV_HOV
 UNDO_MAX = 30
+SORTS = ("Nama", "ID", "Terbuka", "Nonaktif")
 
 
 def _photo(img, keep):
@@ -109,8 +110,16 @@ class CoursesPage(tk.Frame):
         bar.pack(fill="x")
         self.seg = DP.Seg(bar, K.PROGRAMS, self.prog, self._set_prog)
         self.seg.pack(side="left")
+        # urutan murid di tabel Akses murid (seperti halaman Akun), diingat di dev_ui.json
+        self.sort = DP._ui_state().get("crs_sort") or "Nama"
+        if self.sort not in SORTS:
+            self.sort = "Nama"
+        self.sort_seg = DP.Seg(bar, [(v, v) for v in SORTS], self.sort, self._set_sort)
+        self.sort_seg.pack(side="right")
+        tk.Label(bar, text="Urutkan murid", bg=PANEL, fg=MUTED, font=(C.FONT, 9)).pack(
+            side="right", padx=(0, 8))
         self.count_lbl = tk.Label(bar, text="", bg=PANEL, fg=MUTED, font=(C.FONT, 10))
-        self.count_lbl.pack(side="right")
+        self.count_lbl.pack(side="right", padx=(0, 18))
         self._section(f, "Panel kursus",
                       "Urutan di sini = urutan kartu di halaman murid. Data murid (progres, "
                       "badge, portfolio, video) tidak ikut terhapus bersama kursus.")
@@ -122,7 +131,7 @@ class CoursesPage(tk.Frame):
             f, "Akses murid",
             "Mata = kursus tampil di halaman murid, gembok = kursus terbuka. Ikon di kepala "
             "kolom = kursus itu untuk semua murid; kolom Semua kursus = semua kursus murid "
-            "itu; kepala Semua kursus = semuanya. Hanya murid yang tersaring kolom Search.")
+            "itu; kepala Semua kursus = semuanya. Hanya murid yang tersaring kolom Cari.")
         self.grid_cv = tk.Canvas(f, bg=PANEL, highlightthickness=0, bd=0, height=80)
         self.grid_cv.pack(fill="x", pady=(4, 20))
         # lebar tabel baru final setelah tata letak: gambar ulang SELURUHNYA saat lebar berubah
@@ -148,6 +157,24 @@ class CoursesPage(tk.Frame):
         self.cv.itemconfigure(self._win, width=max(300, e.width - 56))
         self.after_idle(self._draw_grid)
 
+    def _sorted(self, studs):
+        """Nama (A-Z) / ID / Terbuka (paling banyak kursus terbuka dulu) / Nonaktif dulu."""
+        if self.sort == "ID":
+            return sorted(studs, key=lambda s: s["id"])
+        name = lambda s: (s["name"].lower(), s["id"])
+        if self.sort == "Terbuka":
+            return sorted(studs, key=lambda s: (-len(s["courses"]),) + name(s))
+        if self.sort == "Nonaktif":
+            return sorted(studs, key=lambda s: (s.get("status") != "expired",) + name(s))
+        return sorted(studs, key=name)
+
+    def _set_sort(self, value):
+        self.sort = value
+        self.sort_seg.set(value)
+        DP._ui_save(crs_sort=value)
+        self.students = self._sorted(self.students)
+        self.filter()
+
     def _on_grid_width(self, e):
         if e.width != self._grid_w:
             self._grid_w = e.width
@@ -166,7 +193,7 @@ class CoursesPage(tk.Frame):
         from elearning.students import list_students
         self.all_courses = [c for c in K.COURSES if c["program"] == self.prog]
         self.courses = list(self.all_courses)
-        self.students = [s for s in list_students() if s["program"] == self.prog]
+        self.students = self._sorted([s for s in list_students() if s["program"] == self.prog])
         self._fill_list()
         self.filter()
 
@@ -365,10 +392,11 @@ class CoursesPage(tk.Frame):
         s = self.shown[r]
         cy = y0 + self.ROW_H / 2
         g.create_text(10, cy, text=s["id"], anchor="w", font=self.f_id, fill=MUTED, tags=tag)
+        exp = s.get("status") == "expired"           # nonaktif: nama merah redup
         g.create_text(10 + self.f_id.measure("0") * 8, cy,
-                      text=self._fit(s["name"], name_w - self.f_id.measure("0") * 8 - 20,
-                                     self.f_name),
-                      anchor="w", font=self.f_name, fill=FG, tags=tag)
+                      text=self._fit(s["name"] + (" · nonaktif" if exp else ""),
+                                     name_w - self.f_id.measure("0") * 8 - 20, self.f_name),
+                      anchor="w", font=self.f_name, fill="#ff8a80" if exp else FG, tags=tag)
         for col in range(len(self.courses) + 1):
             x0 = self._cx(col) - self.BTN - 1
             for k, kind in enumerate(("vis", "open")):
