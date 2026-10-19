@@ -85,7 +85,8 @@ class ResourceList(tk.Frame):
         self.dock = CourseDock(self, cards, [c["id"] for c in cards], self._open_card,
                                "Resources",
                                "Click a file to open it. Blender files open in Blender.",
-                               foot=("Open  →", ""))
+                               foot=("Open  →", ""),
+                               hero=True)   # gaya SAMA dengan Dashboard trial (sapaan besar)
         self.dock.pack(fill="both", expand=True)
         self.dock.set_courses(cards, "No resources for this class yet.")
 
