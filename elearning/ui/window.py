@@ -355,6 +355,10 @@ class App(tk.Tk):
             self, student,
             on_open_course=lambda course: self.show_course(student, course),
             on_logout=self.logout, view=view))
+        # survey murid setelah BASIC 2 selesai (sekali; Skip = tanya lagi sesi berikutnya)
+        from elearning.ui import student_survey_view
+        self.after(900, lambda s=student: (self._student or {}).get("id") == s.get("id")
+                   and student_survey_view.maybe_show(self, s))
 
     def show_badges(self, student, course_id=None):
         """Halaman Badges sebuah kursus (menu sidebar kursus / klik notifikasi badge).

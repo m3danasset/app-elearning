@@ -741,9 +741,9 @@ class DashboardView(tk.Canvas):
             "students": ("active", "murid aktif", f"{inf.get('expired', 0)} expired"),
             "idle": ("idle", "murid tidak aktif", f"tidak login ≥ {D.INACTIVE_DAYS} hari"),
             "unscheduled": ("unscheduled", "tanpa jadwal", "murid aktif belum dijadwalkan"),
-            "reports": ("reports", "laporan hari ini",
-                        "laporan semua guru" if self.role == "admin" else
-                        ("sudah ditulis" if inf.get("reports") else "belum ditulis")),
+            "reports": ("reports", "tugas selesai hari ini",
+                        "sheet laporan semua guru" if self.role == "admin" else
+                        "di sheet laporan kerja"),
             "work": ("work", "karya baru", f"{D.NEW_WORK_DAYS} hari terakhir"),
         }.get(kind)
         if spec is None:

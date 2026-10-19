@@ -2,7 +2,7 @@
 
 Seluruh isi (kartu angka, grafik, daftar) digambar di SATU canvas (AnalyticsBoard).
 Canvas Tk menggambar isinya di memori dulu lalu menampilkannya sekaligus, jadi:
-  - ganti periode / program / tampilan Lengkap-Ringkas,
+  - ganti periode / program (hanya tampilan Ringkas; Lengkap sudah dihapus),
   - jendela <-> layar penuh,
 tidak pernah menampilkan keadaan setengah jadi (tombol terpotong, kotak kosong, blok
 hitam) dan sangat ringan untuk PC dengan grafis terintegrasi.
@@ -57,7 +57,7 @@ class AnalyticsBoard(tk.Canvas):
         super().__init__(master, bg=C.BG, highlightthickness=0, bd=0, height=200)
         self.on_open = on_open
         self.data = None
-        self.view = "full"
+        self.view = "compact"
         self._imgs = []
         self._tips = []          # (x0, y0, x1, y1, [baris teks], y_atas) area berketerangan
         self._width = 0
@@ -96,7 +96,7 @@ class AnalyticsBoard(tk.Canvas):
             return
         self.delete("all")
         self._imgs, self._tips = [], []
-        h = (self._compact if self.view == "compact" else self._full)(self.data, w)
+        h = self._compact(self.data, w)
         if int(self.cget("height")) != int(h):
             self.configure(height=int(h))
 
@@ -369,79 +369,6 @@ class AnalyticsBoard(tk.Canvas):
                            f"anak \u2264 12 th: {_num(kids, 0)}%", "label", C.MUTED, width=cw)
         return y + th
 
-    def _signup_full(self, d, y, W):
-        su = d.get("signups")
-        if not su:
-            return y
-        s0, s1 = d["range"]
-        span = f"{A._day_label(s0)} – {A._day_label(s1)} {s1.year}"
-        self._text(0, y + 6, "Pendaftar dari trial", "mid")
-        self._text(W, y + 12, "survey calon murid setelah trial  ·  semua program  ·  "
-                              f"{d['period_label']}", "sub", C.MUTED, anchor="ne")
-        y += 44
-        y = self._signup_tiles(su, 0, y, W, span) + GAP
-        left = (W - GAP) * 0.62
-        right = W - GAP - left
-        h = 300
-        cx, cy, cw = self._card(0, y, left, h,
-                                f"Pendaftar & jadi murid per {su['series']['unit']}")
-        lx = left - 18
-        for name, color in (("Jadi murid", C.ACCENT), ("Pendaftar", BLUE)):
-            t = self._text(lx, y + 18, name, "label", C.MUTED, anchor="ne")
-            lx = self.bbox(t)[0] - 14
-            self._img(I.dot(color, C.CARD), lx, y + 25, anchor="w")
-            lx -= 14
-        sr = su["series"]
-        self._area_chart(cx, cy, cw, h - (cy - y) - 16, sr["labels"],
-                         [("Pendaftar", sr["new"], BLUE), ("Jadi murid", sr["approved"],
-                                                          C.ACCENT)], " orang")
-        cx, cy, cw = self._card(left + GAP, y, right, h, "Tahu dari mana",
-                                f"{su['total']} pendaftar")
-        self._donut(cx, cy, cw, h - (cy - y) - 16, su["sources"], su["total"])
-        y += h + GAP
-        half = (W - GAP) / 2
-        h = 48 + 16 + 22 + len(su["ages"]) * 30 + 8
-        cx, cy, cw = self._card(0, y, half, h, "Kelompok umur",
-                                "konversi = jadi murid / pendaftar")
-        rows = []
-        for r in su["ages"]:
-            dl = r["delta"]
-            dtext, dcol = ("–", C.MUTED) if dl is None else ("0%", C.MUTED)                 if abs(dl) < 0.5 else (
-                (f"▲ {_num(abs(dl), 0)}%", GREEN) if dl >= 0 else (f"▼ {_num(abs(dl), 0)}%", RED))
-            rows.append([(r["label"], C.TEXT, "name"), (str(r["n"]), C.TEXT, "name"),
-                         (str(r["approved"]), C.TEXT, "name"),
-                         ("–" if r["conv"] is None else f"{_num(r['conv'], 0)}%", C.TEXT, "val"),
-                         (dtext, dcol, "dbold")])
-        self._table(cx, cy, cw, [("Umur", 0, "nw"), ("Pendaftar", 0.30, "nw"),
-                                 ("Jadi murid", 0.52, "nw"), ("Konversi", 0.74, "nw"),
-                                 ("Dinamika", 1.0, "ne")], rows, "Belum ada pendaftar.")
-        cx, cy, cw = self._card(half + GAP, y, half, h, "Minat kelas", d["period_label"])
-        palette = (C.ACCENT, BLUE, GREEN, PURPLE, GOLD, C.MUTED)
-        tot = sum(v for _l, v in su["interests"]) or 1
-        top = max([v for _l, v in su["interests"]] + [1])
-        bars = [{"title": lbl, "count": v, "frac": v / top, "color": palette[i % 6],
-                 "text": f"{round(v / tot * 100)}%"} for i, (lbl, v) in enumerate(su["interests"])]
-        self._hbars(cx, cy + 4, cw, bars, "Belum ada pendaftar.", lw=150, vw=44)
-        y += h + GAP
-        rec = su["recent"]
-        h = 48 + 16 + 22 + max(1, len(rec)) * 30 + 30
-        cx, cy, cw = self._card(0, y, W, h, "Menunggu persetujuan",
-                                f"{su['pending']} pendaftar  ·  setujui di menu Pendaftar")
-        rows = [[(r["name"], C.TEXT, "name"), (f"{r['age']} th" if r["age"] else "-", C.TEXT,
-                                               "name"),
-                 (r["interest"] or "-", C.TEXT, "name"), (r["phone"] or "-", C.MUTED, "name"),
-                 (r["at"][:16], C.MUTED, "name")] for r in rec]
-        end = self._table(cx, cy, cw, [("Nama", 0, "nw"), ("Umur", 0.34, "nw"),
-                                       ("Minat", 0.44, "nw"), ("Telepon", 0.66, "nw"),
-                                       ("Masuk", 1.0, "ne")], rows,
-                          "Tidak ada pendaftar yang menunggu.")
-        od = su.get("oldest_days")
-        if su["pending"]:
-            t = self._text(cx, end + 8, "Tertua menunggu: ", "label", C.MUTED)
-            self._text(self.bbox(t)[2], end + 8, "hari ini" if not od else f"{od} hari",
-                       "dbold", C.ACCENT)
-        return y + h
-
     def _signup_compact(self, d, y, W):
         su = d.get("signups")
         if not su:
@@ -612,66 +539,6 @@ class AnalyticsBoard(tk.Canvas):
     def _need(rows, limit, line_h):
         return (min(len(rows), limit) or 1) * line_h + (22 if len(rows) > limit else 0)
 
-    # --- susunan Lengkap ---------------------------------------------------------------------
-    def _full(self, d, W):
-        y, span = self._tiles(d, 0, 0, W, compact=False)
-        k = d["kpi"]
-        unit = d["unit"]
-        y += GAP
-        ch = 300   # Jam belajar (lebar penuh)
-        cx, cy, cw = self._card(0, y, W, ch, f"Jam belajar murid per {unit}",
-                                f"{k['learners']} murid belajar  ·  {span}")
-        self._area_chart(cx, cy, cw, ch - (cy - y) - 16, d["hours"]["labels"],
-                         [("Jam belajar", d["hours"]["values"], C.ACCENT)], " jam",
-                         integer=False)
-        y += ch + GAP + 8
-        y = self._signup_full(d, y, W) + GAP + 8     # Pendaftar dari trial (survey)
-        self._text(0, y + 6, "Aktivitas kelas", "mid")
-        y += 44
-        half = (W - GAP) / 2
-        h = 292    # Jam ramai | Portfolio
-        cx, cy, cw = self._card(0, y, half, h, "Jam ramai kelas",
-                                "rata-rata murid login per jam")
-        self._heat(cx, cy, cw, d["heat"], 24)
-        cx, cy, cw = self._card(half + GAP, y, half, h,
-                                f"Upload portfolio & assignment per {unit}")
-        pf = d["portfolio"]
-        self._bars(cx, cy, cw, h - (cy - y) - 44, pf["labels"], self._pf_series(pf),
-                   " file", integer=True)
-        self._legend(cx, y + h - 34)
-        y += h + GAP
-        # Kehadiran per jadwal | Badge terbanyak
-        sched, badges = d.get("schedule", []), d.get("badges", [])
-        h = 48 + 16 + max(max(1, len(sched)), max(1, len(badges))) * 26
-        cx, cy, cw = self._card(0, y, half, h, "Kehadiran per jadwal",
-                                f"login ≥ {A.PRESENT_MIN} menit di jam jadwal")
-        self._hbars(cx, cy, cw, sched, "Belum ada jadwal yang sudah berjalan.", lw=150,
-                    vw=110)
-        cx, cy, cw = self._card(half + GAP, y, half, h, "Badge paling banyak didapat",
-                                f"{k.get('badges', 0)} badge baru  ·  {span}")
-        self._hbars(cx, cy, cw, badges, "Belum ada badge.", lw=170, vw=70)
-        y += h + GAP
-        teachers, attention, top = self._rows(d)
-        # Murid per kursus | Aktivitas guru
-        h = 48 + 16 + max(max(1, len(d["courses"])) * 26, self._need(teachers, 10, 42))
-        cx, cy, cw = self._card(0, y, half, h, "Murid per kursus",
-                                "kursus yang sudah dibuka guru")
-        self._hbars(cx, cy, cw, d["courses"])
-        cx, cy, cw = self._card(half + GAP, y, half, h, "Aktivitas guru",
-                                f"jam online  ·  {k['reports']} laporan")
-        self._people(cx, cy, cw, teachers, "Belum ada guru.", 10, False, "tg")
-        y += h + GAP
-        # Perlu diperhatikan | Paling rajin
-        h = 48 + 16 + max(self._need(attention, 10, 42), self._need(top, 10, 42))
-        cx, cy, cw = self._card(0, y, half, h, "Murid perlu diperhatikan",
-                                f"tidak login ≥ {A.INACTIVE_DAYS} hari / belum upload / "
-                                "absen jadwal")
-        self._people(cx, cy, cw, attention, "Semua murid aktif.", 10, False, "at")
-        cx, cy, cw = self._card(half + GAP, y, half, h, f"{A.TOP_N} murid paling rajin",
-                                d["period_label"])
-        self._people(cx, cy, cw, top, "Belum ada murid yang belajar.", 10, False, "tp")
-        return y + h + 4
-
     # --- susunan Ringkas (3 kolom, muat satu layar) ------------------------------------------
     def _compact(self, d, W):
         y, _span = self._tiles(d, 0, 0, W, compact=True)
@@ -692,6 +559,7 @@ class AnalyticsBoard(tk.Canvas):
         self._heat(cx, cy, cw, d["heat"], 16)
         y += h + g
         y = self._signup_compact(d, y, W) + g      # Pendaftar dari trial (survey)
+        y = self._student_survey(d, y, W) + g      # Survey murid setelah BASIC 2
         teachers, attention, top = self._rows(d)
         h = 40 + 12 + max(self._need(attention, 5, 24), self._need(top, 5, 24),
                           self._need(teachers, 5, 24))
@@ -713,6 +581,50 @@ class AnalyticsBoard(tk.Canvas):
         cx, cy, cw = self._card(half + g, y, half, h, "Badge terbanyak", compact=True)
         self._hbars(cx, cy, cw, badges, "Belum ada badge.", lw=170, vw=70)
         return y + h + 4
+
+    def _student_survey(self, d, y, W):
+        """Survey murid setelah BASIC 2: tingkat kesulitan | minat lanjutan | jawaban terbaru."""
+        from elearning import student_survey as SS
+        from elearning.courses import title_of
+        ss = d.get("student_survey") or {"count": 0, "levels": [], "interests": [],
+                                         "latest": []}
+        g = 8
+        third = (W - 2 * g) / 3
+        n = ss["count"]
+        top = max([c for _l, c in ss["interests"]] + [1])
+        lv_colors = {"Mudah": GREEN, "Pas": BLUE, "Sulit": RED}
+        levels = [{"title": lbl, "count": c, "frac": c / n if n else 0,
+                   "color": lv_colors.get(lbl, C.ACCENT), "text": f"{c} murid"}
+                  for lbl, c in ss["levels"]]
+        ints = [{"title": lbl, "count": c, "frac": c / top, "color": PURPLE,
+                 "text": f"{c} murid"} for lbl, c in ss["interests"]]
+        latest = ss["latest"][:3]
+        h = 40 + 12 + max(len(levels) * 26, len(ints) * 26, max(1, len(latest)) * 54, 26)
+        sub = f"{n} murid mengisi  ·  {d['period_label']}"
+        cx, cy, cw = self._card(0, y, third, h, f"Survey murid (setelah {title_of(SS.course_id())})",
+                                sub, compact=True)
+        if n:
+            self._hbars(cx, cy, cw, levels, lw=70, vw=64)
+        else:
+            self._text(cx, cy, "Belum ada murid yang mengisi.", "name", C.MUTED)
+        cx, cy, cw = self._card(third + g, y, third, h, "Minat lanjutan",
+                                "boleh lebih dari satu", compact=True)
+        if n:
+            self._hbars(cx, cy, cw, ints, lw=90, vw=64)
+        else:
+            self._text(cx, cy, "Belum ada data.", "name", C.MUTED)
+        cx, cy, cw = self._card(2 * (third + g), y, third, h, "Jawaban terbaru", compact=True)
+        for i, r in enumerate(latest):
+            yy = cy + i * 54
+            self._text(cx, yy, f"{r.get('name') or r.get('student')}  ·  "
+                       f"{SS.label('level', r.get('level'))}", "name", width=cw)
+            self._text(cx, yy + 18, "Sulit: " + (r.get("hardest") or "-"), "label", C.MUTED,
+                       width=cw)
+            self._text(cx, yy + 34, "Suka: " + (r.get("favorite") or "-"), "label", C.MUTED,
+                       width=cw)
+        if not latest:
+            self._text(cx, cy, "Belum ada jawaban.", "name", C.MUTED)
+        return y + h
 
     @staticmethod
     def _pf_series(pf):
@@ -778,14 +690,6 @@ class AnalyticsPanel(tk.Frame):
         RoundSelect(bar, self.prog_var, *self._prog_labels.values(),
                     command=lambda v: self._set("program", self._prog_keys[v])).pack(
             side="left", padx=(18, 0))
-        self._vbtns = {}
-        for key, label in (("compact", "Ringkas"), ("full", "Lengkap")):
-            b = RoundButton(bar, text=label, command=lambda k=key: self._set_view(k),
-                            font=(C.FONT, 10), padx=12, pady=5)
-            b.pack(side="right", padx=(6, 0))
-            self._vbtns[key] = b
-        tk.Label(bar, text="Tampilan", bg=C.BG, fg=C.MUTED, font=(C.FONT, 10)).pack(
-            side="right", padx=(0, 4))
         # lebar tetap: muncul / hilangnya teks tidak menggeser tombol lain
         self.status = tk.Label(bar, text="", bg=C.BG, fg=C.MUTED, font=(C.FONT, 9),
                                width=14, anchor="w")
@@ -797,22 +701,13 @@ class AnalyticsPanel(tk.Frame):
         self.load()
 
     def _paint(self):
-        groups = ((self._pbtns, self.state.get("period", "30d")),
-                  (self._vbtns, self.state.get("view", "full")))
+        groups = ((self._pbtns, self.state.get("period", "30d")),)
         for btns, current in groups:
             for k, b in btns.items():
                 on = k == current
                 b.config(bg=C.SEG_ON if on else C.BG, fg=C.TEXT if on else C.MUTED,
                          activebackground=C.SEG_ON if on else C.CARD_HOVER,
                          activeforeground=C.TEXT)
-
-    def _set_view(self, view):
-        if self.state.get("view", "full") == view:
-            return
-        self.state["view"] = view
-        self._paint()
-        if self.board.data is not None:
-            self.board.set_data(self.board.data, view)
 
     def _set(self, key, value):
         if self.state.get(key) == value:
@@ -828,7 +723,7 @@ class AnalyticsPanel(tk.Frame):
         key = self._key()
         hit = self._cache.get(key)
         if hit and time.time() - hit[0] < self.CACHE_SEC:
-            self.board.set_data(hit[1], self.state.get("view", "full"))
+            self.board.set_data(hit[1], "compact")
             return
         self.status.config(text="Menghitung…")
         box = {}
@@ -858,7 +753,7 @@ class AnalyticsPanel(tk.Frame):
             self.status.config(text="Gagal. Lihat app.log")
             return
         self.status.config(text="")
-        self.board.set_data(box["data"], self.state.get("view", "full"))
+        self.board.set_data(box["data"], "compact")
 
     def destroy(self):
         if self._job is not None:

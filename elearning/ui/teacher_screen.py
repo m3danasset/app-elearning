@@ -20,7 +20,7 @@ from elearning.ui.avatar import Avatar
 from elearning.ui.dialogs import ConfirmDialog, StudentDialog
 from elearning.ui.gallery import GalleryBoard
 from elearning.ui.portfolio_view import ExamplesPanel
-from elearning.ui.report_panel import ReportPanel
+from elearning.ui.task_sheet_view import TaskSheetPanel
 from elearning.ui.sidebar import AppSidebar, PageHeader, SidebarLayout
 from elearning.ui.teacher_progress import ProgressBoard, QuizPanel
 from elearning.ui.widgets import ScrollFrame, Switch, add_hover
@@ -89,7 +89,7 @@ class TeacherScreen(SidebarLayout):
                           on_action=self._set_view).pack(fill="both", expand=True)
             return
         if self.view == "reports":
-            ReportPanel(self.body, self.teacher).pack(fill="both", expand=True)
+            TaskSheetPanel(self.body, self.teacher).pack(fill="both", expand=True)
             return
         if self.view == "examples":
             ExamplesPanel(self.body).pack(fill="both", expand=True)

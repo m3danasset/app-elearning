@@ -63,7 +63,9 @@ SHEETS = (("logins", "Riwayat login"), ("summary", "Ringkasan per orang"),
           ("daily", "Rekap harian"), ("progress", "Progres, catatan & kuis"),
           ("schedule", "Jadwal kelas (daftar + sesi)"), ("attendance", "Kehadiran jadwal"),
           ("badges", "Badge murid"), ("signups", "Pendaftar dari trial"),
-          ("certificates", "Sertifikat (permintaan + syarat)"))
+          ("certificates", "Sertifikat (permintaan + syarat)"),
+          ("student_survey", "Survey murid (setelah BASIC 2)"),
+          ("tasks", "Laporan guru (sheet tugas)"))
 SHEETS_FILE = os.path.join(C.DATA_DIR, "export_sheets.txt")   # pilihan terakhir
 
 FOLDER_FILE = os.path.join(C.DATA_DIR, "export_folder.txt")   # folder terakhir yang dipilih
@@ -1004,6 +1006,51 @@ def export(path, label, start, end, who="all", sheets=None):
             ["No", "ID", "Nama", "Label", "Kursus", "Video ditonton", "Assignment",
              "Portfolio", "Badge kursus", "Syarat lengkap", "Permintaan"],
             [6, 10, 26, 8, 22, 15, 12, 11, 13, 14, 14], sy_rows, [0] * 11)))
+
+    if "student_survey" in chosen:
+        from elearning import student_survey as SS
+        sv_rows = []
+        for r in sorted(SS.list_all(), key=lambda r: r.get("at", "")):
+            when = _when(r.get("at"))
+            if when is not None and not _in(when, start, end):
+                continue
+            st = next((x for x in all_students if x["id"] == r.get("student")), None)
+            if st is not None and st["id"] not in sid_set:
+                continue
+            sv_rows.append([len(sv_rows) + 1, when, r.get("student", ""),
+                            st["name"] if st else r.get("name", ""),
+                            _label(st) if st else "", titles.get(r.get("course"), r.get("course", "")),
+                            SS.label("level", r.get("level")),
+                            ", ".join(SS.label("interest", k) for k in r.get("interests") or ()),
+                            r.get("hardest", ""), r.get("favorite", ""), r.get("note", "")])
+        out.append(("Survey Murid", _sheet(
+            "Survey Murid (setelah kursus selesai)", f"{sub}   ·   {len(sv_rows)} jawaban",
+            ["No", "Diisi", "ID", "Nama", "Label", "Kursus", "Kesulitan", "Minat lanjutan",
+             "Bagian tersulit", "Paling disukai", "Catatan"],
+            [6, 18, 10, 26, 8, 14, 11, 36, 40, 40, 40], sv_rows,
+            [0, 4, 0, 0, 0, 0, 0, 8, 8, 8, 8])))
+
+    if "tasks" in chosen:
+        from elearning import task_sheet as TS
+        sec = dict(TS.SECTIONS)
+        tk_rows = []
+        for x in sorted(TS.all_items(), key=lambda x: (x.get("month", ""), x["teacher"],
+                                                       x.get("created", ""))):
+            when = _when(x.get("done_at")) or _when(x.get("created"))
+            if when is not None and not _in(when, start, end):
+                continue
+            tk_rows.append([len(tk_rows) + 1, TS.month_label(x.get("month", "2026-01")),
+                            x["teacher"], tnames.get(x["teacher"], x["teacher"]),
+                            sec.get(x.get("section"), "").title(), x.get("text", ""),
+                            "Ya" if x.get("done") else "Belum", _when(x.get("done_at")),
+                            x.get("report", ""), "Ya" if x.get("check") else "Belum",
+                            x.get("check_by", "")])
+        out.append(("Laporan Guru Sheet", _sheet(
+            "Laporan Guru (sheet tugas)", f"{sub}   ·   {len(tk_rows)} tugas",
+            ["No", "Bulan", "ID guru", "Guru", "Bagian", "Tugas", "Done", "Selesai",
+             "Laporan", "Dicek admin", "Dicek oleh"],
+            [6, 16, 10, 22, 12, 44, 8, 18, 48, 12, 12], tk_rows,
+            [0, 0, 0, 0, 0, 8, 0, 4, 8, 0, 0])))
 
     if not out:
         raise ValueError("tidak ada sheet yang dipilih")

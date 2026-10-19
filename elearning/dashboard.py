@@ -196,19 +196,21 @@ def _admin(now):
                     "body": _names(free), "when": "", "action": "Atur jadwal",
                     "target": "schedule"})
     _inactive(out, now, students, stats, "students")
-    # laporan guru hari ini
-    from elearning import reports
-    recs = reports.list_reports(None, now.date(), now.date())
-    wrote = {r["teacher"] for r in recs}
-    missing = [t["name"] for t in teachers if t["id"] not in wrote]
+    # laporan guru (sheet tugas): tugas selesai yang belum dicek admin
+    from elearning import task_sheet as TS
+    sm = TS.summary()
+    tname = {t["id"]: t["name"] for t in teachers}
     if teachers:
-        out.append({"key": "reports", "level": "info" if missing else "done", "icon": "report",
+        unc = sm["unchecked"]
+        who = sorted({tname.get(x["teacher"], x["teacher"]) for x in unc})
+        out.append({"key": "reports", "level": "todo" if unc else "done", "icon": "report",
                     "tag": "LAPORAN GURU",
-                    "title": f"{len(recs)} laporan masuk hari ini" if recs
-                    else "Belum ada laporan guru hari ini",
-                    "body": ("Belum menulis: " + _names(missing)) if missing
-                    else "Semua guru sudah menulis laporan hari ini.",
-                    "when": "", "action": "Baca laporan", "target": "reports"})
+                    "title": f"{len(unc)} tugas selesai belum dicek" if unc
+                    else "Semua tugas selesai sudah dicek",
+                    "body": ("Dari: " + _names(who)) if unc else
+                    f"{len(sm['open_week']) + len(sm['open_month'])} tugas guru masih berjalan "
+                    "bulan ini.",
+                    "when": "", "action": "Cek laporan", "target": "reports"})
     expired = [s["name"] for s in students if s.get("status") == STATUS_EXPIRED]
     if expired:
         out.append({"key": "expired", "level": "info", "icon": "lock", "tag": "AKUN EXPIRED",
@@ -230,18 +232,25 @@ def _teacher(now, teacher):
     stats = sessions.overview([s["id"] for s in students])
     out = []
     _classes_today(out, now, teacher_id=tid, names=names)
-    # laporan kerja hari ini
-    mine = reports.list_reports(tid, now.date(), now.date())
-    if mine:
+    # laporan kerja (sheet tugas bulan ini)
+    from elearning import task_sheet as TS
+    sm = TS.summary(tid)
+    week = sm["open_week"]
+    if week:
+        out.append({"key": "report", "level": "todo", "icon": "report", "tag": "LAPORAN KERJA",
+                    "title": f"{len(week)} tugas minggu ini belum selesai",
+                    "body": " · ".join(x["text"] for x in week[:3])[:110],
+                    "when": "", "action": "Buka sheet", "target": "reports"})
+    elif sm["done"] or sm["open_month"]:
         out.append({"key": "report", "level": "done", "icon": "report", "tag": "LAPORAN KERJA",
-                    "title": f"Laporan hari ini sudah ditulis ({len(mine)})",
-                    "body": " ".join(mine[0].get("text", "").split())[:90],
-                    "when": "", "action": "Lihat", "target": "reports"})
+                    "title": "Tugas minggu ini sudah selesai",
+                    "body": f"{len(sm['done'])} selesai · {len(sm['open_month'])} tugas bulan "
+                            "ini berjalan", "when": "", "action": "Lihat", "target": "reports"})
     else:
         out.append({"key": "report", "level": "todo", "icon": "report", "tag": "LAPORAN KERJA",
-                    "title": "Tulis laporan kerja hari ini",
-                    "body": "Catat kelas, murid, dan hal penting untuk admin.", "when": "",
-                    "action": "Tulis laporan", "target": "reports"})
+                    "title": "Isi tugas di laporan kerja",
+                    "body": "Tulis tugas minggu ini & bulan ini, centang DONE kalau selesai.",
+                    "when": "", "action": "Buka sheet", "target": "reports"})
     _certificates(out, now)
     # karya baru murid (portfolio + assignment beberapa hari terakhir)
     since = now - timedelta(days=NEW_WORK_DAYS)
@@ -288,7 +297,7 @@ WIDGETS = (
     ("students", "Murid aktif", ("admin", "teacher"), "students"),
     ("idle", "Murid tidak aktif", ("admin", "teacher"), "students"),
     ("unscheduled", "Murid tanpa jadwal", ("admin",), "schedule"),
-    ("reports", "Laporan hari ini", ("admin", "teacher"), "reports"),
+    ("reports", "Tugas selesai hari ini", ("admin", "teacher"), "reports"),
     ("work", "Karya baru murid", ("admin", "teacher"), "students"),
 )
 WIDGET_BY_ID = {w[0]: w for w in WIDGETS}
@@ -474,9 +483,9 @@ def _widget_counts(out, role, user, want, now, studs, stats):
         out["unscheduled"] = sum(1 for s in students if s.get("status") != STATUS_EXPIRED
                                  and s["id"] not in placed)
     if "reports" in want:
-        from elearning import reports
+        from elearning import task_sheet as TS
         tid = None if role == "admin" else (user or {}).get("id")
-        out["reports"] = len(reports.list_reports(tid, now.date(), now.date()))
+        out["reports"] = len(TS.summary(tid)["done_today"])
     if "work" in want:
         from elearning import portfolio
         from elearning.courses import courses_for

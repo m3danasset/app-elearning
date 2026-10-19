@@ -47,7 +47,7 @@ class AdminScreen(SidebarLayout):
         self._after = None
         self._online = None      # daftar "Sedang online" terakhir
         self._sb_sig = None      # tanda isi sidebar terakhir (lihat _refresh_sidebar)
-        self._an_state = {"period": "30d", "program": "all", "view": "full"}   # filter Analytics diingat
+        self._an_state = {"period": "30d", "program": "all", "view": "compact"}   # filter Analytics diingat
         # Urutan & saringan daftar Murid / Guru (diingat selama layar admin terbuka)
         self._sort = "Nama A–Z"
         self._cat = "Semua kategori"
@@ -119,6 +119,7 @@ class AdminScreen(SidebarLayout):
                                         on_birth=self._edit_birth,
                                         on_courses=self._edit_courses)
         self.reports_board = ReportsBoard(self.scroll.inner)
+        self.task_board = None        # Laporan Guru = sheet tugas (task_sheet_view)
         self.analytics = None
         self.schedule_board = None
         self.cert_board = None
@@ -436,7 +437,7 @@ class AdminScreen(SidebarLayout):
                 self.add_btn.pack(side="right", padx=(8, 0), after=self.export_btn)
         else:
             self.add_btn.pack_forget()
-        if self.tab == "analytics":   # halaman grafik: tanpa ringkasan & filter laporan
+        if self.tab in ("analytics", "reports"):   # grafik / sheet: tanpa ringkasan & filter
             self.summary.pack_forget()
             self.rbar.pack_forget()
         else:
@@ -470,12 +471,17 @@ class AdminScreen(SidebarLayout):
         if self.tab == "certificates" and self.cert_board is None:
             from elearning.ui.certificate_view import CertificateBoard
             self.cert_board = CertificateBoard(self.scroll.inner, by=self.admin_id)
+        if self.tab == "reports" and self.task_board is None:
+            from elearning.ui.task_sheet_view import TaskSheet
+            self.task_board = TaskSheet(self.scroll.inner,
+                                        admin={"id": self.admin_id,
+                                               "name": self._admin_name()})
         if self.tab == "signups" and self.signup_board is None:
             from elearning.ui.signup_view import SignupBoard
             self.signup_board = SignupBoard(self.scroll.inner, by=self.admin_id,
                                             on_change=self.refresh)
         want = {"students": self.people_board, "teachers": self.people_board,
-                "reports": self.reports_board, "analytics": self.analytics,
+                "reports": self.task_board, "analytics": self.analytics,
                 "schedule": self.schedule_board, "certificates": self.cert_board,
                 "signups": self.signup_board}[self.tab]
         if self._shown is not want:
@@ -598,7 +604,8 @@ class AdminScreen(SidebarLayout):
         if self.tab == "analytics":   # dihitung ulang hanya saat dibuka
             return
         if self.tab == "reports":
-            self._refresh_reports()
+            if self.task_board is not None:
+                self.task_board.reload()      # dilewati kalau sedang ada sel yang diisi
         elif self.tab == "schedule":
             self._refresh_schedule()
         elif self.tab == "certificates":

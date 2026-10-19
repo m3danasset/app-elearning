@@ -273,6 +273,29 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   nilai ke bawaan". Nilai baru: tambah baris di VALUES; modulnya harus membaca atribut itu
   saat dipakai (bukan disalin saat import).
 
+## Laporan guru = SHEET tugas (pengganti formulir laporan lama)
+- elearning/task_sheet.py: dataeport_tasks.json, per guru per bulan, bagian MINGGU INI (week)
+  / BULAN INI (month) / SUDAH SELESAI (otomatis: done=True, urut done_at). Kolom NO | tugas |
+  DONE (guru) | LAPORAN (guru) | CHECK (admin, check_by). Tugas dikosongkan = dihapus.
+  carry_over = bawa tugas belum selesai bulan lalu. reports.json lama tetap ada (export lama).
+- ui/task_sheet_view.py TaskSheet (SATU canvas, bagian berwarna merah / hijau / biru seperti
+  sheet studio, kotak centang antialias I.pill + check_bold; warna ikon WAJIB hex, "white"
+  gagal diam-diam). Guru: klik sel = Entry di atas sel (Enter simpan, Tab / Shift+Tab pindah,
+  Esc batal), baris "+ Ketik tugas baru". Admin (tab Laporan Guru): pilih guru + bulan, hanya
+  CHECK. JANGAN pakai atribut self._w di widget Tk (nama path Tk). Dashboard: kartu guru
+  "n tugas minggu ini belum selesai", admin "n tugas selesai belum dicek", widget "tugas
+  selesai hari ini". Excel: sheet "Laporan Guru Sheet".
+
+## Survey murid setelah BASIC 2 (config.SURVEY_AFTER_COURSE)
+- elearning/student_survey.py: due() = bukan trial, fitur Dev "student_survey", belum mengisi,
+  belum Skip di sesi ini, SEMUA video kursus itu completed. Popup English (ui/student_survey_view
+  StudentSurveyDialog) ~0,9 dtk setelah Dashboard murid tampil (App.show_home): tingkat
+  kesulitan (Easy / Just right / Hard), minat lanjutan (Game, Animation, Advertising, Character,
+  Interior; boleh banyak), bagian tersulit, paling disukai, catatan. "Maybe later" = tanya lagi
+  sesi app berikutnya. data\student_surveys.json (ikut hapus / ganti ID murid). Admin: Analytics
+  Ringkas baris "Survey murid" + Excel sheet "Survey Murid".
+- Analytics admin HANYA Ringkas (mode Lengkap & tombol Tampilan dihapus).
+
 ## Preset performa (Dev > Pengaturan app > Performa)
 - config.PERF_PRESETS: auto (deteksi: <= 4 thread = Ryzen 3, NVIDIA + >= 12 thread = Ryzen 5 +
   NVIDIA, lainnya Ryzen 5), ryzen3 (1 thread kerja + MODE RINGAN, 30 fps), ryzen5 (2 thread,

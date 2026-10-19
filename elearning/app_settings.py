@@ -24,8 +24,9 @@ FEATURES = (
     ("mini_player", "Mini player"),
     ("palette", "Search Ctrl+K"),
     ("fps60", "60 fps (PC kuat)"),
-    ("animations", "Animasi & video latar (PC 4 thread: selalu mati)"),
+    ("animations", "Animasi & video latar bergerak (mati = latar statis; Ryzen 3: selalu mati)"),
     ("survey", "Survey trial"),
+    ("student_survey", "Survey murid setelah BASIC 2"),
     ("safesearch", "SafeSearch Chrome murid SUPERKIDS"),
     ("teaser", "Video teaser kursus di Dashboard murid"),
 )

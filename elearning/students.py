@@ -412,6 +412,11 @@ def delete_student(student_id):
         certificates.delete_student(sid)
     except Exception as exc:
         C.log(f"Permintaan sertifikat {sid} tidak terhapus: {exc!r}")
+    try:
+        from elearning import student_survey
+        student_survey.delete_student(sid)
+    except Exception as exc:
+        C.log(f"Survey murid {sid} tidak terhapus: {exc!r}")
 
 # --- jendela Dev: ubah kategori & ID ---------------------------------------------------
 def _check_new_id(sid, data):
@@ -531,6 +536,11 @@ def _rename_in_records(old, new):
                                  for r in items])
     except Exception as exc:
         C.log(f"Ganti ID {old}->{new}: sertifikat: {exc!r}")
+    try:
+        from elearning import student_survey
+        student_survey.change_id(old, new)
+    except Exception as exc:
+        C.log(f"Ganti ID {old}->{new}: survey murid: {exc!r}")
     try:
         from elearning import recents
         with recents._lock:

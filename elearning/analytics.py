@@ -252,6 +252,15 @@ def occurrences(slots, by_sid, active_ids, a0, a1):
             d += timedelta(days=7)
 
 
+def _student_survey(p0, p1, program):
+    try:
+        from elearning import student_survey
+        return student_survey.stats(p0, p1, program)
+    except Exception as exc:
+        C.log(f"Analytics: survey murid gagal: {exc!r}")
+        return {"count": 0, "levels": [], "interests": [], "latest": []}
+
+
 def compute(period="30d", program="all"):
     now = datetime.now()
     today = now.date()
@@ -550,4 +559,5 @@ def compute(period="30d", program="all"):
         "top": top,
         "teachers": teacher_rows,
         "signups": signup_stats(p0, p1, q0, q1, buckets, compare=n_days is not None),
+        "student_survey": _student_survey(p0, p1, program),
     }
