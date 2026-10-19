@@ -125,6 +125,10 @@ class CoursesPage(tk.Frame):
             "itu; kepala Semua kursus = semuanya. Hanya murid yang tersaring kolom Search.")
         self.grid_cv = tk.Canvas(f, bg=PANEL, highlightthickness=0, bd=0, height=80)
         self.grid_cv.pack(fill="x", pady=(4, 20))
+        # lebar tabel baru final setelah tata letak: gambar ulang SELURUHNYA saat lebar berubah
+        # (dulu hanya baris yang digambar ulang saat disorot -> kolom bergeser dari judulnya)
+        self._grid_w = None
+        self.grid_cv.bind("<Configure>", self._on_grid_width)
         self.grid_cv.bind("<Motion>", self._motion)
         self.grid_cv.bind("<Leave>", lambda e: self._set_hov(None))
         self.grid_cv.bind("<Button-1>", self._click)
@@ -143,6 +147,11 @@ class CoursesPage(tk.Frame):
     def _on_width(self, e):
         self.cv.itemconfigure(self._win, width=max(300, e.width - 56))
         self.after_idle(self._draw_grid)
+
+    def _on_grid_width(self, e):
+        if e.width != self._grid_w:
+            self._grid_w = e.width
+            self._draw_grid()
 
     def _set_prog(self, prog):
         self.prog = prog
