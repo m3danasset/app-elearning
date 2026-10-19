@@ -65,7 +65,8 @@ SHEETS = (("logins", "Riwayat login"), ("summary", "Ringkasan per orang"),
           ("badges", "Badge murid"), ("signups", "Pendaftar dari trial"),
           ("certificates", "Sertifikat (permintaan + syarat)"),
           ("student_survey", "Survey murid (setelah BASIC 2)"),
-          ("tasks", "Laporan guru (sheet tugas)"))
+          ("tasks", "Laporan guru (sheet tugas)"),
+          ("live", "Live kelas (aktivitas harian + online saat export)"))
 SHEETS_FILE = os.path.join(C.DATA_DIR, "export_sheets.txt")   # pilihan terakhir
 
 FOLDER_FILE = os.path.join(C.DATA_DIR, "export_folder.txt")   # folder terakhir yang dipilih
@@ -1056,6 +1057,51 @@ def export(path, label, start, end, who="all", sheets=None):
              "Laporan", "Dicek admin", "Dicek oleh"],
             [6, 16, 10, 22, 12, 44, 8, 18, 48, 12, 12], tk_rows,
             [0, 0, 0, 0, 0, 8, 0, 4, 8, 0, 0])))
+
+    if "live" in chosen:
+        from elearning import presence as PR
+        mins = lambda v: round((v or 0) / 60.0, 1)          # noqa: E731
+        ac_rows = []
+        for st in students:
+            for day, d in sorted(PR.activity_days(st["id"]).items()):
+                try:
+                    when = datetime.strptime(day, "%Y-%m-%d")
+                except ValueError:
+                    continue
+                if not _in(when, start, end):
+                    continue
+                total = sum(d.get(k, 0) for k in PR.KINDS)
+                courses = sorted((d.get("courses") or {}).items(), key=lambda kv: -kv[1])
+                ac_rows.append([0, when, st["id"], st["name"], _label(st), d.get("first", ""),
+                                d.get("last", ""), mins(total), mins(d.get("video")),
+                                mins(d.get("blender")), mins(d.get("browse")),
+                                mins(d.get("page")), mins(d.get("idle")),
+                                ", ".join(f"{c} ({mins(v)} mnt)" for c, v in courses),
+                                d.get("pc", "")])
+        ac_rows.sort(key=lambda r: (r[1], r[2]))
+        for i, r in enumerate(ac_rows):
+            r[0] = i + 1
+        out.append(("Aktivitas Kelas", _sheet(
+            "Aktivitas Kelas per Murid per Hari (menit, dari Live Kelas)",
+            f"{sub}   ·   {len(ac_rows)} baris   ·   dihitung tiap 15 detik selama app murid "
+            "terbuka; diam = tidak ada input mouse / keyboard >= 5 menit",
+            ["No", "Tanggal", "ID", "Nama", "Label", "Pertama", "Terakhir", "Total (mnt)",
+             "Menonton video", "Di Blender", "Browsing", "Di aplikasi", "Diam", "Kursus", "PC"],
+            [6, 12, 10, 26, 8, 9, 9, 11, 14, 11, 10, 11, 8, 50, 12], ac_rows,
+            [0, 2, 0, 0, 0, 0, 0, 5, 5, 5, 5, 5, 5, 8, 0])))
+        live_rows = []
+        for i, r in enumerate(PR.read_all()):
+            text, _kind = PR.activity(r)
+            live_rows.append([i + 1, r.get("id", ""), r.get("name", ""), text,
+                              r.get("course_title", ""), r.get("lesson", ""),
+                              "Ya" if r.get("blender") else "Tidak",
+                              round((r.get("idle") or 0) / 60.0, 1), r.get("pc", "")])
+        out.append(("Live Saat Export", _sheet(
+            "Murid Online Saat Export", f"Dibuat {now:%d/%m/%Y %H:%M}   ·   "
+                                        f"{len(live_rows)} murid online",
+            ["No", "ID", "Nama", "Aktivitas", "Kursus", "Pelajaran", "Blender terbuka",
+             "Tanpa input (mnt)", "PC"],
+            [6, 10, 26, 40, 18, 30, 15, 16, 12], live_rows, [0, 0, 0, 8, 0, 8, 0, 5, 0])))
 
     if not out:
         raise ValueError("tidak ada sheet yang dipilih")

@@ -11,6 +11,7 @@ sama, jadi admin / guru melihat murid di PC lain.
 import json
 import os
 import time
+from datetime import datetime
 
 from elearning import config as C
 
@@ -102,3 +103,58 @@ def activity(rec):
             "portfolio": "Portfolio", "assignment": "Assignment", "badges": "Badges",
             "certificate": "Certificate"}.get(rec.get("view"), rec.get("view") or "-")
     return f"Membuka {page}", "page"
+
+
+# --- rekap aktivitas harian (untuk export Excel) -------------------------------------------
+# data\activity\<ID>.json {"YYYY-MM-DD": {"video": dtk, "blender": dtk, "browse": dtk,
+# "page": dtk, "idle": dtk, "courses": {judul: dtk}, "first": "HH:MM", "last": "HH:MM",
+# "pc": nama}}. Ditambah tiap status (15 dtk) oleh app murid; > KEEP_DAYS hari dibuang.
+KINDS = ("video", "blender", "browse", "page", "idle")
+KEEP_DAYS = 400
+
+
+def _act_path(sid):
+    return os.path.join(C.DATA_DIR, "activity", f"{str(sid).upper()}.json")
+
+
+def _act_load(sid):
+    try:
+        with open(_act_path(sid), encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def add_activity(sid, kind, seconds, course="", pc=""):
+    """Tambah detik aktivitas murid hari ini (dipanggil app murid tiap status)."""
+    if kind not in KINDS or seconds <= 0:
+        return
+    now = datetime.now()
+    day = now.strftime("%Y-%m-%d")
+    data = _act_load(sid)
+    d = data.setdefault(day, {})
+    d[kind] = round(d.get(kind, 0) + seconds, 1)
+    if course and kind != "idle":
+        c = d.setdefault("courses", {})
+        c[course] = round(c.get(course, 0) + seconds, 1)
+    d.setdefault("first", now.strftime("%H:%M"))
+    d["last"] = now.strftime("%H:%M")
+    if pc:
+        d["pc"] = pc
+    if len(data) > KEEP_DAYS:
+        for k in sorted(data)[:len(data) - KEEP_DAYS]:
+            data.pop(k, None)
+    try:
+        os.makedirs(os.path.dirname(_act_path(sid)), exist_ok=True)
+        tmp = _act_path(sid) + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False)
+        os.replace(tmp, _act_path(sid))
+    except OSError as exc:
+        C.log(f"Live kelas: rekap aktivitas {sid} tidak tersimpan: {exc!r}")
+
+
+def activity_days(sid):
+    """Rekap harian murid {tanggal: {...}} (lihat add_activity)."""
+    return _act_load(sid)

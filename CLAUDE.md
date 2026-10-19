@@ -306,6 +306,10 @@ eport_tasks.json, per guru per bulan, bagian MINGGU INI (week)
   dtk (App._presence_tick / _presence_info: layar, view, kursus, pelajaran, posisi video + diputar,
   Blender terbuka / di depan, Chrome, idle GetLastInputInfo, nama PC); logout / tutup = dihapus;
   > STALE_S 75 dtk = offline. activity(rec) -> (teks, jenis video | blender | browse | page | idle).
+- Rekap harian (export): tiap status, App menambah detik sejak status sebelumnya (maks. 60) ke
+  data\activity\<ID>.json per tanggal per jenis (video / blender / browse / page / idle) + per
+  kursus (presence.add_activity). Excel pilihan "live": sheet "Aktivitas Kelas" (per murid per
+  hari, menit) + "Live Saat Export" (murid online saat itu).
 - ui/live_view.LiveBoard (menu "Live Kelas" tepat di bawah Dashboard, admin tab "live", guru view
   "live"): dibaca di thread tiap 5 dtk, SATU canvas: ringkasan, "Kelas berjalan" (jadwal sekarang,
   hadir x/y = online, nama belum login; guru hanya kelasnya), kartu murid (warna aktivitas, progres

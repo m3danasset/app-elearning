@@ -2,6 +2,7 @@
 
 import os
 import sys
+import time
 import tkinter as tk
 
 from elearning.i18n import L
@@ -179,7 +180,15 @@ class App(tk.Tk):
         if st is None or is_trial(st):
             return
         try:
-            presence.write(st["id"], self._presence_info())
+            info = self._presence_info()
+            presence.write(st["id"], info)
+            # rekap harian untuk export Excel: detik sejak status sebelumnya (maks. 60)
+            now = time.monotonic()
+            last, self._presence_last = getattr(self, "_presence_last", None), now
+            if last is not None:
+                presence.add_activity(st["id"], presence.activity(info)[1],
+                                      min(60.0, now - last), info.get("course_title", ""),
+                                      info.get("pc", ""))
         except Exception as exc:
             config.log(f"Live kelas: status gagal dibuat: {exc!r}")
         self._presence_job = self.after(presence.PUSH_S * 1000, self._presence_tick)
@@ -192,6 +201,7 @@ class App(tk.Tk):
             except Exception:
                 pass
             self._presence_job = None
+        self._presence_last = None
         st = self._student
         if st is not None and not is_trial(st):
             presence.clear(st["id"])
