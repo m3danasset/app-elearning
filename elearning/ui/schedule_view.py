@@ -71,9 +71,9 @@ class ScheduleBoard(tk.Canvas):
         self.boxes = []            # (x0, y0, x1, y1, slot)
         self._imgs = []
         self._width = 0
-        self.day_only = day_only    # guru: hanya tampilan Hari, hanya lihat
+        self.day_only = day_only    # guru: hanya tampilan Sesi (per hari), hanya lihat
         self.on_nav = None          # dipanggil setelah pindah hari / minggu
-        self.mode = "day" if day_only else _view["mode"]   # "week" / "day"
+        self.mode = "slots" if day_only else _view["mode"]   # "slots" / "week" / "day"
         self.anchor = date.today()  # hari yang tampil (Hari) / minggu yang tampil (Minggu)
         self.tools = []            # (x0, y0, x1, y1, nama) tombol baris atas
         self.f = {"day": tkfont.Font(font=(C.FONT, 10, "bold")),
@@ -497,8 +497,9 @@ class ScheduleBoard(tk.Canvas):
                              text=_fit(f, f"{label} {name}", w - 12))
             self.boxes.append((bx, by, bx + w, by + hh, sl))
         self._draw_cell_hover()
-        legend = "SK = SUPERKIDS   ·   PB = basic   ·   IC = intermediate   ·   warna menyala + tebal = hadir   ·   " \
-                 "klik nama = ubah jadwal, klik kotak kosong = tambah"
+        legend = "SK = SUPERKIDS   ·   PB = basic   ·   IC = intermediate   ·   warna menyala + tebal = hadir" + \
+                 ("   ·   klik nama = ubah jadwal, klik kotak kosong = tambah" if self.on_edit
+                  else "   ·   jadwal diatur admin")
         self.create_text(x0, bottom + 18, text=legend, anchor="w", font=self.f["hour"],
                          fill=C.LOCKED)
 
@@ -861,7 +862,8 @@ class ScheduleDialog(tk.Toplevel):
 
 
 class TeacherSchedule(tk.Frame):
-    """Layar guru, menu Jadwal Murid: kalender per HARI saja, hanya lihat (diatur admin)."""
+    """Layar guru, menu Jadwal Murid: tampilan SESI (seperti admin) per hari, hanya lihat
+    (diatur admin); panah = hari sebelumnya / berikutnya."""
 
     REFRESH_MS = 60_000      # garis jam sekarang & perubahan dari admin ikut diperbarui
 

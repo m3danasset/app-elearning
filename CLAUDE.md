@@ -126,7 +126,7 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 - Tampilan Sesi (default admin, seperti sheet jadwal): satu hari, kolom = sesi per jam,
   baris = slot murid 1-20 (MAX_ROWS), sel "SK/PB/IC Nama" (IC = kursus intermediate dibuka).
   Murid yang sama di jam berurutan tetap satu baris; kepala kolom "terisi/20" (+lebih).
-  Klik nama = ubah jadwal, klik sel kosong = tambah di jam itu. Guru tetap tampilan Hari.
+  Klik nama = ubah jadwal, klik sel kosong = tambah di jam itu. Guru juga tampilan Sesi (hanya lihat).
 - Warna jadwal: schedule.COLORS (Otomatis + 6 template: biru, hijau, oranye, merah, ungu,
   abu-abu), field "color" di schedule.json. Admin memilih di ScheduleDialog (lingkaran warna);
   Otomatis = warna kategori murid. Semua tampilan (Sesi, Hari, Minggu, guru) memakai warna itu;
@@ -147,8 +147,8 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   umur dihitung dari tanggal HARI INI setiap kali tampil (otomatis naik saat ulang tahun).
   Guru hanya melihat umur (detail murid, Jadwal Murid), tidak pernah tanggal lahirnya.
 - Guru: menu "Jadwal Murid" (schedule_view.TeacherSchedule) = ScheduleBoard day_only:
-  hanya tampilan Hari, panah + Hari ini, hanya lihat (tidak bisa tambah/ubah), nama murid
-  + umur, diperbarui tiap 60 detik.
+  tampilan SESI seperti admin (per hari, kolom = jam, baris = slot murid), panah + Hari ini,
+  hanya lihat (tidak bisa tambah/ubah, legenda "jadwal diatur admin"), diperbarui tiap 60 detik.
 
 
 ## Impor murid dari sheet jadwal Oktober 2026
