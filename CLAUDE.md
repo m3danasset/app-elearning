@@ -188,6 +188,12 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   sama dengan Analytics lewat analytics.occurrences), Badge Murid. Data Murid + label PB/IC/SK,
   tanggal lahir, umur, badge, upload assignment, jadwal. Portfolio + kolom Bagian
   (Portfolio / Assignment). Sheet baru otomatis tercentang di dialog (baris 2 export_sheets.txt).
+- Pilihan "Sertifikat (permintaan + syarat)" (kunci "certificates") = 2 sheet: Sertifikat
+  (permintaan dalam periode: diminta, status, selesai, ditandai oleh) & Syarat Sertifikat (per
+  murid per kursus dibuka & tampil: video x/y, assignment, portfolio, badge kursus, syarat
+  lengkap, Bisa diminta / Menunggu / Selesai; lewat certificates.requirements). Data Murid +
+  kolom "Batas Chrome" (_chrome_text: sama dengan tombol guru, AI / bawaan (x mnt) / diblokir /
+  tanpa batas) & "Sertifikat" (n diminta, n selesai). Pendaftar + kolom PC / laptop di rumah.
 
 
 ## Sertifikat (request per kursus)

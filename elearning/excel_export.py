@@ -62,7 +62,8 @@ SHEETS = (("logins", "Riwayat login"), ("summary", "Ringkasan per orang"),
           ("reports", "Laporan guru"), ("teachers", "Aktivitas guru"),
           ("daily", "Rekap harian"), ("progress", "Progres, catatan & kuis"),
           ("schedule", "Jadwal kelas (daftar + sesi)"), ("attendance", "Kehadiran jadwal"),
-          ("badges", "Badge murid"), ("signups", "Pendaftar dari trial"))
+          ("badges", "Badge murid"), ("signups", "Pendaftar dari trial"),
+          ("certificates", "Sertifikat (permintaan + syarat)"))
 SHEETS_FILE = os.path.join(C.DATA_DIR, "export_sheets.txt")   # pilihan terakhir
 
 FOLDER_FILE = os.path.join(C.DATA_DIR, "export_folder.txt")   # folder terakhir yang dipilih
@@ -466,6 +467,39 @@ def _label(s):
     return "IC" if any(c.startswith("intermediate") for c in s["courses"]) else "PB"
 
 
+def _chrome_text(s):
+    """Batas browsing Chrome murid seperti tombol guru: AI / bawaan / diblokir / x mnt."""
+    try:
+        from elearning import web_launcher as W
+        if not any(x["key"] == "pinterest" for x in W.sites_for(s)):
+            return "-"
+        if W.is_ai_student(s):
+            return "Tanpa batas (AI)"
+    except Exception:
+        return "-"
+    lim = s.get("pinterest_limit")
+    if lim is None:
+        dflt = getattr(C, "PINTEREST_LIMIT_MIN", 10)
+        return f"Bawaan ({dflt} mnt)" if dflt else "Bawaan (tanpa batas)"
+    return "Diblokir" if lim == 0 else "Tanpa batas" if lim < 0 else f"{lim} mnt"
+
+
+def _cert_requests():
+    try:
+        from elearning import certificates as CE
+        return CE.list_requests()
+    except Exception as exc:
+        C.log(f"Export: sertifikat gagal dibaca: {exc!r}")
+        return []
+
+
+def _when(text):
+    try:
+        return datetime.strptime(text or "", "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return None
+
+
 def _slot_text(sl):
     return f"{schedule.DAYS[sl['day']]} {sl['start']}-{sl['end']}"
 
@@ -610,6 +644,11 @@ def export(path, label, start, end, who="all", sheets=None):
             up_all[u[0]["id"]] = up_all.get(u[0]["id"], 0) + 1
         prog = progress.all_progress()
         slots_all = schedule.list_slots()
+        certs = {}
+        for r in _cert_requests():
+            c = certs.setdefault(r.get("student"), [0, 0])
+            c[0] += 1
+            c[1] += r.get("status") == "done"
         st_rows = []
         for i, s in enumerate(students):
             birth = s.get("birth") or ""
@@ -636,15 +675,17 @@ def export(path, label, start, end, who="all", sheets=None):
                             last, idle if idle is not None else "Belum pernah",
                             up_all.get(s["id"], 0) - n_asg, n_asg, done,
                             _label(s), bdt, age_of(birth) if birth else None, n_badge,
-                            "; ".join(mine) or "-"])
+                            "; ".join(mine) or "-", _chrome_text(s),
+                            "{} diminta, {} selesai".format(*certs[s["id"]])
+                            if s["id"] in certs else "-"])
         out.append(("Data Murid", _sheet(
             "Data Murid (sepanjang masa)", f"{sub}   ·   {len(students)} murid",
             ["No", "ID", "Nama", "Kategori", "Status akun", "Jumlah kursus", "Kursus dibuka",
              "Total login", "Total jam", "Login terakhir", "Hari tidak login",
              "Upload portfolio", "Upload assignment", "Video selesai", "Label",
-             "Tanggal lahir", "Umur", "Badge", "Jadwal"],
-            [6, 10, 26, 15, 13, 14, 50, 12, 11, 18, 16, 16, 18, 14, 8, 14, 8, 8, 40], st_rows,
-            [0, 0, 0, 0, 0, 0, 8, 0, 5, 4, 0, 0, 0, 0, 0, 2, 0, 0, 8])))
+             "Tanggal lahir", "Umur", "Badge", "Jadwal", "Batas Chrome", "Sertifikat"],
+            [6, 10, 26, 15, 13, 14, 50, 12, 11, 18, 16, 16, 18, 14, 8, 14, 8, 8, 40, 20, 22],
+            st_rows, [0, 0, 0, 0, 0, 0, 8, 0, 5, 4, 0, 0, 0, 0, 0, 2, 0, 0, 8, 0, 0])))
 
     if "portfolio" in chosen:
         pf_rows = [[i + 1, u[1], u[0]["id"], u[0]["name"], ROLE[u[0]["program"]],
@@ -904,6 +945,65 @@ def export(path, label, start, end, who="all", sheets=None):
             ["No", "Masuk", "Kode"] + [f[2] for f in SU.FIELDS] + ["Status", "ID murid"],
             [6, 18, 8, 24, 16, 7, 24, 26, 18, 16, 24, 16, 36, 18, 30, 12, 10], su_rows,
             [0, 4, 0] + [8 if f[4] else 0 for f in SU.FIELDS] + [0, 0])))
+
+    if "certificates" in chosen:
+        from elearning import certificates as CE
+        reqs = _cert_requests()
+        by_sid = {s["id"]: s for s in all_students}
+        ce_rows = []
+        for r in sorted(reqs, key=lambda r: r.get("at", "")):
+            when = _when(r.get("at"))
+            if when is not None and not _in(when, start, end):
+                continue
+            st = by_sid.get(r.get("student"))
+            if st is not None and st["id"] not in sid_set:
+                continue
+            ce_rows.append([len(ce_rows) + 1, when, r.get("student", ""),
+                            st["name"] if st else r.get("name", ""),
+                            _label(st) if st else "",
+                            titles.get(r.get("course"), r.get("title", "")),
+                            "Selesai" if r.get("status") == CE.DONE else "Menunggu",
+                            _when(r.get("done_at")), r.get("done_by", "")])
+        waiting = sum(1 for x in ce_rows if x[6] == "Menunggu")
+        out.append(("Sertifikat", _sheet(
+            "Permintaan Sertifikat", f"{sub}   ·   {len(ce_rows)} permintaan   ·   "
+            f"{waiting} menunggu",
+            ["No", "Diminta", "ID", "Nama", "Label", "Kursus", "Status", "Selesai",
+             "Ditandai oleh"],
+            [6, 18, 10, 26, 8, 22, 12, 18, 18], ce_rows, [0, 4, 0, 0, 0, 0, 0, 4, 0])))
+        # syarat per murid per kursus yang dibuka & tampil (sepanjang masa, = halaman murid)
+        asked = {(r.get("student"), r.get("course")): r for r in reqs}
+        sy_rows = []
+        for s in students:
+            hidden = set(s.get("hidden") or ())
+            for c in courses_for(s["program"]):
+                if c["id"] not in s["courses"] or c["id"] in hidden:
+                    continue
+                try:
+                    items, ok = CE.requirements(s, c)
+                except Exception as exc:
+                    C.log(f"Export: syarat sertifikat {s['id']}/{c['id']} gagal: {exc!r}")
+                    continue
+                got = {k: f"{n}/{want}" for k, _l, n, want in items}
+                rq = asked.get((s["id"], c["id"]))
+                if rq:
+                    rq_text = "Selesai" if rq.get("status") == CE.DONE else "Menunggu"
+                else:
+                    rq_text = "Bisa diminta" if ok else "Belum"
+                sy_rows.append([len(sy_rows) + 1, s["id"], s["name"], _label(s),
+                                titles.get(c["id"], c["id"]),
+                                got.get("videos", "-"), got.get("assignment", "-"),
+                                got.get("portfolio", "-"), got.get("badges", "-"),
+                                "Ya" if ok else "Belum", rq_text])
+        ready = sum(1 for x in sy_rows if x[9] == "Ya")
+        out.append(("Syarat Sertifikat", _sheet(
+            "Syarat Sertifikat per Kursus (sepanjang masa)",
+            f"{sub}   ·   {len(sy_rows)} kursus murid   ·   {ready} memenuhi syarat   ·   "
+            f"syarat: semua video, min. {CE.ASSIGNMENT_MIN} assignment, "
+            f"min. {CE.PORTFOLIO_MIN} portfolio, min. {CE.BADGES_MIN} badge",
+            ["No", "ID", "Nama", "Label", "Kursus", "Video ditonton", "Assignment",
+             "Portfolio", "Badge kursus", "Syarat lengkap", "Permintaan"],
+            [6, 10, 26, 8, 22, 15, 12, 11, 13, 14, 14], sy_rows, [0] * 11)))
 
     if not out:
         raise ValueError("tidak ada sheet yang dipilih")
