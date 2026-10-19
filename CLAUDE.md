@@ -274,6 +274,9 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   saat dipakai (bukan disalin saat import).
 
 ## Laporan guru = SHEET tugas (pengganti formulir laporan lama)
+- Bagian LAPORAN HARIAN (section "day", field "day" = tanggal) PALING ATAS, panah tanggal di
+  kepalanya (_day_hits); bagian kosong = 2 baris (EMPTY_ROWS). Tanggal di kolom LAPORAN (kanan,
+  redup / hijau): "harian dd/mm/yy · selesai ... · dicek ..." (done_at / check_at).
 - elearning/task_sheet.py: dataeport_tasks.json, per guru per bulan, bagian MINGGU INI (week)
   / BULAN INI (month) / SUDAH SELESAI (otomatis: done=True, urut done_at). Kolom NO | tugas |
   DONE (guru) | LAPORAN (guru) | CHECK (admin, check_by). Tugas dikosongkan = dihapus.
@@ -285,6 +288,28 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   CHECK. JANGAN pakai atribut self._w di widget Tk (nama path Tk). Dashboard: kartu guru
   "n tugas minggu ini belum selesai", admin "n tugas selesai belum dicek", widget "tugas
   selesai hari ini". Excel: sheet "Laporan Guru Sheet".
+
+## Panel Admin > Survey (pertanyaan bisa dibuat / diubah, English)
+- elearning/survey_questions.py: data\survey_questions.json {"student": [...], "trial": [...]};
+  pertanyaan {id, kind single | multi | text, text, options (2-8), required}. "student" = SEMUA
+  pertanyaan survey murid (bawaan 5: level, interests, hardest, favorite, note); "trial" =
+  PERTANYAAN TAMBAHAN setelah isian tetap signups.FIELDS (rec["extra"]). clean_answers (English),
+  tally (hitung pilihan). ui/survey_form.QuestionForm dipakai popup murid & survey trial.
+- ui/survey_admin.py SurveyBoard (menu "Survey" sidebar admin, ikon quiz): pilih survey, kartu
+  pertanyaan (naik / turun / ubah / hapus), "Pertanyaan baru" (QuestionDialog: pertanyaan, jenis,
+  8 kolom pilihan, wajib), "Kembalikan bawaan", Hasil (batang per pilihan + jawaban isian).
+- student_survey: jawaban "answers" {qid: jawaban}; rekaman lama (level / interests berkode)
+  diterjemahkan answers_of. Excel Survey Murid: kolom = pertanyaan sekarang.
+
+## Analytics admin = 16 kartu PAS SATU LAYAR (tanpa gulir saat layar penuh)
+- 8 kartu angka (+ Survey murid, Tugas guru) lalu kisi 4 x 4 (>= 1000 px; 3 kolom >= 760, 2):
+  jam belajar, upload, jam ramai, murid per kategori (donut PB / IC / SK, analytics._categories),
+  pendaftar trial, pendaftar per minggu, tahu dari mana, rata-rata per hari (weekday), survey
+  murid (donut pertanyaan pilihan ke-1 + batang ke-2), laporan guru (sheet tugas per guru,
+  analytics._tasks), murid per kursus, perlu diperhatikan, paling rajin, kehadiran, badge.
+  Tinggi kartu = (tinggi area gulir - bar - kartu angka) / baris (AnalyticsPanel._fit_height ->
+  board.fit_h, ikut berubah saat ukuran ScrollFrame berubah); min. MIN_CARD_H 128 (lebih kecil =
+  boleh gulir). Diukur: 1920x1080 & 1366x768 tanpa scrollbar. Kartu kecil: donut & angka mengecil.
 
 ## Survey murid setelah BASIC 2 (config.SURVEY_AFTER_COURSE)
 - elearning/student_survey.py: due() = bukan trial, fitur Dev "student_survey", belum mengisi,
