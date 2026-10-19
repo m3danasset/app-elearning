@@ -110,16 +110,6 @@ class CoursesPage(tk.Frame):
         bar.pack(fill="x")
         self.seg = DP.Seg(bar, K.PROGRAMS, self.prog, self._set_prog)
         self.seg.pack(side="left")
-        # urutan murid di tabel Akses murid (seperti halaman Akun), diingat di dev_ui.json
-        self.sort = DP._ui_state().get("crs_sort") or "Nama"
-        if self.sort not in SORTS:
-            self.sort = "Nama"
-        self.sort_seg = DP.Seg(bar, [(v, v) for v in SORTS], self.sort, self._set_sort)
-        self.sort_seg.pack(side="right")
-        tk.Label(bar, text="Urutkan murid", bg=PANEL, fg=MUTED, font=(C.FONT, 9)).pack(
-            side="right", padx=(0, 8))
-        self.count_lbl = tk.Label(bar, text="", bg=PANEL, fg=MUTED, font=(C.FONT, 10))
-        self.count_lbl.pack(side="right", padx=(0, 18))
         self._section(f, "Panel kursus",
                       "Urutan di sini = urutan kartu di halaman murid. Data murid (progres, "
                       "badge, portfolio, video) tidak ikut terhapus bersama kursus.")
@@ -132,6 +122,21 @@ class CoursesPage(tk.Frame):
             "Mata = kursus tampil di halaman murid, gembok = kursus terbuka. Ikon di kepala "
             "kolom = kursus itu untuk semua murid; kolom Semua kursus = semua kursus murid "
             "itu; kepala Semua kursus = semuanya. Hanya murid yang tersaring kolom Cari.")
+        # urutan murid tabel ini (seperti halaman Akun), di baris judul Akses murid; diingat
+        self.sort = DP._ui_state().get("crs_sort") or "Nama"
+        if self.sort not in SORTS:
+            self.sort = "Nama"
+        row = self.acc_head.title_row
+        self.sort_box = tk.Frame(row, bg=PANEL)
+        self.sort_box.pack(side="right")
+        self.sort_seg = DP.Seg(self.sort_box, [(v, v) for v in SORTS], self.sort,
+                               self._set_sort)
+        self.sort_seg.pack(side="right")
+        tk.Label(self.sort_box, text="Urutkan murid", bg=PANEL, fg=MUTED,
+                 font=(C.FONT, 9)).pack(side="right", padx=(0, 8))
+        self.count_lbl = tk.Label(self.sort_box, text="", bg=PANEL, fg=MUTED,
+                                  font=(C.FONT, 10))
+        self.count_lbl.pack(side="right", padx=(0, 18))
         self.grid_cv = tk.Canvas(f, bg=PANEL, highlightthickness=0, bd=0, height=80)
         self.grid_cv.pack(fill="x", pady=(4, 20))
         # lebar tabel baru final setelah tata letak: gambar ulang SELURUHNYA saat lebar berubah
@@ -147,8 +152,10 @@ class CoursesPage(tk.Frame):
     def _section(self, f, title, desc):
         box = tk.Frame(f, bg=PANEL)
         box.pack(fill="x", pady=(24, 6))
-        tk.Label(box, text=title, bg=PANEL, fg=FG, font=(C.FONT, 12, "bold"),
-                 anchor="w").pack(fill="x")
+        box.title_row = tk.Frame(box, bg=PANEL)      # judul kiri, kontrol bagian ini di kanan
+        box.title_row.pack(fill="x")
+        tk.Label(box.title_row, text=title, bg=PANEL, fg=FG, font=(C.FONT, 12, "bold"),
+                 anchor="w").pack(side="left")
         tk.Label(box, text=desc, bg=PANEL, fg=MUTED, font=(C.FONT, 9), anchor="w",
                  justify="left", wraplength=640).pack(fill="x", pady=(2, 0))
         return box
@@ -224,8 +231,9 @@ class CoursesPage(tk.Frame):
                     self.filter(switched=True)
                     self.panel._note(f"Ditemukan di program {label}.")
                     return
-        if self.prog == "trial":
+        if self.prog == "trial":                 # trial tanpa tabel murid: tanpa urutan
             self.count_lbl.config(text="")
+            self.sort_box.pack_forget()
         elif words:
             extra = (f"  ·  {len(self.courses)} dari {len(self.all_courses)} kursus"
                      if cwords else "")
@@ -233,6 +241,8 @@ class CoursesPage(tk.Frame):
                                   + extra)
         else:
             self.count_lbl.config(text=f"{len(self.students)} murid")
+        if self.prog != "trial" and not self.sort_box.winfo_manager():
+            self.sort_box.pack(side="right")
         self._draw_grid()
 
     def _fill_list(self):
