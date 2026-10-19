@@ -37,8 +37,7 @@ FIELDS = (
 KEYS = tuple(f[0] for f in FIELDS)
 # Isian PILIHAN (tombol, sekali klik), bukan teks: kunci -> ((nilai, label English, label admin))
 CHOICES = {
-    "computer": (("pc", "PC", "PC"), ("laptop", "Laptop", "Laptop"),
-                 ("both", "PC & laptop", "PC & laptop"), ("none", "No", "Tidak punya")),
+    "computer": (("pc", "PC", "PC"), ("laptop", "Laptop", "Laptop"), ("none", "No", "Tidak punya")),
 }
 
 

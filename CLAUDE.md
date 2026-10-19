@@ -274,7 +274,7 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
   email, sekolah, minat kelas, nama & telepon orang tua, alamat, tahu dari mana, catatan.
   clean() memeriksa (pesan English). Isian PILIHAN (signups.CHOICES, tombol segmen sekali
   klik, klik lagi = batal): "computer" = "Do you have a PC or laptop at home?" -> pc / laptop /
-  both / none (label admin & Excel lewat signups.display: PC, Laptop, PC & laptop, Tidak punya).
+  none (3 tombol; label admin & Excel lewat signups.display: PC, Laptop, Tidak punya).
 - ui/signup_view.py SurveyDialog: popup English saat akun TRIAL keluar / menutup app
   (App._after_trial dipanggil dari logout() & _close(), BUKAN dari _logout yang dipakai Dev).
   Sekali per sesi trial (_survey_done), Submit / Skip -> lanjut keluar. Fitur "survey" di Dev.
