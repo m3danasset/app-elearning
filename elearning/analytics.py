@@ -601,4 +601,176 @@ def compute(period="30d", program="all"):
         "categories": _categories(students),
         "weekday": [sum(row) for row in heat],
         "tasks": _tasks(teachers),
+        "activity": _activity_totals(students, p0, p1),
     }
+
+
+# --- Insight (Analytics > Insight): kesimpulan otomatis dari hasil compute() ------------------
+# Satu insight = {level good | warn | bad | info, icon, title, body, action, target}. Diurut:
+# bad, warn, good, info. Dibuat dari data yang SUDAH dihitung (tanpa membaca file lagi), kecuali
+# rekap aktivitas Live Kelas (_activity_totals, ikut compute di thread).
+INSIGHT_ORDER = {"bad": 0, "warn": 1, "good": 2, "info": 3}
+
+
+def _activity_totals(students, p0, p1):
+    """Menit per jenis aktivitas (Live Kelas) semua murid dalam periode."""
+    try:
+        from elearning import presence
+    except Exception:
+        return {}
+    out = {k: 0.0 for k in presence.KINDS}
+    days = set()
+    for s in students:
+        for day, d in presence.activity_days(s["id"]).items():
+            try:
+                t = datetime.strptime(day, "%Y-%m-%d")
+            except ValueError:
+                continue
+            if (p0 and t < datetime(p0.year, p0.month, p0.day)) or (p1 and t > p1):
+                continue
+            days.add(day)
+            for k in presence.KINDS:
+                out[k] += d.get(k, 0) / 60.0
+    out["days"] = len(days)
+    return out
+
+
+def _pct(v):
+    return f"{abs(v):.0f}%"
+
+
+def insights(d):
+    out = []
+    k = d.get("kpi", {})
+    add = out.append
+    # --- tren belajar --------------------------------------------------------------------
+    sd = k.get("seconds_delta")
+    if sd is not None and abs(sd) >= 10:
+        up = sd > 0
+        add({"level": "good" if up else "warn", "icon": "activity",
+             "title": f"Jam belajar {'naik' if up else 'turun'} {_pct(sd)}",
+             "body": f"{fmt_hours(k.get('seconds', 0))} di {d.get('period_label', '')} "
+                     "dibanding periode sebelumnya.",
+             "action": "" if up else "Cek murid yang jarang login di bawah.", "target": ""})
+    if k.get("learners") is not None and k.get("active"):
+        rate = k["learners"] / k["active"]
+        if rate < 0.5:
+            add({"level": "warn", "icon": "users",
+                 "title": (f"Hanya {k['learners']} dari {k['active']} murid aktif belajar"
+                           if k["learners"] else "Belum ada murid yang belajar di periode ini"),
+                 "body": f"{round(rate * 100)}% murid aktif login di periode ini.",
+                 "action": "Hubungi murid yang belum login.", "target": "students"})
+    # --- murid perlu perhatian --------------------------------------------------------------
+    att = d.get("attention") or []
+    if att:
+        names = ", ".join(a["name"] for a in att[:5]) + (f" +{len(att) - 5}" if len(att) > 5 else "")
+        add({"level": "bad" if len(att) >= 5 else "warn", "icon": "user",
+             "title": f"{len(att)} murid perlu diperhatikan",
+             "body": names + ".", "action": "Buka daftar murid / hubungi orang tua.",
+             "target": "students"})
+    if k.get("unscheduled"):
+        add({"level": "warn", "icon": "clock",
+             "title": f"{k['unscheduled']} murid aktif belum punya jadwal",
+             "body": "Murid tanpa jadwal lebih mudah berhenti datang.",
+             "action": "Atur jadwal di menu Jadwal.", "target": "schedule"})
+    # --- kehadiran jadwal ---------------------------------------------------------------
+    att_rate = k.get("attendance")
+    if att_rate is not None:
+        lvl = "good" if att_rate >= 80 else "warn" if att_rate >= 60 else "bad"
+        add({"level": lvl, "icon": "check",
+             "title": f"Kehadiran jadwal {att_rate:.0f}%",
+             "body": "Hadir = login min. 10 menit di jam jadwal.",
+             "action": "" if lvl == "good" else "Lihat jadwal dengan kehadiran terendah.",
+             "target": "schedule"})
+    low = [r for r in d.get("schedule") or [] if r.get("frac", 1) < 0.5]
+    if low:
+        add({"level": "bad", "icon": "clock",
+             "title": f"{len(low)} jadwal kehadirannya di bawah 50%",
+             "body": ", ".join(f"{r['title']} ({r['text'].split()[0]})" for r in low[:4]) + ".",
+             "action": "Pertimbangkan pindah jam / gabung kelas.", "target": "schedule"})
+    # --- jam ramai ------------------------------------------------------------------------
+    heat = d.get("heat") or []
+    best = None
+    for di, row in enumerate(heat):
+        for hi, v in enumerate(row):
+            if v > 0 and (best is None or v > best[0]):
+                best = (v, di, list(HEAT_HOURS)[hi])
+    if best:
+        add({"level": "info", "icon": "clock",
+             "title": f"Paling ramai: {DAY_SHORT[best[1]]} {best[2]:02d}.00",
+             "body": f"Rata-rata {best[0]:.1f} murid login di jam itu.",
+             "action": "Pastikan guru & PC cukup di jam ini.", "target": "schedule"})
+    # --- kursus -----------------------------------------------------------------------------
+    courses = [c for c in d.get("courses") or [] if c.get("count")]
+    if courses:
+        top_c = max(courses, key=lambda c: c["count"])
+        add({"level": "info", "icon": "play", "title": f"Kursus terbanyak: {top_c['title']}",
+             "body": f"{top_c['count']} murid membuka kursus ini.", "action": "",
+             "target": ""})
+    # --- karya & badge ----------------------------------------------------------------------
+    ud = k.get("uploads_delta")
+    if ud is not None and abs(ud) >= 20:
+        add({"level": "good" if ud > 0 else "warn", "icon": "image",
+             "title": f"Upload portfolio {'naik' if ud > 0 else 'turun'} {_pct(ud)}",
+             "body": f"{k.get('uploads', 0)} file di periode ini.", "action": "", "target": ""})
+    if k.get("uploads", 0) == 0 and k.get("learners"):
+        add({"level": "warn", "icon": "image", "title": "Belum ada portfolio masuk",
+             "body": "Murid belajar tapi belum mengunggah karya.",
+             "action": "Ingatkan murid unggah hasil latihan.", "target": ""})
+    # --- pendaftar trial --------------------------------------------------------------------
+    su = d.get("signups") or {}
+    if su.get("pending"):
+        old = su.get("oldest_days")
+        add({"level": "bad" if (old or 0) >= 3 else "warn", "icon": "user",
+             "title": f"{su['pending']} pendaftar trial menunggu",
+             "body": (f"Yang paling lama sudah {old} hari." if old else "Belum diproses."),
+             "action": "Hubungi & setujui di menu Pendaftar.", "target": "signups"})
+    if su.get("conv") is not None and su.get("total", 0) >= 3:
+        add({"level": "good" if su["conv"] >= 50 else "info", "icon": "activity",
+             "title": f"Konversi trial {su['conv']:.0f}%",
+             "body": f"{su.get('approved', 0)} dari {su['total']} pendaftar jadi murid.",
+             "action": "", "target": ""})
+    if su.get("sources"):
+        src = su["sources"][0]
+        add({"level": "info", "icon": "search", "title": f"Sumber pendaftar terbanyak: {src[0]}",
+             "body": f"{src[1]} pendaftar tahu dari sini.", "action": "Perkuat promosi di sini.",
+             "target": ""})
+    # --- survey murid -----------------------------------------------------------------------
+    ss = d.get("student_survey") or {}
+    for q, counts, answered in (ss.get("tally") or [])[:2]:
+        if not answered:
+            continue
+        opt, n = max(counts, key=lambda x: x[1])
+        add({"level": "info", "icon": "quiz", "title": f"Survey: \"{opt}\" paling banyak dipilih",
+             "body": f"{q['text']}  ·  {n} dari {answered} murid.", "action": "",
+             "target": "survey"})
+    # --- laporan guru -----------------------------------------------------------------------
+    tasks = d.get("tasks") or []
+    unc = sum(t.get("unchecked", 0) for t in tasks)
+    if unc:
+        add({"level": "warn", "icon": "report", "title": f"{unc} tugas guru belum dicek",
+             "body": ", ".join(t["title"] for t in tasks if t.get("unchecked")) + ".",
+             "action": "Cek di Agenda & Laporan > Laporan guru.", "target": "reports"})
+    idle_t = [t["title"] for t in tasks if t.get("total") == 0]
+    if idle_t and tasks:
+        add({"level": "info", "icon": "report",
+             "title": f"{len(idle_t)} guru belum mengisi laporan bulan ini",
+             "body": ", ".join(idle_t[:5]) + ".", "action": "", "target": "reports"})
+    # --- aktivitas Live Kelas ---------------------------------------------------------------
+    act = d.get("activity") or {}
+    total = sum(act.get(x, 0) for x in ("video", "blender", "browse", "page", "idle"))
+    if total >= 30:
+        idle_pct = act.get("idle", 0) / total * 100
+        blend_pct = act.get("blender", 0) / total * 100
+        add({"level": "good" if blend_pct >= 30 else "info", "icon": "play",
+             "title": f"{blend_pct:.0f}% waktu kelas dipakai di Blender",
+             "body": f"Video {act.get('video', 0) / total * 100:.0f}%  ·  browsing "
+                     f"{act.get('browse', 0) / total * 100:.0f}%  ·  diam {idle_pct:.0f}%  "
+                     f"(dari Live Kelas, {act.get('days', 0)} hari).", "action": "",
+             "target": "live"})
+        if idle_pct >= 25:
+            add({"level": "warn", "icon": "clock", "title": f"Murid diam {idle_pct:.0f}% waktu",
+                 "body": "Tidak ada input mouse / keyboard >= 5 menit saat app terbuka.",
+                 "action": "Pantau di Live Kelas saat kelas berjalan.", "target": "live"})
+    out.sort(key=lambda x: INSIGHT_ORDER.get(x["level"], 9))
+    return out

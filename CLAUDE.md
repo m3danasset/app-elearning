@@ -330,6 +330,15 @@ eport_tasks.json, per guru per bulan, bagian MINGGU INI (week)
 - student_survey: jawaban "answers" {qid: jawaban}; rekaman lama (level / interests berkode)
   diterjemahkan answers_of. Excel Survey Murid: kolom = pertanyaan sekarang.
 
+## Analytics > Insight (tombol Dashboard | Insight di bar atas, diingat di _an_state "page")
+- analytics.insights(d): kesimpulan otomatis dari hasil compute (tanpa baca file lagi) {level bad |
+  warn | good | info, icon, title, body, action, target}: tren jam belajar / upload, murid aktif yang
+  tidak belajar, perlu diperhatikan, tanpa jadwal, kehadiran + jadwal < 50 %, jam ramai, kursus
+  terbanyak, pendaftar menunggu / konversi / sumber, jawaban survey terbanyak, tugas guru belum
+  dicek / guru belum mengisi, aktivitas Live Kelas (_activity_totals: % Blender / video / diam).
+  Urut bad -> info. AnalyticsBoard._insight_page: kartu 2 kolom (garis + ikon warna tingkat), saran
+  bisa diklik -> on_target (admin _set_tab). Insight baru: tambah di insights(), data dari compute.
+
 ## Analytics admin = 16 kartu PAS SATU LAYAR (tanpa gulir saat layar penuh)
 - 8 kartu angka (+ Survey murid, Tugas guru) lalu kisi 4 x 4 (>= 1000 px; 3 kolom >= 760, 2):
   jam belajar, upload, jam ramai, murid per kategori (donut PB / IC / SK, analytics._categories),

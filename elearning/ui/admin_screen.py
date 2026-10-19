@@ -492,7 +492,7 @@ class AdminScreen(SidebarLayout):
                 on_edit=self._edit_slot)
         if self.tab == "analytics" and self.analytics is None:
             self.analytics = AnalyticsPanel(self.scroll.inner, self._an_state,
-                                            on_open=self._open_person)
+                                            on_open=self._open_person, on_target=self._set_tab)
         if self.tab == "certificates" and self.cert_board is None:
             from elearning.ui.certificate_view import CertificateBoard
             self.cert_board = CertificateBoard(self.scroll.inner, by=self.admin_id)
