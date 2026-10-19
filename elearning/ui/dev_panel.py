@@ -1,9 +1,10 @@
 """Jendela Dev (Ctrl KANAN + Shift KANAN + Backspace, di layar mana pun).
 
 Dibuka setelah PIN Dev benar (DevPinDialog; yang disimpan hanya hash-nya, DEV_PIN_HASH).
-Sengaja sederhana: widget Tk biasa, selalu di atas (topmost). Dua tab:
-- Login    : cari akun (admin, guru, murid, trial) lalu masuk tanpa PIN.
-- Settings : tampilan login, warna aksen, dan fitur aplikasi on/off (data\\app_settings.json).
+Gaya Settings Claude (tanpa animasi): jendela bersudut bulat, navigasi kiri (Search, Akun,
+halaman Settings), isi kanan berupa baris judul + keterangan | kontrol. Selalu di atas.
+- Akun     : cari akun (admin, guru, murid, trial) lalu masuk tanpa PIN.
+- Settings : tampilan login, warna aksen, fitur on/off, nilai isian (data\\app_settings.json).
 """
 
 import time
@@ -12,7 +13,7 @@ import tkinter as tk
 from elearning import app_settings as S
 from elearning import config as C
 
-BG, FG, MUTED, FIELD = "#202020", "#e8e8e8", "#9a9a9a", "#2c2c2c"
+BG, FG, MUTED, FIELD = "#1f1e1d", "#ececea", "#9c998f", "#262523"
 FONT = (C.FONT, 9)
 BOLD = (C.FONT, 9, "bold")
 MONO = ("Consolas", 9)            # huruf lebar tetap: kolom Jenis | ID | Nama rata
@@ -123,30 +124,292 @@ def _ui_save(**kv):
         C.log(f"Dev: posisi jendela tidak tersimpan: {exc!r}")
 
 
+# =============================================================================================
+# Gaya Settings Claude (tanpa animasi): panel bersudut bulat, navigasi kiri + baris di kanan
+# =============================================================================================
+KEY = "#010203"                      # warna kunci: sudut jendela tembus (-transparentcolor)
+PANEL = "#1f1e1d"                    # latar panel
+NAV_SEL = "#2c2b28"                  # item navigasi terpilih
+NAV_HOV = "#262523"
+LINE = "#2e2d2a"                     # garis pemisah baris
+SEG_BG, SEG_LINE, SEG_ON = "#262523", "#353431", "#3a3935"
+RADIUS = 14
+NAV_W = 226
+
+
+def _pill(w, h, fill, bg, r=8, border=None):
+    from elearning.ui import ui_icons as I
+    return I.pill(int(w), int(h), fill, bg, r=r, border=border)
+
+
+def _rounded_window(win, w, h, bg=PANEL, border=LINE):
+    """Jendela tanpa bilah judul, sudut membulat (warna kunci tembus). Kembalikan frame isi."""
+    win.overrideredirect(True)
+    win.configure(bg=KEY)
+    rounded = True
+    try:
+        win.attributes("-transparentcolor", KEY)
+    except tk.TclError:
+        rounded = False
+    cv = tk.Canvas(win, width=w, height=h, bg=KEY if rounded else bg, highlightthickness=0,
+                   bd=0)
+    cv.pack(fill="both", expand=True)
+    win._round_img = _pill(w, h, bg, KEY if rounded else bg, r=RADIUS, border=border)
+    if win._round_img is not None:
+        cv.create_image(0, 0, image=win._round_img, anchor="nw")
+    inner = tk.Frame(cv, bg=bg)
+    inset = 6
+    cv.create_window(inset, inset, window=inner, anchor="nw", width=w - 2 * inset,
+                     height=h - 2 * inset)
+    return inner
+
+
+def _draggable(win, *widgets):
+    """Geser jendela tanpa bilah judul dengan menyeret widget ini."""
+    def press(e):
+        win._drag = (e.x_root - win.winfo_x(), e.y_root - win.winfo_y())
+
+    def move(e):
+        d = getattr(win, "_drag", None)
+        if d:
+            win.geometry(f"+{e.x_root - d[0]}+{e.y_root - d[1]}")
+    for w in widgets:
+        w.bind("<ButtonPress-1>", press, add="+")
+        w.bind("<B1-Motion>", move, add="+")
+
+
+class Seg(tk.Canvas):
+    """Tombol segmen gaya Claude (mis. Small | Medium | Large): satu terpilih."""
+
+    H, PAD = 32, 3
+
+    def __init__(self, master, options, value, command=None, bg=PANEL):
+        import tkinter.font as tkfont
+        self.opts, self.value, self.command, self._bg = list(options), value, command, bg
+        self.f = tkfont.Font(family=C.FONT, size=10)
+        self.ws = [self.f.measure(label) + 26 for _v, label in self.opts]
+        w = sum(self.ws) + 2 * self.PAD
+        super().__init__(master, width=w, height=self.H, bg=bg, highlightthickness=0, bd=0,
+                         cursor="hand2")
+        self.W = w
+        self._hov = None
+        self._imgs = []
+        self.bind("<Button-1>", self._click)
+        self.bind("<Motion>", lambda e: self._hover(self._at(e.x)))
+        self.bind("<Leave>", lambda e: self._hover(None))
+        self._draw()
+
+    def _at(self, x):
+        cx = self.PAD
+        for i, w in enumerate(self.ws):
+            if cx <= x < cx + w:
+                return i
+            cx += w
+        return None
+
+    def _hover(self, i):
+        if i != self._hov:
+            self._hov = i
+            self._draw()
+
+    def _click(self, e):
+        i = self._at(e.x)
+        if i is None:
+            return
+        v = self.opts[i][0]
+        if v != self.value:
+            self.value = v
+            self._draw()
+            if self.command is not None:
+                self.command(v)
+
+    def set(self, value):
+        self.value = value
+        self._draw()
+
+    def _draw(self):
+        self.delete("all")
+        self._imgs = [_pill(self.W, self.H, SEG_BG, self._bg, r=9, border=SEG_LINE)]
+        self.create_image(0, 0, image=self._imgs[0], anchor="nw")
+        x = self.PAD
+        for i, ((v, label), w) in enumerate(zip(self.opts, self.ws)):
+            on = v == self.value
+            if on or i == self._hov:
+                img = _pill(w, self.H - 2 * self.PAD, SEG_ON if on else NAV_HOV, SEG_BG, r=7,
+                            border="#4a4945" if on else None)
+                self._imgs.append(img)
+                self.create_image(x, self.PAD, image=img, anchor="nw")
+            self.create_text(x + w / 2, self.H / 2, text=label, font=self.f,
+                             fill=FG if on else MUTED)
+            x += w
+
+
+class Swatches(tk.Canvas):
+    """Pilihan warna aksen: lingkaran berwarna, yang terpilih bercincin."""
+
+    D, GAP = 26, 10
+
+    def __init__(self, master, options, value, command=None, bg=PANEL):
+        self.opts, self.value, self.command, self._bg = list(options), value, command, bg
+        w = len(self.opts) * (self.D + self.GAP) - self.GAP + 4
+        super().__init__(master, width=w, height=self.D + 4, bg=bg, highlightthickness=0,
+                         bd=0, cursor="hand2")
+        self._imgs = []
+        self.bind("<Button-1>", self._click)
+        self._draw()
+
+    def _click(self, e):
+        i = int((e.x - 2) // (self.D + self.GAP))
+        if 0 <= i < len(self.opts) and self.opts[i][0] != self.value:
+            self.value = self.opts[i][0]
+            self._draw()
+            if self.command is not None:
+                self.command(self.value)
+
+    def _draw(self):
+        from elearning.ui import ui_icons as I
+        self.delete("all")
+        self._imgs = []
+        D = self.D
+        for i, (key, color, _name) in enumerate(self.opts):
+            cx, cy = 2 + i * (D + self.GAP) + D / 2, 2 + D / 2
+            if key == self.value:             # cincin terang di sekeliling yang terpilih
+                ring = _pill(D, D, self._bg, self._bg, r=D / 2, border=FG)
+                self._imgs.append(ring)
+                self.create_image(cx, cy, image=ring)
+            dot = I.dot(color, self._bg, D - 8, (D - 8) / 2 - 0.5)
+            self._imgs.append(dot)
+            self.create_image(cx, cy, image=dot)
+
+
+class NavItem(tk.Canvas):
+    """Baris navigasi kiri (ikon + teks), sorot saat terpilih / disorot."""
+
+    H = 32
+
+    def __init__(self, master, text, icon, command, width=NAV_W - 24):
+        import tkinter.font as tkfont
+        super().__init__(master, width=width, height=self.H, bg=PANEL, highlightthickness=0,
+                         bd=0, cursor="hand2")
+        self.text, self.icon, self.command, self.W = text, icon, command, width
+        self.f = tkfont.Font(family=C.FONT, size=10)
+        self.active = self._hov = False
+        self._imgs = []
+        self.bind("<Button-1>", lambda e: self.command())
+        self.bind("<Enter>", lambda e: self._set_hov(True))
+        self.bind("<Leave>", lambda e: self._set_hov(False))
+        self._draw()
+
+    def _set_hov(self, on):
+        self._hov = on
+        self._draw()
+
+    def set_active(self, on):
+        if on != self.active:
+            self.active = on
+            self._draw()
+
+    def _draw(self):
+        from elearning.ui import ui_icons as I
+        self.delete("all")
+        bg = NAV_SEL if self.active else NAV_HOV if self._hov else PANEL
+        self._imgs = []
+        if bg != PANEL:
+            img = _pill(self.W, self.H, bg, PANEL, r=8)
+            self._imgs.append(img)
+            self.create_image(0, 0, image=img, anchor="nw")
+        ic = I.icon(self.icon, FG if self.active else "#c9c6bd", bg, 18) if self.icon else None
+        x = 12
+        if ic is not None:
+            self._imgs.append(ic)
+            self.create_image(x, self.H / 2, image=ic, anchor="w")
+            x += 28
+        self.create_text(x, self.H / 2, text=self.text, anchor="w", font=self.f,
+                         fill=FG if self.active else "#d7d4cb")
+
+
+class CloseBtn(tk.Canvas):
+    def __init__(self, master, command):
+        super().__init__(master, width=30, height=30, bg=PANEL, highlightthickness=0, bd=0,
+                         cursor="hand2")
+        self.command = command
+        self._imgs = []
+        self.bind("<Button-1>", lambda e: command())
+        self.bind("<Enter>", lambda e: self._draw(True))
+        self.bind("<Leave>", lambda e: self._draw(False))
+        self._draw(False)
+
+    def _draw(self, hov):
+        from elearning.ui import ui_icons as I
+        self.delete("all")
+        bg = NAV_HOV if hov else PANEL
+        self._imgs = []
+        if hov:
+            self._imgs.append(_pill(30, 30, bg, PANEL, r=8))
+            self.create_image(0, 0, image=self._imgs[-1], anchor="nw")
+        ic = I.icon("close", FG if hov else MUTED, bg, 18)
+        if ic is not None:
+            self._imgs.append(ic)
+            self.create_image(15, 15, image=ic)
+
+
+def _btn(parent, text, command, kind="secondary", bg=PANEL):
+    """Tombol gaya Claude: primary (warna aksen), secondary (abu), danger (teks merah)."""
+    from elearning.ui.controls import RoundButton
+    if kind == "primary":
+        return RoundButton(parent, text=text, command=command, bg=C.ACCENT, fg="white",
+                           activebackground=C.ACCENT_HOVER, activeforeground="white",
+                           font=(C.FONT, 10, "bold"), padx=16, pady=7, radius=8)
+    fg = "#ff6b6b" if kind == "danger" else FG
+    return RoundButton(parent, text=text, command=command, bg=SEG_ON, fg=fg,
+                       activebackground="#45443f", activeforeground=fg,
+                       font=(C.FONT, 10, "bold"), padx=16, pady=7, radius=8)
+
+
 class DevPinDialog(tk.Toplevel):
-    """Minta PIN sebelum jendela Dev dibuka. Enter = cek, Esc / tutup = batal."""
+    """Minta PIN sebelum jendela Dev dibuka (kartu kecil gaya Claude, tanpa animasi).
+    Enter = cek, Esc / x / Batal = batal."""
+
+    W, H = 380, 222
 
     def __init__(self, app):
-        super().__init__(app, bg=BG)
+        from elearning.ui.controls import RoundEntry
+        super().__init__(app)
         self.app = app
+        self.withdraw()
         self.title("Dev")
         self.attributes("-topmost", True)
-        self.resizable(False, False)
-        self.geometry(f"260x128+{app.winfo_rootx() + 40}+{app.winfo_rooty() + 60}")
-        tk.Label(self, text="PIN Dev", bg=BG, fg=FG, font=BOLD, anchor="w").pack(
-            fill="x", padx=14, pady=(12, 4))
+        body = _rounded_window(self, self.W, self.H)
+        pad = tk.Frame(body, bg=PANEL)
+        pad.pack(fill="both", expand=True, padx=22, pady=(16, 18))
+        top = tk.Frame(pad, bg=PANEL)
+        top.pack(fill="x")
+        title = tk.Label(top, text="PIN Dev", bg=PANEL, fg=FG, font=(C.FONT, 13, "bold"),
+                         anchor="w")
+        title.pack(side="left")
+        CloseBtn(top, self.destroy).pack(side="right")
+        sub = tk.Label(pad, text="Masukkan PIN untuk membuka jendela Dev.", bg=PANEL,
+                       fg=MUTED, font=(C.FONT, 10), anchor="w")
+        sub.pack(fill="x", pady=(2, 12))
         self.var = tk.StringVar()
-        self.entry = tk.Entry(self, textvariable=self.var, show="\u2022", font=FONT, bg=FIELD,
-                              fg=FG, insertbackground=FG, relief="flat")
-        self.entry.pack(fill="x", padx=14, ipady=4)
-        self.msg = tk.Label(self, text="", bg=BG, fg=C.ERROR, font=FONT, anchor="w")
-        self.msg.pack(fill="x", padx=14, pady=(6, 0))
-        tk.Button(self, text="Buka", font=BOLD, relief="flat", bg=C.ACCENT, fg="white",
-                  activebackground=C.ACCENT_HOVER, activeforeground="white",
-                  command=self._check).pack(fill="x", padx=14, pady=(4, 10), ipady=1)
+        box = RoundEntry(pad, self.var, show="•", width_chars=24, font=(C.FONT, 11),
+                         height=38, fill=SEG_BG, radius=9)
+        box.pack(fill="x")
+        self.entry = box.entry
+        self.msg = tk.Label(pad, text="", bg=PANEL, fg=C.ERROR, font=(C.FONT, 9), anchor="w")
+        self.msg.pack(fill="x", pady=(6, 0))
+        btns = tk.Frame(pad, bg=PANEL)
+        btns.pack(side="bottom", fill="x")
+        _btn(btns, "Buka", self._check, "primary").pack(side="right")
+        _btn(btns, "Batal", self.destroy).pack(side="right", padx=(0, 8))
+        _draggable(self, pad, top, title, sub)
         self.entry.bind("<Return>", lambda e: self._check())
         self.bind("<Escape>", lambda e: self.destroy())
         self.var.trace_add("write", lambda *a: self._limit())
+        x = app.winfo_rootx() + max(0, (app.winfo_width() - self.W) // 2)
+        y = app.winfo_rooty() + max(0, (app.winfo_height() - self.H) // 3)
+        self.geometry(f"{self.W}x{self.H}+{x}+{y}")
+        self.deiconify()
         self._locked_tick()
         self.after(10, self._focus)
 
@@ -202,6 +465,7 @@ class DevPinDialog(tk.Toplevel):
         super().destroy()
 
 
+
 def open_dev(app):
     """Shortcut Dev: kalau jendela Dev sudah terbuka, munculkan; kalau belum, minta PIN dulu."""
     w = _open["win"]
@@ -242,125 +506,232 @@ def _show_dev(app):
     return _open["win"]
 
 
+GROUP_ICONS = {"Web murid": "web_pin", "Tampilan UI": "grid", "Login": "lock",
+               "Carousel": "image", "Beranda": "home", "Video": "play", "Mini player": "play",
+               "Badge": "award", "Sertifikat": "check", "Jadwal": "clock",
+               "Analytics": "activity", "Search": "search", "File": "folder", "Batas": "file",
+               "Admin": "teacher"}
+
+
 class DevPanel(tk.Toplevel):
+    """Jendela Dev gaya Settings Claude: navigasi kiri (Search, Akun, halaman Settings),
+    isi kanan berupa baris (judul + keterangan | kontrol) dengan garis tipis. Tanpa animasi."""
+
     def __init__(self, app):
-        super().__init__(app, bg=BG)
+        super().__init__(app)
         self.app = app
+        self.withdraw()
         self.title("Dev")
         self.attributes("-topmost", True)      # selalu di atas
-        self.resizable(False, True)
-        self.geometry(f"380x680+{app.winfo_rootx() + 40}+{app.winfo_rooty() + 60}")
-        self._scroll_cv = None
-        self.bind("<MouseWheel>", self._wheel)
-        tabs = tk.Frame(self, bg=BG)
-        tabs.pack(fill="x", padx=8, pady=(8, 4))
-        self.body = tk.Frame(self, bg=BG)
-        self.body.pack(fill="both", expand=True, padx=8, pady=(0, 8))
-        self._tab_btns = {}
-        for key, label in (("login", "Login"), ("settings", "Settings")):
-            b = tk.Button(tabs, text=label, font=BOLD, relief="flat", bd=0, padx=12, pady=4,
-                          bg=FIELD, fg=FG, activebackground="#3a3a3a", activeforeground=FG,
-                          command=lambda k=key: self.show(k))
-            b.pack(side="left", padx=(0, 4))
-            self._tab_btns[key] = b
-        self.status = tk.Label(self, text="", bg=BG, fg=MUTED, font=FONT, anchor="w")
-        self.status.pack(fill="x", padx=8, pady=(0, 6))
-        self.bind("<Escape>", lambda e: self.destroy())
+        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
+        self.W, self.H = min(1080, sw - 60), min(780, sh - 80)
+        self._outer = _rounded_window(self, self.W, self.H)
         self._save_job = None
         self._restoring = False
-        self.show("settings" if _ui_state().get("tab") == "settings" else "login")
+        self._scroll_cv = None
+        self.page = None
+        self.bind("<MouseWheel>", self._wheel)
+        self.bind("<Escape>", self._escape)
+        self._build()
+        st = _ui_state()
+        page = {"login": "akun", "settings": "umum"}.get(st.get("tab"), st.get("tab") or "akun")
+        if page not in self._nav:
+            page = "akun"
+        self.show(page, restore=True)
+        x = app.winfo_rootx() + max(0, (app.winfo_width() - self.W) // 2)
+        y = app.winfo_rooty() + max(0, (app.winfo_height() - self.H) // 2)
+        self.geometry(f"{self.W}x{self.H}+{x}+{y}")
+        self.deiconify()
+        self.after(10, self._focus)
 
-    def show(self, key):
-        self._restoring = True        # kanvas lama dibuang: jangan simpan gulir "0" sementara
+    def _focus(self):
+        try:
+            self.lift()
+            self.focus_force()
+            self._search.focus_set()
+        except tk.TclError:
+            pass
+
+    def _escape(self, _e=None):
+        if self._q.get():                  # Esc pertama = kosongkan cari, kedua = tutup
+            self._q.set("")
+        else:
+            self.destroy()
+
+    # --- kerangka -------------------------------------------------------------------------
+    def _build(self):
+        from elearning.ui.controls import RoundEntry
+        for w in self._outer.winfo_children():
+            w.destroy()
+        nav = tk.Frame(self._outer, bg=PANEL, width=NAV_W)
+        nav.pack(side="left", fill="y")
+        nav.pack_propagate(False)
+        tk.Frame(self._outer, bg=LINE, width=1).pack(side="left", fill="y")
+        main = tk.Frame(self._outer, bg=PANEL)
+        main.pack(side="left", fill="both", expand=True)
+        # navigasi kiri
+        self._q = tk.StringVar(value=_ui_state().get("query", ""))
+        box = RoundEntry(nav, self._q, placeholder="Search", icon="search", width_chars=14,
+                         font=(C.FONT, 10), height=34, fill=SEG_BG, radius=9)
+        box.pack(fill="x", padx=12, pady=(14, 8))
+        self._search = box.entry
+        self._search.bind("<Return>", lambda e: self._login() if self.page == "akun" else None)
+        self._search.bind("<Down>", lambda e: self._move(1) if self.page == "akun" else None)
+        self._search.bind("<Up>", lambda e: self._move(-1) if self.page == "akun" else None)
+        self._nav = {}
+
+        def section(text):
+            tk.Label(nav, text=text, bg=PANEL, fg=MUTED, font=(C.FONT, 9),
+                     anchor="w").pack(fill="x", padx=20, pady=(10, 3))
+        section("Dev")
+        self._add_nav(nav, "akun", "Akun", "users")
+        section("Settings")
+        for key, label, icon in self._pages():
+            self._add_nav(nav, key, label, icon)
+        _draggable(self, nav)
+        # kanan: kepala (tombol x), isi, bilah bawah
+        head = tk.Frame(main, bg=PANEL, height=46)
+        head.pack(fill="x")
+        head.pack_propagate(False)
+        CloseBtn(head, self.destroy).pack(side="right", padx=(0, 14), pady=(12, 0))
+        _draggable(self, head)
+        self.bottom = tk.Frame(main, bg=PANEL)
+        self.bottom.pack(side="bottom", fill="x", padx=28, pady=(10, 16))
+        tk.Frame(main, bg=LINE, height=1).pack(side="bottom", fill="x")
+        self.status = tk.Label(self.bottom, text="", bg=PANEL, fg=MUTED, font=(C.FONT, 9),
+                               anchor="w")
+        self._bar_acc = tk.Frame(self.bottom, bg=PANEL)
+        self.del_btn = _btn(self._bar_acc, "Hapus", self._delete, "danger")
+        self.del_btn.pack(side="right")
+        self.edit_btn = _btn(self._bar_acc, "Edit", self._edit)
+        self.edit_btn.pack(side="right", padx=(0, 8))
+        _btn(self._bar_acc, "Masuk", self._login, "primary").pack(side="right", padx=(0, 8))
+        self._bar_set = tk.Frame(self.bottom, bg=PANEL)
+        # Apply Now = sementara (sampai app ditutup); Apply As Default = disimpan ke file
+        self.apply_btn = _btn(self._bar_set, "Apply Now", lambda: self._apply(False), "primary")
+        self.apply_btn.pack(side="right")
+        self.default_btn = _btn(self._bar_set, "Apply As Default", lambda: self._apply(True))
+        self.default_btn.pack(side="right", padx=(0, 8))
+        _btn(self._bar_set, "Reset nilai", self._reset_values).pack(side="right", padx=(0, 8))
+        self.area = tk.Frame(main, bg=PANEL)
+        self.area.pack(fill="both", expand=True)
+        self._build_accounts(self.area)
+        self._build_settings(self.area)
+        self._q.trace_add("write", lambda *a: self._on_query())
+
+    def _add_nav(self, nav, key, label, icon):
+        item = NavItem(nav, label, icon, lambda k=key: self.show(k))
+        item.pack(padx=12, pady=0, anchor="w")
+        self._nav[key] = item
+
+    def _pages(self):
+        from elearning import dev_values as DV
+        out = [("umum", "Tampilan", "image"), ("fitur", "Fitur", "check")]
+        seen = []
+        for _key, grp, _label, _kind, _t in DV.VALUES:
+            if grp not in seen:
+                seen.append(grp)
+                out.append(("v:" + grp, grp, GROUP_ICONS.get(grp, "list")))
+        return out
+
+    def show(self, key, restore=False):
+        """Buka halaman (Akun / halaman Settings). Kolom cari tetap berlaku."""
+        self._restoring = True
+        self.page = key
         if _ui_state().get("tab") != key:
             _ui_save(tab=key)
-        for k, b in self._tab_btns.items():
-            b.config(bg="#3a3a3a" if k == key else FIELD)
-        for w in self.body.winfo_children():
-            w.destroy()
-        (self._login_tab if key == "login" else self._settings_tab)()
+        searching = bool(self._q.get().strip()) and key != "akun"
+        for k, n in self._nav.items():
+            n.set_active(k == key and not searching)
+        for w in self.bottom.winfo_children():
+            w.pack_forget()
+        self.status.pack(side="left", fill="x", expand=True)
+        if key == "akun":
+            self._set_frame.pack_forget()
+            self._acc_frame.pack(fill="both", expand=True)
+            self._bar_acc.pack(side="right")
+            self._scroll_cv = self.tb
+            self._refill()
+            self._restoring = False
+        else:
+            self._acc_frame.pack_forget()
+            self._set_frame.pack(fill="both", expand=True)
+            self._bar_set.pack(side="right")
+            self._scroll_cv = self.scv
+            self._filter()
+            frac = float(_ui_state().get("scroll", 0.0) or 0.0) if restore else 0.0
+            self.after_idle(lambda f=frac: self._restore_scroll(f))
+            self._changed()
+
+    def _on_query(self):
+        if not self._restoring:
+            self._remember(query=self._q.get())
+        if self.page == "akun":
+            self._refill()
+        else:
+            for k, n in self._nav.items():
+                n.set_active(k == self.page and not self._q.get().strip())
+            self._filter()
 
     def _note(self, text):
         self.status.config(text=text)
 
-    # --- Login ----------------------------------------------------------------------------
+    # --- halaman Akun -------------------------------------------------------------------
     # Tabel 4 kolom di SATU kanvas: Jenis | ID | Nama | PIN. Klik = pilih, klik 2x sel = ubah
     # di tempat, kursor di atas baris = PIN terlihat (selain itu ****). Masuk: tombol / Enter.
-    ROW_H = 20
+    ROW_H = 34
     COLS = ("kind", "id", "name", "pin")
 
-    def _login_tab(self):
+    def _build_accounts(self, parent):
         import tkinter.font as tkfont
         from elearning.ui.dev_login import KIND, accounts
+        from elearning.ui.widgets import DarkScrollbar
         self._kind = KIND
         self.items = accounts()
         self.sel = None
         self._hov = None
         self._editing = None
-        self._mono = tkfont.Font(font=MONO)
-        self.q = tk.StringVar()
-        e = tk.Entry(self.body, textvariable=self.q, font=FONT, bg=FIELD, fg=FG,
-                     insertbackground=FG, relief="flat")
-        e.pack(fill="x", ipady=4)
-        self._search = e
-        # filter jenis + sortir
-        bar = tk.Frame(self.body, bg=BG)
-        bar.pack(fill="x", pady=(6, 0))
+        self._mono = tkfont.Font(family=C.FONT, size=10)
+        self._head_f = tkfont.Font(family=C.FONT, size=9, weight="bold")
+        f = self._acc_frame = tk.Frame(parent, bg=PANEL)
+        wrap = tk.Frame(f, bg=PANEL)
+        wrap.pack(fill="both", expand=True, padx=(28, 18))
+        tk.Label(wrap, text="Akun", bg=PANEL, fg=FG, font=(C.FONT, 14, "bold"),
+                 anchor="w").pack(fill="x")
+        tk.Label(wrap, text="Masuk ke akun mana pun tanpa PIN. Klik 2x sel = ubah, kursor di "
+                            "baris = PIN terlihat.", bg=PANEL, fg=MUTED, font=(C.FONT, 10),
+                 anchor="w").pack(fill="x", pady=(2, 14))
+        bar = tk.Frame(wrap, bg=PANEL)
+        bar.pack(fill="x", padx=(0, 10))
         self.f_kind = tk.StringVar(value="Semua")
         self.f_sort = tk.StringVar(value="Nama")
-        for label, var, values in (("Jenis", self.f_kind, FILTERS), ("Urut", self.f_sort, SORTS)):
-            tk.Label(bar, text=label, bg=BG, fg=MUTED, font=FONT).pack(side="left", padx=(0, 4))
-            om = tk.OptionMenu(bar, var, *values, command=lambda _v: self._refill())
-            om.config(font=FONT, bg=FIELD, fg=FG, activebackground="#3a3a3a",
-                      activeforeground=FG, relief="flat", highlightthickness=0, bd=0)
-            om["menu"].config(font=FONT, bg=FIELD, fg=FG, activebackground=C.ACCENT)
-            om.pack(side="left", padx=(0, 10))
-        # judul kolom (kanvas sendiri, posisi x sama dengan tabel)
-        self.head = tk.Canvas(self.body, bg=BG, height=18, highlightthickness=0, bd=0)
-        self.head.pack(fill="x", pady=(6, 0))
-        btns = tk.Frame(self.body, bg=BG)
-        btns.pack(fill="x", side="bottom")
-        tk.Label(self.body, text="Klik 2x sel = ubah  \u00b7  kursor di baris = PIN terlihat",
-                 bg=BG, fg=MUTED, font=FONT, anchor="w").pack(fill="x", side="bottom",
-                                                             pady=(2, 4))
-        wrap = tk.Frame(self.body, bg=FIELD)
-        wrap.pack(fill="both", expand=True, pady=(2, 0))
-        self.tb = tk.Canvas(wrap, bg=FIELD, highlightthickness=0, bd=0)
-        sb = tk.Scrollbar(wrap, command=self.tb.yview)
+        Seg(bar, [(v, v) for v in FILTERS], "Semua",
+            lambda v: (self.f_kind.set(v), self._refill())).pack(side="left")
+        Seg(bar, [(v, v) for v in SORTS], "Nama",
+            lambda v: (self.f_sort.set(v), self._refill())).pack(side="right")
+        self.head = tk.Canvas(wrap, bg=PANEL, height=30, highlightthickness=0, bd=0)
+        self.head.pack(fill="x", pady=(14, 0))
+        tk.Frame(wrap, bg=LINE, height=1).pack(fill="x")
+        tw = tk.Frame(wrap, bg=PANEL)
+        tw.pack(fill="both", expand=True)
+        self.tb = tk.Canvas(tw, bg=PANEL, highlightthickness=0, bd=0)
+        sb = DarkScrollbar(tw, command=self.tb.yview, bg=PANEL)
         self.tb.configure(yscrollcommand=sb.set)
-        sb.pack(side="right", fill="y")
+        sb.pack(side="right", fill="y", padx=(6, 0))
         self.tb.pack(fill="both", expand=True)
-        self._scroll_cv = self.tb            # roda mouse menggulir tabel
-        tk.Button(btns, text="Masuk", font=BOLD, relief="flat", bg=C.ACCENT, fg="white",
-                  activebackground=C.ACCENT_HOVER, activeforeground="white",
-                  command=self._login).pack(side="left", fill="x", expand=True, ipady=3)
-        self.edit_btn = tk.Button(btns, text="Edit", font=BOLD, relief="flat", bg=FIELD,
-                                  fg=FG, activebackground="#3a3a3a", activeforeground=FG,
-                                  command=self._edit)
-        self.edit_btn.pack(side="left", fill="x", expand=True, ipady=3, padx=(6, 0))
-        self.del_btn = tk.Button(btns, text="Hapus", font=BOLD, relief="flat", bg=FIELD,
-                                 fg="#ff6b6b", activebackground="#3a3a3a",
-                                 activeforeground="#ff6b6b", command=self._delete)
-        self.del_btn.pack(side="left", fill="x", expand=True, ipady=3, padx=(6, 0))
-        self.q.trace_add("write", lambda *a: self._refill())
         self.tb.bind("<Configure>", lambda ev: self._draw())
         self.tb.bind("<Button-1>", self._click)
         self.tb.bind("<Double-Button-1>", self._double)
         self.tb.bind("<Motion>", self._motion)
         self.tb.bind("<Leave>", lambda ev: self._set_hover(None))
-        self._refill()
-        e.bind("<Return>", lambda ev: self._login())
-        e.bind("<Down>", lambda ev: self._move(1))
-        e.bind("<Up>", lambda ev: self._move(-1))
-        e.focus_set()
 
-    # posisi kolom (px) dihitung dari lebar huruf Consolas: tetap rata di semua skala DPI
+    # posisi kolom (px) dihitung dari lebar angka "0": tetap rata di semua skala DPI
     def _xs(self):
         cw = self._mono.measure("0")
         w = max(200, self.tb.winfo_width())
-        x_kind, x_id = 6, 6 + cw * 11
-        x_name = x_id + cw * 10
-        x_pin = w - 8 - cw * 10
+        x_kind, x_id = 12, 12 + cw * 13
+        x_name = x_id + cw * 12
+        x_pin = w - 12 - cw * 11
         return x_kind, x_id, x_name, x_pin, cw
 
     def _col_at(self, x):
@@ -393,7 +764,7 @@ class DevPanel(tk.Toplevel):
         return pin if show else "\u2022" * 4
 
     def _refill(self):
-        q = self.q.get().strip().lower()
+        q = self._q.get().strip().lower()
         want = FILTER_KIND.get(self.f_kind.get())
         shown = [it for it in self.items
                  if (want is None or it[0] in want)
@@ -423,20 +794,20 @@ class DevPanel(tk.Toplevel):
         tb.delete("all")
         self.head.delete("all")
         for x, t in ((x_kind, "Jenis"), (x_id, "ID"), (x_name, "Nama"), (x_pin, "PIN")):
-            self.head.create_text(x, 9, text=t, anchor="w", font=MONO_B, fill=MUTED)
-        self._hov_rect = tb.create_rectangle(0, -R, w, 0, fill="#363636", width=0)
-        self._sel_rect = tb.create_rectangle(0, -R, w, 0, fill=C.ACCENT, width=0)
+            self.head.create_text(x, 15, text=t, anchor="w", font=self._head_f, fill=MUTED)
+        self._hov_rect = tb.create_rectangle(0, -R, w, 0, fill=NAV_HOV, width=0)
+        self._sel_rect = tb.create_rectangle(0, -R, w, 0, fill=NAV_SEL, width=0)
         self._pin_ids = []
         self._row_ids = []
         for i, it in enumerate(self.shown):
             y = i * R + R / 2
-            ids = (tb.create_text(x_kind, y, anchor="w", font=MONO, fill=FG,
+            ids = (tb.create_text(x_kind, y, anchor="w", font=self._mono, fill=FG,
                                   text=self._fit(self._kind[it[0]][0], x_id - x_kind - cw)),
-                   tb.create_text(x_id, y, anchor="w", font=MONO, fill=FG,
+                   tb.create_text(x_id, y, anchor="w", font=self._mono, fill=FG,
                                   text=self._fit(it[1], x_name - x_id - cw)),
-                   tb.create_text(x_name, y, anchor="w", font=MONO, fill=FG,
+                   tb.create_text(x_name, y, anchor="w", font=self._mono, fill=FG,
                                   text=self._fit(it[2], x_pin - x_name - cw)),
-                   tb.create_text(x_pin, y, anchor="w", font=MONO, fill=MUTED,
+                   tb.create_text(x_pin, y, anchor="w", font=self._mono, fill=MUTED,
                                   text=self._pin_text(it, False)))
             self._row_ids.append(ids)
             self._pin_ids.append(ids[3])
@@ -558,7 +929,7 @@ class DevPanel(tk.Toplevel):
         w = max(200, self.tb.winfo_width())
         x0, x1 = {"id": (x_id, x_name), "name": (x_name, x_pin), "pin": (x_pin, w)}[col]
         var = tk.StringVar(value=value)
-        ent = tk.Entry(self.tb, textvariable=var, font=MONO, bg="#101010", fg="white",
+        ent = tk.Entry(self.tb, textvariable=var, font=self._mono, bg=SEG_BG, fg="white",
                        insertbackground="white", relief="flat", highlightthickness=1,
                        highlightbackground=C.ACCENT, highlightcolor=C.ACCENT)
         win = self.tb.create_window(x0 - 3, i * self.ROW_H, anchor="nw", window=ent,
@@ -722,45 +1093,6 @@ class DevPanel(tk.Toplevel):
                 self._select(n)
                 break
 
-    # --- Settings ---------------------------------------------------------------------------
-    def _group(self, title):
-        """Grup baru (judul + baris-barisnya); baris ditambah lewat _item()."""
-        head = tk.Label(self.body, text=title, bg=BG, fg=MUTED, font=BOLD, anchor="w")
-        self._groups.append((head, title.lower(), []))
-
-    def _item(self, widget, text):
-        self._groups[-1][2].append((widget, text.lower()))
-
-    def _filter(self):
-        """Tampilkan hanya grup / baris yang cocok dengan kolom cari (judul grup cocok =
-        semua barisnya tampil). Widget tidak dibuat ulang: isian yang belum di-Apply tetap."""
-        words = self._q.get().lower().split()
-        for head, _t, rows in self._groups:
-            head.pack_forget()
-            for w, _x in rows:
-                w.pack_forget()
-        shown = 0
-        for head, title, rows in self._groups:
-            if all(w in title for w in words):
-                hit = rows
-            else:
-                hit = [(w, x) for w, x in rows if all(q in x + " " + title for q in words)]
-            if not hit:
-                continue
-            head.pack(fill="x", pady=(8, 2))
-            for w, _x in hit:
-                w.pack(fill="x", pady=1)
-            shown += len(hit)
-        self._empty.pack_forget()
-        if not shown:
-            self._empty.pack(fill="x", pady=12)
-        self._reset_btn.pack_forget()
-        if not words:
-            self._reset_btn.pack(fill="x", pady=(10, 4), ipady=2)
-        self._scroll_cv.yview_moveto(0)
-        if not self._restoring:
-            self._remember(query=self._q.get(), scroll=0.0)
-
     def _remember(self, **kv):
         """Simpan posisi (digabung: tulis file maks. sekali per 400 ms)."""
         self._ui_pending = {**getattr(self, "_ui_pending", {}), **kv}
@@ -793,111 +1125,123 @@ class DevPanel(tk.Toplevel):
         if cv is not None and cv.winfo_exists():
             cv.yview_scroll(int(-e.delta / 120) or (-1 if e.delta > 0 else 1), "units")
 
-    def _settings_tab(self):
+    # --- halaman Settings ------------------------------------------------------------------
+    # Semua baris dibuat SEKALI (isian yang belum di-Apply tetap ada saat pindah halaman);
+    # pindah halaman / cari = hanya pack / pack_forget.
+    def _build_settings(self, parent):
         from elearning import dev_values as DV
+        from elearning.ui.controls import RoundEntry
+        from elearning.ui.widgets import DarkScrollbar, Switch
         self._pending = {}           # perubahan yang belum di-Apply: key -> nilai
         self._pending_feat = {}
         self._val_vars = {}
-        self._groups = []            # (judul, teks judul, [(baris, teks cari)])
-        outer = self.body
-        # kolom cari (di atas, tidak ikut tergulir)
-        top = tk.Frame(outer, bg=BG)
-        top.pack(fill="x", pady=(0, 4))
-        tk.Label(top, text="Cari", bg=BG, fg=MUTED, font=FONT).pack(side="left", padx=(0, 6))
-        self._q = tk.StringVar()
-        q = tk.Entry(top, textvariable=self._q, font=FONT, bg=FIELD, fg=FG,
-                     insertbackground=FG, relief="flat")
-        q.pack(side="left", fill="x", expand=True, ipady=3)
-        q.bind("<Escape>", lambda e: self._q.set(""))
-        # area gulir (isi panjang) + tombol Apply tetap di bawah
-        bottom = tk.Frame(outer, bg=BG)
-        bottom.pack(side="bottom", fill="x")
-        cv = tk.Canvas(outer, bg=BG, highlightthickness=0, bd=0)
-        sb = tk.Scrollbar(outer, command=cv.yview)
+        self._reg = []               # ("head" | "row", halaman, grup, widget, garis, teks cari)
+        f = self._set_frame = tk.Frame(parent, bg=PANEL)
+        cv = self.scv = tk.Canvas(f, bg=PANEL, highlightthickness=0, bd=0)
+        sb = DarkScrollbar(f, command=cv.yview, bg=PANEL)
         cv.configure(yscrollcommand=lambda a, b, sb=sb: self._on_scroll(sb, a, b))
-        sb.pack(side="right", fill="y")
+        sb.pack(side="right", fill="y", padx=(0, 6))
         cv.pack(fill="both", expand=True)
-        inner = tk.Frame(cv, bg=BG)
-        win = cv.create_window(0, 0, window=inner, anchor="nw")
+        inner = self._set_inner = tk.Frame(cv, bg=PANEL)
+        win = cv.create_window(28, 0, window=inner, anchor="nw")
         inner.bind("<Configure>", lambda e: cv.configure(scrollregion=cv.bbox("all")))
-        cv.bind("<Configure>", lambda e: cv.itemconfigure(win, width=e.width))
-        self._scroll_cv = cv
-        self.body = inner
-        self._group("Tampilan login")
-        mode = tk.StringVar(value=S.login_mode())
-        for key, label in LOGIN_LABELS:
-            self._item(tk.Radiobutton(self.body, text=label, value=key, variable=mode,
-                                      font=FONT, bg=BG, fg=FG, selectcolor=FIELD,
-                                      activebackground=BG, activeforeground=FG, anchor="w",
-                                      command=lambda: self._mark("login_mode", mode.get())),
-                       f"{label} {key} login mode")
-        self._group("Warna aksen")
-        acc = tk.StringVar(value=S.get("accent"))
-        row = tk.Frame(self.body, bg=BG)
-        for n, (key, (name, color, _hover)) in enumerate(S.ACCENTS.items()):
-            tk.Radiobutton(row, text=name, value=key, variable=acc, font=FONT, bg=BG,
-                           fg=color, selectcolor=FIELD, activebackground=BG,
-                           activeforeground=color, anchor="w",
-                           command=lambda: self._mark("accent", acc.get())
-                           ).grid(row=n // 3, column=n % 3, sticky="w", padx=(0, 6))
-        self._item(row, "warna aksen accent color " + " ".join(
-            f"{k} {v[0]}" for k, v in S.ACCENTS.items()))
-        self._group("Fitur")
+        cv.bind("<Configure>", lambda e: cv.itemconfigure(win, width=max(200, e.width - 56)))
+
+        def head(page, text):
+            lbl = tk.Label(inner, text=text, bg=PANEL, fg=FG, font=(C.FONT, 14, "bold"),
+                           anchor="w")
+            self._reg.append(("head", page, text, lbl, None, text.lower()))
+
+        def row(page, group, title, desc, make, search=""):
+            fr = tk.Frame(inner, bg=PANEL)
+            left = tk.Frame(fr, bg=PANEL)
+            left.pack(side="left", fill="x", expand=True, pady=12)
+            tk.Label(left, text=title, bg=PANEL, fg=FG, font=(C.FONT, 11),
+                     anchor="w").pack(fill="x")
+            if desc:
+                tk.Label(left, text=desc, bg=PANEL, fg=MUTED, font=(C.FONT, 10), anchor="w",
+                         justify="left", wraplength=480).pack(fill="x", pady=(2, 0))
+            ctrl = make(fr)
+            ctrl.pack(side="right", padx=(16, 0))
+            line = tk.Frame(inner, bg=LINE, height=1)
+            self._reg.append(("row", page, group, fr, line,
+                              f"{title} {desc} {search} {group}".lower()))
+
+        # Tampilan
+        head("umum", "Tampilan login")
+        row("umum", "Tampilan login", "Mode layar login",
+            "Carousel + video latar, carousel 3 baris kartu, atau video latar saja.",
+            lambda p: Seg(p, LOGIN_LABELS, S.login_mode(),
+                          lambda v: self._mark("login_mode", v)),
+            " ".join(f"{k} {lbl}" for k, lbl in LOGIN_LABELS) + " login mode")
+        head("umum", "Warna aksen")
+        row("umum", "Warna aksen", "Warna aksen",
+            "Tombol utama dan sorotan. Berlaku penuh setelah aplikasi dibuka ulang.",
+            lambda p: Swatches(p, [(k, v[1], v[0]) for k, v in S.ACCENTS.items()],
+                               S.get("accent"), lambda v: self._mark("accent", v)),
+            "accent color " + " ".join(f"{k} {v[0]}" for k, v in S.ACCENTS.items()))
+        # Fitur
+        head("fitur", "Fitur")
         for key, label in S.FEATURES:
-            v = tk.BooleanVar(value=S.feature(key))
-            self._item(tk.Checkbutton(self.body, text=label, variable=v, font=FONT, bg=BG,
-                                      fg=FG, selectcolor=FIELD, activebackground=BG,
-                                      activeforeground=FG, anchor="w",
-                                      command=lambda k=key, var=v: self._mark_feat(k, var.get())),
-                       f"{label} {key} fitur on off")
-        self._item(tk.Label(self.body, text=f"PC kuat (NVIDIA + >=12 thread): "
-                                            f"{'ya' if getattr(C, 'HIGH_END', False) else 'tidak'}",
-                            bg=BG, fg=MUTED, font=FONT, anchor="w"),
-                   "pc kuat nvidia high end fps60")
-        # --- nilai (isi angka / teks) ---
+            row("fitur", "Fitur", label, "",
+                lambda p, k=key: Switch(p, S.feature(k), bg=PANEL,
+                                        command=lambda v, k=k: self._mark_feat(k, v)),
+                f"{key} fitur on off")
+        row("fitur", "Fitur", "PC kuat (driver NVIDIA + >= 12 thread)",
+            "Menentukan carousel login 60 fps.",
+            lambda p: tk.Label(p, text="Ya" if getattr(C, "HIGH_END", False) else "Tidak",
+                               bg=PANEL, fg=MUTED, font=(C.FONT, 10)),
+            "pc kuat nvidia high end fps60")
+        # Nilai (angka / teks), satu halaman per grup
         group = None
         for key, grp, label, _kind, _t in DV.VALUES:
             if grp != group:
                 group = grp
-                self._group(grp)
-            line = tk.Frame(self.body, bg=BG)
-            line.columnconfigure(0, weight=1)
+                head("v:" + grp, grp)
             var = tk.StringVar(value=DV.current_text(key))
             self._val_vars[key] = (var, var.get())
-            tk.Label(line, text=label, bg=BG, fg=FG, font=FONT, anchor="w").grid(
-                row=0, column=0, sticky="w")
-            tk.Entry(line, textvariable=var, font=FONT, bg=FIELD, fg=FG, insertbackground=FG,
-                     relief="flat", width=14).grid(row=0, column=1, sticky="e", ipady=1)
             var.trace_add("write", lambda *a: self._changed())
-            self._item(line, f"{label} {key.replace('_', ' ')}")
-        self._empty = tk.Label(self.body, text="Tidak ada setting yang cocok.", bg=BG,
-                               fg=MUTED, font=FONT)
-        self._reset_btn = tk.Button(self.body, text="Reset semua nilai ke bawaan", font=FONT,
-                                    relief="flat", bg=FIELD, fg=FG, activebackground="#3a3a3a",
-                                    activeforeground=FG, command=self._reset_values)
-        self.body = outer
-        btns = tk.Frame(bottom, bg=BG)
-        btns.pack(fill="x", pady=(6, 0))
-        # Apply Now = sementara (sampai app ditutup); Apply As Default = disimpan ke file
-        self.apply_btn = tk.Button(btns, text="Apply Now", font=BOLD, relief="flat",
-                                   bg=C.ACCENT, fg="white", activebackground=C.ACCENT_HOVER,
-                                   activeforeground="white", state="disabled",
-                                   command=lambda: self._apply(False))
-        self.apply_btn.pack(side="left", fill="x", expand=True, ipady=3)
-        self.default_btn = tk.Button(btns, text="Apply As Default", font=BOLD, relief="flat",
-                                     bg=FIELD, fg=FG, activebackground="#3a3a3a",
-                                     activeforeground=FG, state="disabled",
-                                     command=lambda: self._apply(True))
-        self.default_btn.pack(side="left", fill="x", expand=True, ipady=3, padx=(6, 0))
-        # posisi terakhir (juga setelah Apply / Reset / app dibuka ulang, sampai PC reboot)
-        st = _ui_state()
-        self._restoring = True
-        self._q.set(st.get("query", ""))
-        self._filter()
-        self._q.trace_add("write", lambda *a: self._filter())
-        self.after_idle(lambda f=float(st.get("scroll", 0.0) or 0.0): self._restore_scroll(f))
-        self._changed()                   # status tombol (ada setting sementara?)
-        q.focus_set()
+
+            def entry(p, var=var):
+                return RoundEntry(p, var, width_chars=12, font=(C.FONT, 10), height=32,
+                                  fill=SEG_BG, radius=8)
+            row("v:" + grp, grp, label, key, entry, key.replace("_", " "))
+        self._empty = tk.Label(inner, text="Tidak ada setting yang cocok.", bg=PANEL, fg=MUTED,
+                               font=(C.FONT, 10), anchor="w")
+
+    def _filter(self):
+        """Halaman Settings: baris halaman ini; kalau ada kata di kolom cari = baris yang cocok
+        dari SEMUA halaman (judul grup cocok = semua barisnya tampil)."""
+        words = self._q.get().lower().split()
+        for kind, _p, _g, w, line, _t in self._reg:
+            w.pack_forget()
+            if line is not None:
+                line.pack_forget()
+        self._empty.pack_forget()
+        if words:
+            groups = {g for k, _p, g, _w, _l, _t in self._reg
+                      if k == "head" and all(q in g.lower() for q in words)}
+            hit = [r for r in self._reg if r[0] == "row"
+                   and (r[2] in groups or all(q in r[5] for q in words))]
+        else:
+            hit = [r for r in self._reg if r[0] == "row" and r[1] == self.page]
+        want = {(r[1], r[2]) for r in hit}
+        first, last_line = True, None
+        for kind, page, group, w, line, _t in self._reg:
+            if kind == "head":
+                if (page, group) in want:
+                    w.pack(fill="x", pady=(4 if first else 26, 4))
+                    first = False
+                    last_line = None
+            elif (kind, page, group, w, line, _t) in hit:
+                w.pack(fill="x")
+                line.pack(fill="x")
+                last_line = line
+        if not hit:
+            self._empty.pack(fill="x", pady=12)
+        self.scv.yview_moveto(0)
+        if not self._restoring:
+            self._remember(scroll=0.0)
 
     def _mark(self, key, value):
         self._pending[key] = value
@@ -969,7 +1313,7 @@ class DevPanel(tk.Toplevel):
             C.log(f"Dev: apply gagal: {exc!r}")
             self._note("Tersimpan, tapi gagal diterapkan (lihat app.log).")
             return
-        self.show("settings")              # warna tombol ikut aksen baru
+        self._rebuild()                    # warna tombol ikut aksen baru
         self.lift()
         self._note("Disimpan sebagai bawaan." if as_default
                    else "Diterapkan sementara (kembali saat app ditutup).")
@@ -984,8 +1328,14 @@ class DevPanel(tk.Toplevel):
             C.log(f"Dev: reset nilai gagal: {exc!r}")
             self._note("Gagal reset (lihat app.log).")
             return
-        self.show("settings")
+        self._rebuild()
         self._note("Nilai kembali ke bawaan.")
+
+    def _rebuild(self):
+        """Bangun ulang isi panel (setelah Apply / Reset), tetap di halaman yang sama."""
+        page = self.page
+        self._build()
+        self.show(page)
 
     def destroy(self):
         _open["win"] = None

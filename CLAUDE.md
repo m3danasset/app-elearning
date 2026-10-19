@@ -215,7 +215,17 @@ PB..., anak SK...), trial. Balas pengguna dalam bahasa Indonesia.
 - Tab terakhir, kolom Cari, dan posisi gulir Settings diingat di data\dev_ui.json (setelah
   Apply / Reset, tutup-buka jendela, buka ulang app); di-reset kalau PC sudah reboot (waktu
   nyala PC = time.time() - GetTickCount64, beda > 120 dtk = reboot).
-- ui/dev_panel.py: jendela sederhana (widget Tk biasa), selalu di atas. Tab Login (cari akun,
+- TAMPILAN = SETTINGS CLAUDE, TANPA ANIMASI: jendela tanpa bilah judul bersudut bulat
+  (_rounded_window: overrideredirect + -transparentcolor KEY, digeser lewat navigasi / kepala,
+  _draggable), navigasi kiri (kolom Search, "Dev: Akun", "Settings: Tampilan, Fitur, 15 grup
+  nilai" = NavItem ikon + pill terpilih), isi kanan = judul grup tebal + baris (judul +
+  keterangan | kontrol) dipisah garis tipis, tombol x kanan atas, bilah bawah (status + tombol
+  RoundButton). Kontrol: Seg (tombol segmen: mode login, filter jenis, urut), Swatches (lingkaran
+  warna aksen, cincin = terpilih), widgets.Switch (fitur), RoundEntry (nilai). Baris Settings
+  dibuat SEKALI; pindah halaman / cari = pack_forget (isian belum di-Apply tetap). Kolom cari:
+  di Akun = saring akun (Enter = Masuk, panah = pilih); di Settings = hasil dari SEMUA halaman.
+  Esc = kosongkan cari, Esc lagi = tutup. Popup PIN = kartu kecil gaya sama (DevPinDialog).
+- ui/dev_panel.py: selalu di atas. Tab Login (cari akun,
   masuk tanpa PIN; App.dev_login keluar dulu tanpa konfirmasi) dan Settings: tampilan login,
   warna aksen (app_settings.ACCENTS, berlaku setelah app dibuka ulang: apply_theme di App),
   fitur on/off (app_settings.FEATURES: intro, badges, certificate, floating, mini_player,
