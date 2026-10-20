@@ -613,6 +613,16 @@ eport_tasks.json, per guru per bulan, bagian MINGGU INI (week)
   bisa naik / junction keluar). Tanpa jendela mini / tombol "Open files". File program
   (RUN_EXTS: .exe, .bat, .lnk, ...) tidak dibuka. Dicabut / dikeluarkan -> kembali ke Dashboard
   + file browser ditutup.
+  SERET & LEPAS (USB saja, opts on_move -> UsbPage._move): seret file / folder (atau semua file
+  tercentang) ke folder di daftar atau ke potongan alamat di atas = PINDAH; Ctrl saat lepas =
+  SALIN (gaya File Explorer). Mulai seret setelah geser > 7 px; klik biasa (tanpa seret) tetap
+  centang / masuk folder, tapi diproses saat tombol DILEPAS (_dpress, _list_release, _click_action;
+  klik kedua klik dua kali dalam 0,45 dtk setelah masuk folder diabaikan). Selama seret: kartu
+  bayangan "nama / Move|Copy to <folder>" (_drag_tick, maks. 30 fps, gulir otomatis di tepi),
+  folder tujuan berbingkai oranye (_drop_hi, digambar di baris, bukan overlay), potongan alamat
+  tersorot; Esc membatalkan. Pindah / salin di thread, hanya di dalam flashdisk, nama sama jadi
+  "nama (2)", folder tidak bisa ke dirinya, status "Moved / Copied n item(s)". Footer: Move Drag,
+  Copy Ctrl+Drag. Tes event sintetis: Tk menganggap Button-1 berdekatan sebagai Double-Button-1.
   Hapus (USB saja, FileBrowser on_delete): centang file / item terpilih (file atau folder) ->
   tombol "Delete n" merah di footer atau tombol Del -> popup MiniConfirm
   (App._confirm, sama dengan Log out: Cancel fokus awal, Delete merah) -> hapus di thread

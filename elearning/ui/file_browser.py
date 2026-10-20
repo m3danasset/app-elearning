@@ -279,6 +279,11 @@ class FileBrowser(OverlayPanel):
         self.on_save = opts.get("on_save")
         self.on_open = opts.get("on_open")
         self.on_delete = opts.get("on_delete")  # USB: hapus (konfirmasi di luar, lalu buka lagi)
+        self.on_move = opts.get("on_move")      # USB: seret & lepas ke folder (pindah / salin)
+        self._dpress = self._drag = self._drag_job = None
+        self._drag_imgs = []
+        self._drop_hi = None
+        self._nav_t = 0.0
         self.view = _state["view"]
         self.sort = _state["sort"]      # "name" (A-Z) / "date" (terbaru dulu); folder tetap di atas
         self.entries = []        # isi folder (semua)
@@ -344,7 +349,7 @@ class FileBrowser(OverlayPanel):
     # --- tombol & mouse -------------------------------------------------------------------
     def _bind_keys(self):
         b = self.bind
-        b("<Escape>", lambda e: self.close())
+        b("<Escape>", lambda e: self._escape())
         b("<Return>", lambda e: self._activate(self.sel))
         b("<KP_Enter>", lambda e: self._activate(self.sel))
         b("<space>", lambda e: self._toggle(self.sel))
@@ -371,6 +376,8 @@ class FileBrowser(OverlayPanel):
         L = self.list
         L.bind("<Motion>", self._list_motion)
         L.bind("<Button-1>", self._list_click)
+        L.bind("<B1-Motion>", self._list_drag)
+        L.bind("<ButtonRelease-1>", self._list_release)
         L.bind("<Double-Button-1>", self._list_double)
         for w in (L, self.cv):
             w.bind("<MouseWheel>", lambda e: self._scroll(-1 if e.delta > 0 else 1))
@@ -753,6 +760,9 @@ class FileBrowser(OverlayPanel):
         hints.append(("Check", "Space") if self.pick else ("Open", "Enter"))
         if not self.pick and self.on_delete is not None:
             hints.append(("Delete", "Del"))
+        if self.on_move is not None:
+            hints.append(("Move", "Drag"))
+            hints.append(("Copy", "Ctrl+Drag"))
         for text, key in hints:
             t = cv.create_text(x, y, text=text, anchor="w", fill=C.MUTED, font=self._f_sub,
                                tags="frame")
@@ -856,11 +866,13 @@ class FileBrowser(OverlayPanel):
         x0, y0, x1, y1 = self._item_box(i)
         y0 -= self.offset
         cy = y0 + ROW_H / 2
-        sel = i == self.sel
+        hi = e["path"] == self._drop_hi
+        sel = i == self.sel and self._drop_hi is None or hi
         on = e["path"] in self.checked
         bg = C.CARD_HOVER if sel else C.CARD
         if sel:
-            p = I.pill(x1 - x0, ROW_H - 2, C.CARD_HOVER, C.CARD, r=8)
+            p = I.pill(x1 - x0, ROW_H - 2, C.CARD_HOVER, C.CARD, r=8,
+                       border=C.ACCENT if hi else None)
             if p is not None:
                 cv._imgs.append(p)
                 cv.create_image(x0, y0 + 1, image=p, anchor="nw")
@@ -916,11 +928,13 @@ class FileBrowser(OverlayPanel):
         e = self.shown[i]
         x0, y0, x1, y1 = self._item_box(i)
         y0 -= self.offset
-        sel = i == self.sel
+        hi = e["path"] == self._drop_hi
+        sel = i == self.sel and self._drop_hi is None or hi
         on = e["path"] in self.checked
         bg = C.CARD_HOVER if sel else C.CARD
         if sel:
-            p = I.pill(CELL_W - 4, CELL_H - 4, C.CARD_HOVER, C.CARD, r=10)
+            p = I.pill(CELL_W - 4, CELL_H - 4, C.CARD_HOVER, C.CARD, r=10,
+                       border=C.ACCENT if hi else None)
             if p is not None:
                 cv._imgs.append(p)
                 cv.create_image(x0 + 2, y0 + 2, image=p, anchor="nw")
@@ -1009,15 +1023,149 @@ class FileBrowser(OverlayPanel):
         self._click_nav = False
         if i < 0:
             return
+        if self.on_move is not None:     # tunggu lepas tombol: bisa jadi ini awal seretan
+            if time.perf_counter() - self._nav_t < 0.45:
+                return                   # klik kedua dari klik dua kali di folder
+            self._dpress = {"i": i, "x": e.x, "y": e.y}
+            self.sel = i
+            return
+        self._click_action(i)
+
+    def _click_action(self, i):
         self.sel = i
         ent = self.shown[i]
         if ent["is_dir"]:
             self._click_nav = True    # klik dua kali di folder: klik kedua diabaikan
+            self._nav_t = time.perf_counter()
             self._go(ent["path"])
         elif self._checkable():
             self._toggle(i)
         else:
             self._draw_list()
+
+    # --- seret & lepas (USB): pindah / salin ke folder, gaya File Explorer ------------------
+    def _drag_items(self, i):
+        """Yang ikut diseret: semua file tercentang kalau item ini tercentang, kalau tidak
+        hanya item ini."""
+        e = self.shown[i]
+        if self.checked and e["path"] in self.checked:
+            return list(self.checked.values())
+        return [e]
+
+    def _list_drag(self, e):
+        d = self._dpress
+        if d is None:
+            return
+        if self._drag is None:
+            if abs(e.x - d["x"]) < 7 and abs(e.y - d["y"]) < 7:
+                return
+            self._drag = {"items": self._drag_items(d["i"]), "x": e.x, "y": e.y,
+                          "xr": e.x_root, "yr": e.y_root, "copy": False, "target": None}
+            self.list.config(cursor="fleur")
+            self._drag_tick()
+        g = self._drag
+        g["x"], g["y"], g["xr"], g["yr"] = e.x, e.y, e.x_root, e.y_root
+        g["copy"] = bool(e.state & 0x4)         # Ctrl = salin
+        self._drag_target()
+
+    def _drag_target(self):
+        """Folder di bawah kursor (di daftar) atau potongan alamat (kerangka) = tujuan lepas."""
+        g = self._drag
+        paths = {_norm(it["path"]) for it in g["items"]}
+        target = None
+        i = self._item_at(g["x"], g["y"]) if 0 <= g["x"] < self.lw and 0 <= g["y"] < self.lh \
+            else -1
+        if i >= 0:
+            ent = self.shown[i]
+            if ent["is_dir"] and _norm(ent["path"]) not in paths:
+                target = ent["path"]
+        else:
+            cx, cy = g["xr"] - self.cv.winfo_rootx(), g["yr"] - self.cv.winfo_rooty()
+            for bx0, by0, bx1, by1, name, data in self._boxes:
+                if name == "crumb" and data and bx0 <= cx < bx1 and by0 <= cy < by1 \
+                        and _norm(data) != _norm(self.cur):
+                    target = data
+        g["target"] = target
+        hi = target if i >= 0 else None
+        if hi != self._drop_hi:                 # folder tujuan di daftar: bingkai oranye
+            self._drop_hi = hi
+            self._draw_list()
+        hov = ("crumb", target) if target and not any(
+            e["path"] == target for e in self.shown) else None
+        if hov != self._hover:
+            self._hover = hov
+            self._draw_frame()
+
+    def _drag_tick(self):
+        """Gambar bayangan seret + sorotan folder tujuan (maks. 30 fps); gulir otomatis di tepi."""
+        self._drag_job = None
+        g = self._drag
+        if g is None or self._closed:
+            return
+        cv = self.list
+        cv.delete("drag")
+        self._drag_imgs = []
+        if g["y"] < 26 and self.offset > 0:
+            self._scroll(-1)
+        elif g["y"] > self.lh - 26:
+            self._scroll(1)
+        t = g["target"]
+        n = len(g["items"])
+        name = g["items"][0]["name"] if n == 1 else f"{n} items"
+        verb = "Copy" if g["copy"] else "Move"
+        dest = os.path.basename(os.path.normpath(t)) or t if t else ""
+        line2 = f"{verb} to {dest}" if t else "Drop on a folder"
+        f1, f2 = self._f_row, self._f_sub
+        w = max(f1.measure(_fit(f1, name, 220)), f2.measure(line2)) + 28
+        ph = I.pill(w, 50, C.SEG_ON, C.CARD, r=10, border=C.ACCENT if t else C.BORDER)
+        if ph is not None:
+            self._drag_imgs.append(ph)
+            x, y = g["x"] + 16, g["y"] + 12
+            cv.create_image(x, y, image=ph, anchor="nw", tags="drag")
+            cv.create_text(x + 14, y + 16, text=_fit(f1, name, 220), anchor="w", fill=C.TEXT,
+                           font=f1, tags="drag")
+            cv.create_text(x + 14, y + 36, text=line2, anchor="w",
+                           fill=C.ACCENT_HOVER if t else C.MUTED, font=f2, tags="drag")
+        self._drag_job = self.after(C.UI_FRAME_MS, self._drag_tick)
+
+    def _drag_end(self, drop):
+        g, self._drag = self._drag, None
+        if self._drag_job is not None:
+            try:
+                self.after_cancel(self._drag_job)
+            except Exception:
+                pass
+            self._drag_job = None
+        self.list.delete("drag")
+        self._drag_imgs = []
+        self.list.config(cursor="")
+        if self._drop_hi is not None:
+            self._drop_hi = None
+            self._draw_list()
+        if self._hover is not None and self._hover[0] == "crumb":
+            self._hover = None
+            self._draw_frame()
+        if drop and g is not None and g["target"] and self.on_move is not None:
+            items = [{"path": it["path"], "name": it["name"], "is_dir": it["is_dir"]}
+                     for it in g["items"]]
+            self.on_move(items, g["target"], g["copy"], self.cur)
+
+    def _list_release(self, e):
+        d, self._dpress = self._dpress, None
+        if d is None:
+            return
+        if self._drag is not None:
+            self._drag_end(True)
+            return
+        if not self.loading and self._item_at(e.x, e.y) == d["i"]:
+            self._click_action(d["i"])          # klik biasa (tanpa seret)
+
+    def _escape(self):
+        if self._drag is not None:
+            self._dpress = None
+            self._drag_end(False)
+            return
+        self.close()
 
     def _list_double(self, e):
         if getattr(self, "_click_nav", False) or self.loading:
@@ -1384,7 +1532,8 @@ class UsbPage(tk.Frame):
         self.update_idletasks()               # ukuran area sudah final untuk kerangka
         self.browser = InlineFileBrowser(self.area, mode="resource", root=self.root,
                                          title=self.name, on_open=self._open,
-                                         on_delete=self._delete, start=start)
+                                         on_delete=self._delete, on_move=self._move,
+                                         start=start)
         self.browser.pack(fill="both", expand=True)
 
     def _delete(self, items, folder):
@@ -1447,6 +1596,76 @@ class UsbPage(tk.Frame):
             self.status.config(text=text.strip(), fg=C.ERROR if failed else C.ON)
             from elearning.ui import usb_save
             usb_save.monitor(self).refresh()       # sisa ruang diperbarui
+            self.open_browser(folder)
+
+        threading.Thread(target=work, daemon=True).start()
+        self.after(POLL_MS, wait)
+
+    def _move(self, items, dest, copy, folder):
+        """Seret & lepas di file browser: pindah (Ctrl = salin) ke folder tujuan, di thread.
+        Hanya di dalam flashdisk; nama sama -> "nama (2)"; folder tidak bisa masuk ke dirinya."""
+        root = self.root
+        verb = "Copied" if copy else "Moved"
+        self.status.config(text=("Copying..." if copy else "Moving..."), fg=C.MUTED)
+        box = []
+
+        def free_name(name):
+            base, ext = os.path.splitext(name)
+            n, cand = 2, name
+            while os.path.lexists(os.path.join(dest, cand)):
+                cand = f"{base} ({n}){ext}"
+                n += 1
+            return cand
+
+        def work():
+            import shutil
+            done = skipped = failed = 0
+            for it in items:
+                src = it["path"]
+                try:
+                    nsrc = os.path.normcase(os.path.normpath(src))
+                    ndst = os.path.normcase(os.path.normpath(dest))
+                    if not _inside(src, [("", root)]) or not _inside(dest, [("", root)]):
+                        raise OSError("outside the flash drive")
+                    if nsrc == os.path.normcase(os.path.normpath(root)):
+                        raise OSError("drive root")
+                    if ndst == nsrc or ndst.startswith(nsrc + os.sep):
+                        skipped += 1                    # folder ke dirinya sendiri
+                        continue
+                    if not copy and os.path.normcase(os.path.dirname(nsrc)) == ndst:
+                        skipped += 1                    # sudah di folder itu
+                        continue
+                    target = os.path.join(dest, free_name(os.path.basename(src)))
+                    if it["is_dir"] and not os.path.islink(src):
+                        (shutil.copytree if copy else shutil.move)(src, target)
+                    elif copy:
+                        shutil.copy2(src, target)
+                    else:
+                        shutil.move(src, target)
+                    done += 1
+                except OSError as exc:
+                    C.log(f"USB: {verb} {src!r} -> {dest!r} gagal: {exc!r}")
+                    failed += 1
+            box.append((done, skipped, failed))
+
+        def wait():
+            try:
+                if not self.winfo_exists():
+                    return
+            except tk.TclError:
+                return
+            if not box:
+                self.after(POLL_MS * 3, wait)
+                return
+            done, skipped, failed = box[0]
+            text = f"{verb} {done} item(s)." if done else ""
+            if skipped and not done:
+                text = "Nothing to " + ("copy" if copy else "move") + " there."
+            if failed:
+                text += f" {failed} could not be {verb.lower()} (in use or read-only)."
+            self.status.config(text=text.strip(), fg=C.ERROR if failed else C.ON)
+            from elearning.ui import usb_save
+            usb_save.monitor(self).refresh()
             self.open_browser(folder)
 
         threading.Thread(target=work, daemon=True).start()
