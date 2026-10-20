@@ -398,7 +398,12 @@ class CourseDock(tk.Canvas):
         w, h = self._size
         self._s = self._card_size()
         s = self._s
-        self._cy = h * (0.60 if self.hero else 0.54)
+        if self.hero and self.stats_student is None:
+            # trial / Resources trial: tanpa widget progres di bawah -> sapaan + kartu (tinggi
+            # blok ~ sapaan 92 px + kartu) tepat di TENGAH halaman
+            self._cy = h / 2 + 46 + LIFT / 2
+        else:
+            self._cy = h * (0.60 if self.hero else 0.54)
         self._band = (int(self._cy - s / 2 - LIFT - 2),
                       int(s + LIFT + 6 + 2 * SH_BLUR + SH_DY))   # + ruang bayangan
         self.coords(self._band_item, 0, self._band[0])
