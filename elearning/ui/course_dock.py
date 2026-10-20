@@ -398,9 +398,9 @@ class CourseDock(tk.Canvas):
         w, h = self._size
         self._s = self._card_size()
         s = self._s
-        if self.hero and self.stats_student is None:
-            # trial / Resources trial: tanpa widget progres di bawah -> sapaan + kartu (tinggi
-            # blok ~ sapaan 92 px + kartu) tepat di TENGAH halaman
+        if self.hero:
+            # Dashboard murid / trial / Resources: sapaan + kartu (tinggi blok ~ sapaan 92 px +
+            # kartu) tepat di TENGAH halaman; widget progres murid mengikuti di bawah kartu
             self._cy = h / 2 + 46 + LIFT / 2
         else:
             self._cy = h * (0.60 if self.hero else 0.54)
